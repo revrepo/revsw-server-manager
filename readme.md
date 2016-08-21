@@ -7,6 +7,6 @@
 * sudo pip install virtualenv
 * cd project_folder
 * virtualenv venv
-* source ./env/bin/activate
+* source ./venv/bin/activate
 * pip install -r requirements.txt
 
