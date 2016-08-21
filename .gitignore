@@ -87,5 +87,8 @@ ENV/
 
 # Rope project settings
 .ropeproject
+<<<<<<< HEAD
 
 .idea/
+=======
+>>>>>>> 8dffb370ea774a3d8ea71c0f3da0a5c515f00c83
