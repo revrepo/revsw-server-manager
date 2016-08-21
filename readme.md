@@ -5,7 +5,7 @@
 # Installation
 ## Create python virtualenv for packages 
 * sudo pip install virtualenv
-* cd <project folder>
+* cd project_folder
 * virtualenv venv
 * source ./env/bin/activate
 * pip install -r requirements.txt
