@@ -1,3 +1,5 @@
+#!/bin/bash
+
 /etc/init.d/revsw-pcm-config stop
 /etc/init.d/revsw-pcm-purge stop
 sudo dpkg -i libwurfl-1.8.0.0-x86_64.deb

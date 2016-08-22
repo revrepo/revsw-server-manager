@@ -83,6 +83,17 @@ class Nsone():
                 logger.debug("The nsone monitoring job of host %s is %s" % (host,job['id']))
                 return job
         raise Exception("Could not find monitoring job for host %s" % host)
+
+    def get_monitoring_jobs_by_host(self, host):
+        logger.debug("Looking for the nsone monitoring jobs of host %s" % host)
+        found_jobs = []
+        for job in self.get_monitoring_jobs():
+            if job['config']['host'].lower() == host.lower():
+                found_jobs.append(job)
+
+        if len(found_jobs) == 0:
+            raise Exception("Could not find monitoring jobs for host %s" % host)
+        return found_jobs
              
     def fail_monitoring_job(self, host):
         logger.debug("Failing monitoring job for server %s" % host)
@@ -111,3 +122,33 @@ class Nsone():
                 }
         ]}
         self._post_api_call("/v1/monitoring/jobs/%s" % job_id, data)
+
+    def fail_status_monitoring_jobs(self, host):
+        logger.debug("Failing monitoring job for server %s" % host)
+        monitoring_jobs = self.get_monitoring_jobs_by_host(host)
+        for monitoring_job in monitoring_jobs:
+            job_id = monitoring_job['id']
+            data = {
+                'config': monitoring_job['config']
+            }
+            if monitoring_job['config']['port'] == 80:
+                data['config']['port'] = 180
+            elif monitoring_job['config']['port'] == 18000:
+                data['config']['port'] = 28000
+
+            self._post_api_call("/v1/monitoring/jobs/%s" % job_id, data)
+
+    def unfail_status_monitoring_jobs(self, host):
+        logger.debug("Unfailing monitoring job for server %s" % host)
+        monitoring_jobs = self.get_monitoring_jobs_by_host(host)
+        for monitoring_job in monitoring_jobs:
+            job_id = monitoring_job['id']
+            data = {
+                'config': monitoring_job['config']
+            }
+            if monitoring_job['config']['port'] == 180:
+                data['config']['port'] = 80
+            elif monitoring_job['config']['port'] == 28000:
+                data['config']['port'] = 18000
+
+            self._post_api_call("/v1/monitoring/jobs/%s" % job_id, data)
