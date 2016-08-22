@@ -42,7 +42,7 @@ That's what you can do with it:
     rs help - print help, the exact same help you are looking at.
     rs suspend SERVER1 <SERVER2 ...> - suspend traffic on those servers.
     rs resume SERVER1 <SERVER2 ...> - resume traffic on those servers.
-    rs upgrade <REMOTE_UPGRADE_BASH_SCRIPT> <REMOTE_TEST_BASH_SCRIPT> SERVER1 <SERVER2 ...> - perform a full upgrade procedure on those servers.
+    rs upgrade REMOTE_UPGRADE_BASH_SCRIPT REMOTE_TEST_BASH_SCRIPT SERVER1 <SERVER2 ...> - perform a full upgrade procedure on those servers.
     rs wait_low_traffic SERVER1 <SERVER2 ...> - hang until servers reached low traffic.
     rs force_upgrade <REMOTE_UPGRADE_BASH_SCRIPT> <REMOTE_TEST_BASH_SCRIPT> SERVER1 <SERVER2 ...> - quick upgrade, no resume or suspend of traffic.
     rs check_traffic SERVER1 <SERVER2 ...> - check traffic figures on those servers.
@@ -242,13 +242,13 @@ if __name__ == "__main__":
             pprint(nsone.get_monitoring_jobs())
         elif cmd == "_get_nsone_monitoring_job":
             nsone = Nsone()
-            pprint(nsone.get_monitoring_job_by_host(argv[2]))
+            pprint(nsone.get_monitoring_jobs_by_host(argv[2]))
         elif cmd == "_nsone_fail_server":
             nsone = Nsone()
-            pprint(nsone.fail_monitoring_job(argv[2]))            
+            pprint(nsone.fail_status_monitoring_jobs(argv[2]))
         elif cmd == "_nsone_unfail_server":
             nsone = Nsone()
-            pprint(nsone.unfail_monitoring_job(argv[2]))
+            pprint(nsone.unfail_status_monitoring_jobs(argv[2]))
         else:
             print "Not sure what you were trying to do. Here is the usage help.\n\n"
             print_help_exit_error()

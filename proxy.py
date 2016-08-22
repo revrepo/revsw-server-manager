@@ -32,14 +32,14 @@ class Proxy(Server):
         
         self.info("nsone, fail monitoring job.")
         nsone = Nsone()
-        nsone.fail_monitoring_job(self.server_name)            
+        nsone.fail_status_monitoring_jobs(self.server_name)
 
     def resume(self):
         self.info("Resuming.")
         
         self.info("nsone, unfail monitoring job.")
         nsone = Nsone()
-        nsone.unfail_monitoring_job(self.server_name)            
+        nsone.unfail_status_monitoring_jobs(self.server_name)
     
     def upgrade(self):
         # self.nagios_schedule_downtime()

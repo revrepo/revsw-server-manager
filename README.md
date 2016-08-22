@@ -1,6 +1,7 @@
 # Dependencies
 * sudo apt-get install libffi-dev
 * sudo apt-get install python-dev
+* sudo apt-get install libssl-dev
 
 # Installation
 ## Create python virtualenv for packages 
