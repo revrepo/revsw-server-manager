@@ -46,7 +46,7 @@ That's what you can do with it:
     rs wait_low_traffic SERVER1 <SERVER2 ...> - hang until servers reached low traffic.
     rs force_upgrade <REMOTE_UPGRADE_BASH_SCRIPT> <REMOTE_TEST_BASH_SCRIPT> SERVER1 <SERVER2 ...> - quick upgrade, no resume or suspend of traffic.
     rs check_traffic SERVER1 <SERVER2 ...> - check traffic figures on those servers.
-    rs test SERVER1 <SERVER2 ...> - execute test script against those servers.
+    rs test REMOTE_TEST_BASH_SCRIPT SERVER1 <SERVER2 ...> - execute test script against those servers.
     rs nagios_state <SERVER1 ...>- display nagios state. If a server list is provided, it will filter the results.
     rs schedule_downtime SERVER1 <SERVER2 ...> - Declare scheduled downtime in nagios.
     rs cancel_downtime SERVER1 <SERVER2 ...> - Remove declared scheduled downtime in nagios.
@@ -105,7 +105,10 @@ def force_upgrade(server_list, remote_upgrade_script=None, remote_test_script=No
         p.force_upgrade()
 
 
-def test(server_list):
+def test(remote_test_script, server_list):
+    if remote_test_script:
+        settings.PROXY_TEST_COMMAND = "sudo bash %s" % remote_test_script
+
     for server_name in server_list:
         p = Proxy(server_name)
         p.test()
@@ -211,9 +214,9 @@ if __name__ == "__main__":
                 force_upgrade(argv[2:])
 
         elif cmd == "test":
-            if len(argv) < 3:
+            if len(argv) < 4:
                 error_server_list()
-            test(argv[2:])
+            test(argv[2], argv[3:])
         elif cmd == "nagios_state":
             if len(argv) < 3:
                 nagios_state()
