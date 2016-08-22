@@ -44,6 +44,7 @@ class Proxy(Server):
     def upgrade(self):
         # self.nagios_schedule_downtime()
         self.suspend()
+        time.sleep(300)  # sleep 5 minutes
         self.wait_low_traffic()
         self.force_upgrade()
         self.test()
