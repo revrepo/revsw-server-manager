@@ -1,4 +1,8 @@
 requests
 paramiko
 cryptography
+pymongo
+nsone
+jsonschema
+mock
 requests[security]
