@@ -18,7 +18,7 @@
 """
 
 from server import Server
-from nsone import Nsone
+from nsone_api import Nsone
 import re
 import time
 import settings

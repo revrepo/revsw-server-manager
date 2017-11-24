@@ -17,19 +17,71 @@
  from Rev Software, Inc.
 
 """
-
+import argparse
 import datetime
 import pymongo
+import sys
 
 import settings
+from server_deployment.infradb import InfraDBAPI
 
 from server_deployment.mongo_logger import MongoLogger
+from server_deployment.nsone_class import NsOneDeploy
 from server_deployment.server_state import ServerState
 from server_deployment.utilites import DeploymentError
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description="Automatic deployment of server.",
+                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-n", "--host_name", help="Host name of server", )
+    parser.add_argument("-z", "--zone_name", help="Name of zone on NSONE.")
+    parser.add_argument("-i", "--IP", help="IP of server.")
+    parser.add_argument("-r", "--record_type", help="Type of record at NSONE.")
+    parser.add_argument("-l", "--login", help="Login of the server.")
+    parser.add_argument("-p", "--password", help="Password of the server.")
+    parser.add_argument("-c", "--cert", help="Certificate of the server.")
+
+    args = parser.parse_args()
+
     try:
-        # TODO: here will be main sequence of server deploy
-        pass
+        logger = MongoLogger('test_host', datetime.datetime.now().isoformat())
+        host_name = args.host_name
+        host = args.IP
+        zone_name = args.zone_name
+        record_type = args.record_type
+        server = ServerState(
+            host_name, args.login, args.password,
+            logger, ipv4=args.IP, cert=args.cert
+        )
+        nsone = NsOneDeploy(host_name, host, logger)
+        infradb = InfraDBAPI(
+            settings.INFRADB_USERNAME, settings.INFRADB_PASSWORD, logger
+        )
+
+        # Start deploing of server
+        server.check_hostname()
+
+        # Reboot server to update hostname
+        server.reboot()
+        server.re_connect()
+
+        # Add server to NS1
+        nsone.add_new_monitor()
+        zone = nsone.get_zone(zone_name)
+        record = nsone.add_record(zone)
+        record = nsone.get_record(zone, zone_name, record_type)
+
+        infradb.add_server({
+                "name": host_name,
+                "status": 'ONLINE',
+                "location": 1,
+                "hostingprovider": 1,
+                "type": 1,
+                "proxy_software_version": 1,
+                "kernel_version": 1,
+                "revsw_module_version": 1,
+                "IP": args.IP,
+            })
     except DeploymentError as e:
-        pass
+        print e
+        sys.exit(-1)

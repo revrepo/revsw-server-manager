@@ -6,3 +6,4 @@ nsone
 jsonschema
 mock
 requests[security]
+nsone

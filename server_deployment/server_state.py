@@ -32,7 +32,7 @@ class ServerState():
     Class which contact with server and save state its deploy
     """
 
-    def __init__(self, host_name, ipv4, ipv6, login, password, cert, mongo_log):
+    def __init__(self, host_name, login, password, mongo_log, ipv4='', ipv6='', cert=''):
 
         self.host_name = host_name
         self.start_time = datetime.datetime.now()
@@ -97,6 +97,7 @@ class ServerState():
     def reboot(self):
         self.client.exec_command('sudo reboot')
         self.close_connection()
+        time.sleep(120)
 
     # check hostname
     def check_hostname(self):

@@ -22,14 +22,16 @@ import unittest
 import os
 import datetime
 from copy import deepcopy
+from urlparse import urljoin
 
 import pymongo
 
 import mongo_logger
 import settings
 
-from mock import Mock, patch
+from mock import Mock, patch, mock
 
+from server_deployment.infradb import InfraDBAPI
 
 TEST_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "temporary_testing_files/")
 
@@ -46,9 +48,6 @@ class TestAbstract(unittest.TestCase):
         self.mongo_db = self.mongo_cli[settings.MONGO_DB_NAME]
         self.log_collection = self.mongo_db['test_host']
         # print name of running test
-        self.testing_class = mongo_logger.MongoLogger(
-            'test_host', datetime.datetime.now().isoformat()
-        )
         print("RUN_TEST %s" % self._testMethodName)
 
     def tearDown(self):
@@ -58,7 +57,9 @@ class TestAbstract(unittest.TestCase):
 
 
 class TestLoggerClass(TestAbstract):
-
+    testing_class = mongo_logger.MongoLogger(
+        'test_host', datetime.datetime.now().isoformat()
+    )
 
 
     test_server_status = {
@@ -166,3 +167,38 @@ class TestLoggerClass(TestAbstract):
         test_data['nsone']['monitor_type'] = "wrong"
         validation_result = self.testing_class.validate(test_data)
         self.assertEqual(self.test_server_status, db_data)
+
+
+class TestInfraDBAPI(TestAbstract):
+    logger = mongo_logger.MongoLogger(
+            'test_host', datetime.datetime.now().isoformat()
+        )
+    testing_class = InfraDBAPI('login', 'password', logger)
+    test_data = {
+                "name": "test_serv",
+                "status": 'OFFLINE',
+                "location": 1,
+                "hostingprovider": 1,
+                "type": 1,
+                "proxy_software_version":1,
+                "kernel_version":1,
+                "revsw_module_version":1,
+                "IP": '111.111.111.111',
+            }
+
+    @mock.patch('infradb.requests.Session.post')
+    def test_add_new_server(self, mock_post):
+        mock_response = mock.Mock()
+        expected_dict = {
+            "breeds": [
+                "pembroke",
+                "cardigan",
+            ]
+        }
+        mock_response.status_code = 201
+        mock_post.return_value = mock_response
+
+        url = urljoin('http://localhost:8000/api/', 'server/')
+        response_dict = self.testing_class.add_server(self.test_data)
+        mock_post.assert_called_once_with(url, data=self.test_data)
+        self.assertEqual(response_dict, expected_dict)
