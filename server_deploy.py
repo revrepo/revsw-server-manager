@@ -40,7 +40,8 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--login", help="Login of the server.")
     parser.add_argument("-p", "--password", help="Password of the server.")
     parser.add_argument("-c", "--cert", help="Certificate of the server.")
-
+    parser.add_argument("--location", help="Certificate of the server.")
+    parser.add_argument("--hosting", help="Certificate of the server.")
     args = parser.parse_args()
 
     try:
@@ -55,7 +56,7 @@ if __name__ == "__main__":
         )
         nsone = NsOneDeploy(host_name, host, logger)
         infradb = InfraDBAPI(
-            settings.INFRADB_USERNAME, settings.INFRADB_PASSWORD, logger
+            settings.INFRADB_USERNAME, settings.INFRADB_PASSWORD, args.location, args.host_name, logger
         )
 
         # Start deploing of server
@@ -70,18 +71,12 @@ if __name__ == "__main__":
         zone = nsone.get_zone(zone_name)
         record = nsone.add_record(zone)
         record = nsone.get_record(zone, zone_name, record_type)
-
-        infradb.add_server({
-                "name": host_name,
-                "status": 'ONLINE',
-                "location": 1,
-                "hostingprovider": 1,
-                "type": 1,
-                "proxy_software_version": 1,
-                "kernel_version": 1,
-                "revsw_module_version": 1,
-                "IP": args.IP,
-            })
+        server_versions = {
+            "proxy_software_version": 1,
+            "kernel_version": 1,
+            "revsw_module_version": 1,
+        }
+        infradb.add_server(host_name, args.IP, server_versions)
     except DeploymentError as e:
         print e
         sys.exit(-1)

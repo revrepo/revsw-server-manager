@@ -19,6 +19,7 @@
 
 
 # TODO: here will be infraDB API
+import json
 from urlparse import urljoin
 
 import requests
@@ -28,14 +29,25 @@ from server_deployment.utilites import DeploymentError
 
 class InfraDBAPI():
 
-    def __init__(self, username, password, logger):
+    def __init__(self, username, password, location_name, hosting_name, logger):
         self.logger = logger
         self.session = requests.Session()
         self.session.auth = (username, password)
-        self.url = 'http://localhost:8000/api/'
+        self.url = 'http://127.0.0.1:8000/api/'
+        self.location = self._get_location(location_name)
+        self.hosting = self._get_hosting(hosting_name)
 
-    def add_server(self, server_daata):
-        response = self.session.post(urljoin(self.url, 'server/'), data=server_daata)
+    def add_server(self, host_name, ip, server_versions):
+        server_data = {
+                "name": host_name,
+                "status": 'ONLINE',
+                "location": self.location['id'],
+                "hostingprovider": self.hosting['id'],
+                "type": 1,
+                "IP": ip,
+            }
+        server_data.update(server_versions)
+        response = self.session.post(urljoin(self.url, 'server/'), data=server_data)
         if response.status_code != 201:
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
@@ -44,14 +56,22 @@ class InfraDBAPI():
             raise DeploymentError(log_error)
         self.logger.log({"fw": "ok"}, "infraDB")
 
-    def get_locations(self):
-        response = self.session.get(urljoin(self.url, 'locations_list/'))
+    def _get_location(self, location_name):
+        response = self.session.get(
+            urljoin(self.url, 'location?code=%s' % location_name)
+        )
         if response.status_code != 200:
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
+            self.logger.log({"fw": "fail", "log": log_error}, "infraDB")
             raise DeploymentError(log_error)
-        return response.text
+        locations = json.loads(response.content)
+        if not locations:
+            log_error = "Server error. Wrong location code. Location not found"
+            self.logger.log({"fw": "fail", "log": log_error}, "infraDB")
+            raise DeploymentError(log_error)
+        return locations[0]
 
     def get_server(self, server_name):
         response = self.session.get(urljoin(self.url, 'server/'), name=server_name)
@@ -65,12 +85,19 @@ class InfraDBAPI():
             )
             raise DeploymentError(log_error)
 
-    def get_hosting_providers(self):
-        response = self.session.get(urljoin(self.url, 'hosting_list/'))
+    def _get_hosting(self, provider_name):
+        response = self.session.get(
+            urljoin(self.url, 'hosting?name=%s' % provider_name)
+        )
         if response.status_code != 200:
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
+            self.logger.log({"fw": "fail", "log": log_error}, "infraDB")
             raise DeploymentError(log_error)
-        return response.text
-
+        hostings = json.loads(response.content)
+        if not hostings:
+            log_error = "Server error. Wrong hosting provider name. Hosting provider not found"
+            self.logger.log({"fw": "fail", "log": log_error}, "infraDB")
+            raise DeploymentError(log_error)
+        return hostings[0]
