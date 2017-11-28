@@ -24,6 +24,7 @@ from urlparse import urljoin
 
 import requests
 
+import settings
 from server_deployment.utilites import DeploymentError
 
 
@@ -33,16 +34,17 @@ class InfraDBAPI():
         self.logger = logger
         self.session = requests.Session()
         self.session.auth = (username, password)
-        self.url = 'http://127.0.0.1:8000/api/'
-        self.location = self._get_location(location_name)
-        self.hosting = self._get_hosting(hosting_name)
+        self.url = settings.INFRAD_URL
 
-    def add_server(self, host_name, ip, server_versions):
+
+    def add_server(self, host_name, ip, server_versions, location_name, hosting_name):
+        location = self._get_location(location_name)
+        hosting = self._get_hosting(hosting_name)
         server_data = {
                 "name": host_name,
                 "status": 'ONLINE',
-                "location": self.location['id'],
-                "hostingprovider": self.hosting['id'],
+                "location": location['id'],
+                "hostingprovider": hosting['id'],
                 "type": 1,
                 "IP": ip,
             }
