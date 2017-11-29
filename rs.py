@@ -19,7 +19,7 @@
 
 import logging
 import logging.config
-from nsone import Nsone
+from nsone_api import Nsone
 from proxy import Proxy
 from nagios import Nagios
 import traceback
