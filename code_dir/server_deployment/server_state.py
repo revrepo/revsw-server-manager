@@ -117,3 +117,13 @@ class ServerState():
         file.flush()
         ftp.close()
 
+    def check_install_package(self, package_name):
+        output = []
+        (stdin, stdout, stderr) = self.client.exec_command('dpkg -s %s' % package_name)
+        for line in stdout.readlines():
+            output.append(line)
+        if output[1] == 'Status: install ok installed\n': return True
+
+        return False
+
+

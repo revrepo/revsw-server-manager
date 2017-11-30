@@ -21,6 +21,7 @@
 import unittest
 import os
 import datetime
+import requests_mock
 from copy import deepcopy
 from urlparse import urljoin
 
@@ -170,10 +171,14 @@ class TestLoggerClass(TestAbstract):
 
 
 class TestInfraDBAPI(TestAbstract):
+    test_infradb = 'http://localhost:8000/api/'
+    adapter = requests_mock.Adapter()
+
     logger = mongo_logger.MongoLogger(
             'test_host', datetime.datetime.now().isoformat()
         )
-    testing_class = InfraDBAPI('login', 'password', logger)
+    testing_class = InfraDBAPI('login', 'password', 'test_host', 'test_location', logger)
+    testing_class.session.mount('mock', adapter)
     test_data = {
                 "name": "test_serv",
                 "status": 'OFFLINE',
@@ -186,7 +191,6 @@ class TestInfraDBAPI(TestAbstract):
                 "IP": '111.111.111.111',
             }
 
-    @mock.patch('infradb.requests.Session.post')
     def test_add_new_server(self, mock_post):
         mock_response = mock.Mock()
         expected_dict = {
@@ -198,7 +202,7 @@ class TestInfraDBAPI(TestAbstract):
         mock_response.status_code = 201
         mock_post.return_value = mock_response
 
-        url = urljoin('http://localhost:8000/api/', 'server/')
+        url = urljoin(, 'server/')
         response_dict = self.testing_class.add_server(self.test_data)
         mock_post.assert_called_once_with(url, data=self.test_data)
         self.assertEqual(response_dict, expected_dict)

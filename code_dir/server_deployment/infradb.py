@@ -30,11 +30,11 @@ from server_deployment.utilites import DeploymentError
 
 class InfraDBAPI():
 
-    def __init__(self, username, password, location_name, hosting_name, logger):
+    def __init__(self, logger):
         self.logger = logger
         self.session = requests.Session()
-        self.session.auth = (username, password)
-        self.url = settings.INFRAD_URL
+        self.session.auth = (settings.INFRADB_USERNAME, settings.INFRADB_PASSWORD)
+        self.url = settings.INFRADB_URL
 
 
     def add_server(self, host_name, ip, server_versions, location_name, hosting_name):

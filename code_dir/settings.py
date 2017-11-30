@@ -77,9 +77,16 @@ INFRADB_PASSWORD = "admin1234"
 
 NSONE_KEY = "0mSdz88RzfIElZRshilB"
 
+CDS_URL = 'https://testsjc20-cds02.revsw.net:9000/'
+CDS_API_KEY = 'sdtq34tqsdfasfdsdKJHIJHKJH656HGFhfyhgf'
+
+SSL_CONF_MONITORING_TIME = 5
+WAF_SDK_MONITORING_TIME = 10
+DOMAIN_PURGE_MONITORING_TIME = 10
 
 
 try:
-    import local_settings
+    from code_dir import local_settings
+
 except ImportError:
     pass
