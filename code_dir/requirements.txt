@@ -7,3 +7,4 @@ jsonschema
 mock
 requests[security]
 nsone
+requests-mock==1.3.0

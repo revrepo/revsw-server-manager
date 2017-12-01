@@ -23,6 +23,7 @@ import pymongo
 import sys
 
 import settings
+from server_deployment.cds_api import CDSAPI
 from server_deployment.infradb import InfraDBAPI
 
 from server_deployment.mongo_logger import MongoLogger
@@ -30,7 +31,56 @@ from server_deployment.nsone_class import NsOneDeploy
 from server_deployment.server_state import ServerState
 from server_deployment.utilites import DeploymentError
 
+
+def deploy_cds(args, logger, server):
+    # checking installed packages
+    cds = CDSAPI(args.cdsgroup, args.host_name, logger)
+    cds.check_installed_packages(server)
+
+    cds_server = cds.check_server_exist(host_name)
+    if cds_server:
+        group_added = cds.check_server_in_group()
+        check_list = cds.check_need_update_versions()
+    else:
+        group_added = False
+        check_list = {
+            'ssl': False,
+            'waf_sdk': False,
+            'domain_purge': False
+        }
+        cds.add_server(host_name, args.IP, args.environment)
+    if check_list['ssl']:
+        cds.monitor_ssl_configuration()
+    if check_list['waf_sdk']:
+        cds.update_server(
+            {
+                "app_config_version": 0,
+                "waf_rule_version": 0
+            }
+        )
+        cds.monitor_waf_and_sdk_configuration()
+    if check_list['domain_purge']:
+        cds.update_server(
+            {
+                "domain_config_version": 0,
+                "purge_version": 0,
+            }
+        )
+    if not group_added:
+        cds.add_server_to_group(host_name)
+    if check_list['domain_purge']:
+        cds.monitor_purge_and_domain_configuration()
+
+
+def remove_server_from_cds(args, logger):
+    cds = CDSAPI(args.cdsgroup, args.host_name, logger)
+    cds.update_server({"status": "offline"})
+    cds.delete_server_from_groups()
+    cds.delete_server()
+
+
 if __name__ == "__main__":
+
     parser = argparse.ArgumentParser(description="Automatic deployment of server.",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-n", "--host_name", help="Host name of server", )
@@ -38,14 +88,21 @@ if __name__ == "__main__":
     parser.add_argument("-i", "--IP", help="IP of server.")
     parser.add_argument("-r", "--record_type", help="Type of record at NSONE.")
     parser.add_argument("-l", "--login", help="Login of the server.")
-    parser.add_argument("-p", "--password", help="Password of the server.")
+    parser.add_argument("-p", "--password", help="Password of the server.", default='')
     parser.add_argument("-c", "--cert", help="Certificate of the server.")
     parser.add_argument("--location", help="Code of server location.")
     parser.add_argument("--hosting", help="Name of server hosting provider.")
+    parser.add_argument(
+        "--cdsgroup", help="CDS group."
+    )
+    parser.add_argument(
+        "--environment", help="Environment of server.", default='staging'
+    )
     args = parser.parse_args()
 
     try:
         logger = MongoLogger('test_host', datetime.datetime.now().isoformat())
+
         host_name = args.host_name
         host = args.IP
         zone_name = args.zone_name
@@ -55,9 +112,7 @@ if __name__ == "__main__":
             logger, ipv4=args.IP, cert=args.cert
         )
         nsone = NsOneDeploy(host_name, host, logger)
-        infradb = InfraDBAPI(
-            settings.INFRADB_USERNAME, settings.INFRADB_PASSWORD, logger
-        )
+        infradb = InfraDBAPI(logger)
 
         # Start deploing of server
         server.check_hostname()
@@ -77,6 +132,11 @@ if __name__ == "__main__":
             "revsw_module_version": 1,
         }
         infradb.add_server(host_name, args.IP, server_versions, args.location, args.host_name)
+
+        # add server to cds
+        deploy_cds(args, logger, server)
+
+
     except DeploymentError as e:
         print e
         sys.exit(-1)
