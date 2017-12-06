@@ -70,6 +70,19 @@ class NsOneDeploy():
             }, "nsone")
         return monitor['id']
 
+    def get_monitor(self, monitor_id):
+        try:
+            monitor = self.monitor.retrieve(monitor_id)
+        except ResourceException as e:
+            log_error = e.message
+            self.logger.log({
+                "host_added": 'no',
+                "monitored": 'fail',
+                "log": log_error
+            }, "infraDB")
+            raise DeploymentError(log_error)
+        return monitor
+
     def get_zone(self, zone_name):
         try:
             zone = self.nsone.loadZone(zone_name)
@@ -114,9 +127,10 @@ class NsOneDeploy():
 
         return record
 
-    def get_record(self, zone, domain, type):
+    def get_record(self, zone, domain, record_type):
         try:
-            record = Record(zone, domain, type)
+            record = Record(zone, domain, record_type)
+            record.load()
         except ResourceException as e:
             log_error = e.message
             self.logger.log({
@@ -136,3 +150,65 @@ class NsOneDeploy():
 
         return record
 
+    def add_feed(self, source_id):
+        try:
+            feedAPI = self.nsone.datafeed()
+            feed = feedAPI.create(source_id,
+                                   self.host_name,
+                                   config={'label': self.host_name})
+        except ResourceException as e:
+            log_error = e.message
+            self.logger.log({
+                "host_added": 'fail',
+                "monitored": 'yes',
+                "log": log_error
+            }, "infraDB")
+            raise DeploymentError(log_error)
+        except ZoneException as e:
+            log_error = e.message
+            self.logger.log({
+                "host_added": 'fail',
+                "monitored": 'yes',
+                "log": log_error
+            }, "infraDB")
+            raise DeploymentError(log_error)
+        except Exception as e:
+            log_error = e.message
+            self.logger.log({
+                "host_added": 'fail',
+                "monitored": 'yes',
+                "log": log_error
+            }, "infraDB")
+            raise DeploymentError(log_error)
+
+        return feed
+
+    def add_answer(self, zone, record_name, record_type, answer_host):
+        try:
+            record = self.nsone.loadRecord(record_name, record_type)
+            record.addAnswers(answer_host)
+
+        except ResourceException as e:
+            log_error = e.message
+            self.logger.log({
+                "host_added": 'fail',
+                "monitored": 'yes',
+                "log": log_error
+            }, "infraDB")
+            raise DeploymentError(log_error)
+        except ZoneException as e:
+            log_error = e.message
+            self.logger.log({
+                "host_added": 'fail',
+                "monitored": 'yes',
+                "log": log_error
+            }, "infraDB")
+            raise DeploymentError(log_error)
+        except Exception as e:
+            log_error = e.message
+            self.logger.log({
+                "host_added": 'fail',
+                "monitored": 'yes',
+                "log": log_error
+            }, "infraDB")
+            raise DeploymentError(log_error)
