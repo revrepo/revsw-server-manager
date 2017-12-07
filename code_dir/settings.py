@@ -71,9 +71,9 @@ MONGO_HOST = '127.0.0.1'
 MONGO_PORT = 27017
 MONGO_DB_NAME = "logging_db"
 
-INFRADB_URL = 'http://127.0.0.1:8000/api/'
-INFRADB_USERNAME = 'admin'
-INFRADB_PASSWORD = "admin1234"
+INFRADB_URL = 'https://testsjc20-manager01.revsw.net/api/'
+INFRADB_USERNAME = 'apiuser'
+INFRADB_PASSWORD = "FjyWcSpBSP29MXhC"
 
 NSONE_KEY = "0mSdz88RzfIElZRshilB"
 

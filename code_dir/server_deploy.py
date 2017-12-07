@@ -37,7 +37,7 @@ def deploy_cds(args, logger, server):
     cds = CDSAPI(args.cdsgroup, args.host_name, logger)
     cds.check_installed_packages(server)
 
-    cds_server = cds.check_server_exist(host_name)
+    cds_server = cds.check_server_exist()
     if cds_server:
         group_added = cds.check_server_in_group()
         check_list = cds.check_need_update_versions()
@@ -48,7 +48,7 @@ def deploy_cds(args, logger, server):
             'waf_sdk': False,
             'domain_purge': False
         }
-        cds.add_server(host_name, args.IP, args.environment)
+        cds.add_server(args.IP, args.environment)
     if check_list['ssl']:
         cds.monitor_ssl_configuration()
     if check_list['waf_sdk']:
@@ -70,6 +70,7 @@ def deploy_cds(args, logger, server):
         cds.add_server_to_group(host_name)
     if check_list['domain_purge']:
         cds.monitor_purge_and_domain_configuration()
+    return cds.server_group
 
 
 def remove_server_from_cds(args, logger):
@@ -86,7 +87,7 @@ if __name__ == "__main__":
     parser.add_argument("-n", "--host_name", help="Host name of server", )
     parser.add_argument("-z", "--zone_name", help="Name of zone on NSONE.")
     parser.add_argument("-i", "--IP", help="IP of server.")
-    parser.add_argument("-r", "--record_type", help="Type of record at NSONE.")
+    parser.add_argument("-r", "--record_type", help="Type of record at NSONE.", default="A")
     parser.add_argument("-l", "--login", help="Login of the server.")
     parser.add_argument("-p", "--password", help="Password of the server.", default='')
     parser.add_argument("-c", "--cert", help="Certificate of the server.")
@@ -111,7 +112,7 @@ if __name__ == "__main__":
             host_name, args.login, args.password,
             logger, ipv4=args.IP, cert=args.cert
         )
-        nsone = NsOneDeploy(host_name, host, logger)
+        nsone = NsOneDeploy(host_name, host_name, logger)
         infradb = InfraDBAPI(logger)
 
         # Start deploing of server
@@ -122,9 +123,11 @@ if __name__ == "__main__":
         server.re_connect()
 
         # Add server to NS1
-        nsone.add_new_monitor()
         zone = nsone.get_zone(zone_name)
-        record = nsone.add_record(zone)
+        monitor_id = nsone.add_new_monitor()
+        nsone.add_feed("c53f31f5e1817442d16b3eaac813a644")
+
+        # record = nsone.add_record(zone)
         record = nsone.get_record(zone, zone_name, record_type)
         server_versions = {
             "proxy_software_version": 1,
@@ -134,7 +137,9 @@ if __name__ == "__main__":
         infradb.add_server(host_name, args.IP, server_versions, args.location, args.host_name)
 
         # add server to cds
-        deploy_cds(args, logger, server)
+        group = deploy_cds(args, logger, server)
+        # nsone.add_answer(zone, group['edge_host'], record_type)
+        nsone.add_answer(zone, "test-alexus.attested.club", record_type, host)
 
 
     except DeploymentError as e:
