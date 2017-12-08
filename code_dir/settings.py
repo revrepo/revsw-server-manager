@@ -76,6 +76,7 @@ INFRADB_USERNAME = 'apiuser'
 INFRADB_PASSWORD = "FjyWcSpBSP29MXhC"
 
 NSONE_KEY = "0mSdz88RzfIElZRshilB"
+NS1_DATA_SOURCE_ID = "c53f31f5e1817442d16b3eaac813a644"
 
 CDS_URL = 'https://testsjc20-cds02.revsw.net:9000/'
 CDS_API_KEY = 'sdtq34tqsdfasfdsdKJHIJHKJH656HGFhfyhgf'
@@ -83,6 +84,17 @@ CDS_API_KEY = 'sdtq34tqsdfasfdsdKJHIJHKJH656HGFhfyhgf'
 SSL_CONF_MONITORING_TIME = 5
 WAF_SDK_MONITORING_TIME = 10
 DOMAIN_PURGE_MONITORING_TIME = 10
+
+INSTALL_SERVER_HOST = "TESTSJC20-INSTALL01.revsw.net"
+INSTALL_SERVER_LOGIN = "sergey"
+INSTALL_SERVER_PASSWORD = ""
+
+PUPET_LINKS = {
+    "14.04": "http://apt.puppetlabs.com/puppetlabs-release-trusty.deb",
+    "16.04": "http://apt.puppetlabs.com/puppet-release-xenial.deb"
+
+}
+PUPPET_SERVER = "TESTSJC20-INSTALL01.REVSW.NET"
 
 
 try:
