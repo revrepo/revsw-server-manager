@@ -26,6 +26,8 @@ from copy import deepcopy
 
 from server_deployment.utilites import DeploymentError
 
+from code_dir import settings
+
 
 class ServerState():
     """
@@ -67,9 +69,7 @@ class ServerState():
             "upgrade": None
         }
 
-        self.client = paramiko.SSHClient()
-        self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.client.connect(hostname=self.ipv4, username=self.login, password=self.password, port=22)
+        self.re_connect()
 
     def log_changes(self, log=None):
         log_dict = deepcopy(self.steps)
@@ -106,7 +106,7 @@ class ServerState():
         status = stdout_.channel.recv_exit_status()
         lines = stdout_.readlines()
         for line in lines:
-            print line
+            print 'hostname %s' % line
         return lines[0]
 
     # open and rewrite hostname file
@@ -126,4 +126,50 @@ class ServerState():
 
         return False
 
+    def install_puppet(self):
+        (stdin_v, stdout_v, stderr_v) = self.client.exec_command(
+            "cat /etc/lsb-release | grep DISTRIB_RELEASE"
+        )
+        version = stdout_v.readlines()
+        # version = '14.04'
+        if version == '14.04':
+            self.client.exec_command('wget %s' % settings.PUPET_LINKS['14.04'])
+            self.client.exec_command('dpkg -i puppetlabs-release-trusty.deb')
 
+        elif version == '16.04':
+            self.client.exec_command('wget %s' % settings.PUPET_LINKS['16.04'])
+            self.client.exec_command('dpkg -i puppet-release-xenial.deb')
+        # (stdin, stdout, stderr) = self.client.exec_command("cat /etc/lsb-release | grep DISTRIB_RELEASE")
+
+
+        self.client.exec_command('sudo apt-get update')
+        self.client.exec_command('sudo apt-get upgrade -y')
+        self.client.exec_command('sudo apt-get install puppet -y')
+
+        self.reboot()
+        self.re_connect()
+        (stdin, stdout, stderr) = self.client.exec_command('dpkg -l | grep puppet')
+        if stdout.channel.recv_exit_status() != 0:
+            log_error = "Server error. Status: %s Error: %s"
+            self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
+            raise DeploymentError(log_error)
+
+    def configure_puppet(self):
+        # (stdin, stdout, stderr) = self.client.exec_command("cat /etc/lsb-release | grep DISTRIB_RELEASE")
+        self.client.exec_command('sudo puppet agent --enable')
+        self.client.exec_command('sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER)
+        self.client.exec_command("sudo echo '[agent]' >> /etc/puppet/puppet.conf")
+        self.client.exec_command("sudo echo 'server = %s' >> /etc/puppet/puppet.conf" % settings.PUPPET_SERVER)
+        self.client.exec_command("sudo echo 'environment = production' >> /etc/puppet/puppet.conf")
+        self.client.exec_command("sudo echo 'configtimeout = 600' >> /etc/puppet/puppet.conf")
+        self.client.exec_command("sudo service puppet restart")
+
+
+    def run_puppet(self):
+        self.client.exec_command("sudo service puppet restart")
+        (stdin, stdout, stderr) = self.client.exec_command("sudo service puppet status")
+
+        if stdout.channel.recv_exit_status() != 0:
+            log_error = "Server error. Status: %s Error: %s"
+            self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
+            raise DeploymentError(log_error)

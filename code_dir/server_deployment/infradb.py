@@ -17,8 +17,6 @@
 
 """
 
-
-# TODO: here will be infraDB API
 import json
 from urlparse import urljoin
 
@@ -35,7 +33,6 @@ class InfraDBAPI():
         self.session = requests.Session()
         self.session.auth = (settings.INFRADB_USERNAME, settings.INFRADB_PASSWORD)
         self.url = settings.INFRADB_URL
-
 
     def add_server(self, host_name, ip, server_versions, location_name, hosting_name):
         location = self._get_location(location_name)

@@ -102,7 +102,7 @@ class NsOneDeploy():
                 "log": log_error
             }, "infraDB")
             raise DeploymentError(log_error)
-
+        print "Zone id %s" % zone['id']
         return zone
 
     def add_record(self, zone):
@@ -154,7 +154,7 @@ class NsOneDeploy():
         try:
             feedAPI = self.nsone.datafeed()
             feed = feedAPI.create(source_id,
-                                   self.host_name,
+                                   "%s status" % self.host_name,
                                    config={'label': self.host_name})
         except ResourceException as e:
             log_error = e.message
