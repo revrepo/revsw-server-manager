@@ -33,6 +33,7 @@ class InfraDBAPI():
         self.session = requests.Session()
         self.session.auth = (settings.INFRADB_USERNAME, settings.INFRADB_PASSWORD)
         self.url = settings.INFRADB_URL
+        print 1
 
     def add_server(self, host_name, ip, server_versions, location_name, hosting_name):
         location = self._get_location(location_name)
@@ -51,9 +52,9 @@ class InfraDBAPI():
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"fw": "fail", "log": log_error}, "infraDB")
+            self.logger.log({"server_add": "fail", "log": log_error}, "infraDB")
             raise DeploymentError(log_error)
-        self.logger.log({"fw": "ok"}, "infraDB")
+        self.logger.log({"server_add": "ok"}, "infraDB")
 
     def _get_location(self, location_name):
         response = self.session.get(
@@ -63,12 +64,12 @@ class InfraDBAPI():
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"fw": "fail", "log": log_error}, "infraDB")
+            self.logger.log({"server_add": "fail", "log": log_error}, "infraDB")
             raise DeploymentError(log_error)
         locations = json.loads(response.content)
         if not locations:
             log_error = "Server error. Wrong location code. Location not found"
-            self.logger.log({"fw": "fail", "log": log_error}, "infraDB")
+            self.logger.log({"server_add": "fail", "log": log_error}, "infraDB")
             raise DeploymentError(log_error)
         return locations[0]
 
@@ -92,11 +93,11 @@ class InfraDBAPI():
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"fw": "fail", "log": log_error}, "infraDB")
+            self.logger.log({"server_add": "fail", "log": log_error}, "infraDB")
             raise DeploymentError(log_error)
         hostings = json.loads(response.content)
         if not hostings:
             log_error = "Server error. Wrong hosting provider name. Hosting provider not found"
-            self.logger.log({"fw": "fail", "log": log_error}, "infraDB")
+            self.logger.log({"server_add": "fail", "log": log_error}, "infraDB")
             raise DeploymentError(log_error)
         return hostings[0]

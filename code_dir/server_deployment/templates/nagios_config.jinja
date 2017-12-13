@@ -1,0 +1,7 @@
+define host{
+    use  linux-server   ; Name of host template to use
+    host_name  {{ host_name }}
+    alias  {{ host_name }}
+    address  {{ ip }}
+    hostgroups  all-hosts, FRA02-hosts, bp-servers, linux-servers, standard-kernel-servers, co-hosts
+    }

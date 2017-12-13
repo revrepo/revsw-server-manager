@@ -25,6 +25,7 @@ import pymongo
 import sys
 
 import settings
+from code_dir.server_deployment.nagios import Nagios
 from server_deployment.cds_api import CDSAPI
 from server_deployment.infradb import InfraDBAPI
 
@@ -155,6 +156,7 @@ if __name__ == "__main__":
             host_name, args.login, args.password,
             logger, ipv4=args.IP, cert=args.cert
         )
+        print server.check_system_version()
         nsone = NsOneDeploy(host_name, host_name, logger)
         infradb = InfraDBAPI(logger)
 
@@ -200,6 +202,18 @@ if __name__ == "__main__":
 
         # add server to cds
         group = deploy_cds(args, logger, server)
+
+        #NAGIOS configurate
+
+        nagios = Nagios(host_name, logger)
+        nagios_data = {
+            'host_name': host_name,
+            "ip": host,
+        }
+        nagios.create_config_file(nagios_data)
+        nagios.send_config_to_server()
+
+
         print '\n\n Add answer to NS1 to record %s' % group['edge_host']
         # nsone.add_answer(zone, group['edge_host'], record_type)
         nsone.add_answer(zone, "test-alexus.attested.club", record_type, host)

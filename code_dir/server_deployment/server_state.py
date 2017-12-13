@@ -24,6 +24,7 @@ import paramiko
 
 from copy import deepcopy
 
+import re
 from server_deployment.utilites import DeploymentError
 
 from code_dir import settings
@@ -127,10 +128,7 @@ class ServerState():
         return False
 
     def install_puppet(self):
-        (stdin_v, stdout_v, stderr_v) = self.client.exec_command(
-            "cat /etc/lsb-release | grep DISTRIB_RELEASE"
-        )
-        version = stdout_v.readlines()
+        version = self.check_system_version()
         # version = '14.04'
         if version == '14.04':
             self.client.exec_command('wget %s' % settings.PUPET_LINKS['14.04'])
@@ -173,3 +171,18 @@ class ServerState():
             log_error = "Server error. Status: %s Error: %s"
             self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
             raise DeploymentError(log_error)
+
+    def check_system_version(self):
+        lines = []
+        (stdin_v, stdout_v, stderr_v) = self.client.exec_command(
+            "cat /etc/lsb-release | grep DISTRIB_RELEASE"
+        )
+        for line in stdout_v.readlines():
+            lines.append(line)
+        try:
+            m = re.search('DISTRIB_RELEASE=(.+?)$', lines[0])
+        except AttributeError:
+            return '14.04'
+        if m:
+            return m.group(1)
+        return '14.04'

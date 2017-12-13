@@ -62,10 +62,11 @@ class CDSAPI():
             self.logger.log({"sever_group": "fail", "log": log_error}, "CDS")
             raise DeploymentError(log_error)
 
-        if server_group["groupType"] != "BP":
+        if server_group["cds_url"] != "BP":
             log_error = "CDS  error. Wrong server group"
             self.logger.log({"sever_group": "fail", "log": log_error}, "CDS")
             raise DeploymentError(log_error)
+        self.logger.log({"sever_group": "yes"}, "CDS")
         return server_group
 
     def _get_highest_waf_version(self):
@@ -194,11 +195,12 @@ class CDSAPI():
             self.logger.log({"sever_add": "fail", "log": log_error}, "CDS")
             raise DeploymentError(log_error)
         self.proxy_server = json.loads(response.text)
+        self.logger.log({"sever_add": "yes"}, "CDS")
         print self.proxy_server
 
     def update_server(self, update_data):
         response = requests.put(
-            urljoin(self.url, '/v1/proxy_servers/%s' %  self.proxy_server['_id']),
+            urljoin(self.url, '/v1/proxy_servers/%s' % self.proxy_server['_id']),
             data=update_data,
             headers={'Authorization': 'Bearer %s' % settings.CDS_API_KEY}
         )
