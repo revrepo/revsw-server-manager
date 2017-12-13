@@ -1,4 +1,6 @@
 # NAGIOS CREDENTIALS
+import os
+
 NAGIOS_URL = "http://iad02-monitor01.revsw.net:8081/"
 
 # NSONE CREDENTIALS
@@ -71,7 +73,7 @@ MONGO_HOST = '127.0.0.1'
 MONGO_PORT = 27017
 MONGO_DB_NAME = "logging_db"
 
-INFRADB_URL = 'https://testsjc20-manager01.revsw.net/api/'
+INFRADB_URL = '2343243242https://testsjc20-manager01.revsw.net/api/'
 INFRADB_USERNAME = 'apiuser'
 INFRADB_PASSWORD = "FjyWcSpBSP29MXhC"
 
@@ -96,6 +98,16 @@ PUPET_LINKS = {
 }
 PUPPET_SERVER = "TESTSJC20-INSTALL01.REVSW.NET"
 
+NAGIOS_SERVER = "TESTSJC02-MONITOR01.REVSW.NET"
+NAGIOS_SERVER_LOGIN = "sergey"
+NAGIOS_SERVER_PASSWORD = ""
+NAGIOS_CFG_PATH = "/etc/nagios/objects/server-manager"
+
+CACTI_SERVER = "TESTSJC02-MONITOR01.REVSW.NET"
+CACTI_SERVER_LOGIN = "sergey"
+CACTI_SERVER_PASSWORD = ""
+
+BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 try:
     from code_dir import local_settings

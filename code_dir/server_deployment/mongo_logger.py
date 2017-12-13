@@ -82,6 +82,7 @@ class MongoLogger():
             "infraDB": {
                 "type": "object",
                 "properties": {
+                    "server_add":  {"type": "string", "pattern": "ok|no|fail"},
                     "fw":  {"type": "string", "pattern": "ok|no|fail"},
                     "log": {"type": "string"} # [|if some fail]
                 }
@@ -91,6 +92,14 @@ class MongoLogger():
                 "type": "object",
                 "properties": {
                     "revws_repo":   {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"} # [|if some fail]
+               }
+            },
+            "nagios": {
+                "type": "object",
+                "properties": {
+                    "nagios_conf":   {"type": "string", "pattern": "yes|no|fail"},
+                    "nagios_reload": {"type": "string", "pattern": "yes|no|fail"},
                     "log": {"type": "string"} # [|if some fail]
                }
             }

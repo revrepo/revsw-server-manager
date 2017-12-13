@@ -22,17 +22,21 @@ import unittest
 import os
 import datetime
 import requests_mock
+import responses
 from copy import deepcopy
 from urlparse import urljoin
+import settings
 
 import pymongo
 
 import mongo_logger
-import settings
 
 from mock import Mock, patch, mock
 
-from server_deployment.infradb import InfraDBAPI
+from code_dir import settings
+from code_dir.server_deployment.cds_api import CDSAPI
+from code_dir.server_deployment.infradb import InfraDBAPI
+from code_dir.server_deployment.utilites import DeploymentError
 
 TEST_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "temporary_testing_files/")
 
@@ -55,6 +59,11 @@ class TestAbstract(unittest.TestCase):
         self.mongo_cli.drop_database('test_database')
         # remove all temporary test files
         os.system("rm -r %s" % TEST_DIR)
+
+
+    def check_log_exist(self):
+        return  self.log_collection.find_one()
+        # return self.log_collection.find().sort("_id", -1).limit(1)
 
 
 class TestLoggerClass(TestAbstract):
@@ -171,38 +180,513 @@ class TestLoggerClass(TestAbstract):
 
 
 class TestInfraDBAPI(TestAbstract):
-    test_infradb = 'http://localhost:8000/api/'
-    adapter = requests_mock.Adapter()
 
-    logger = mongo_logger.MongoLogger(
+    @patch("settings.INFRADB_URL", 'http://localhost:8000/api/')
+    @patch("settings.MONGO_DB_NAME", 'test_database')
+    def setUp(self):
+        # mocking mogo db variables for conecting to test  database
+        # settings.MONGO_DB_NAME = 'test_database'
+        settings.MONGO_HOST = 'localhost'
+        settings.MONGO_PORT = 27017
+        self.mongo_cli = pymongo.MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        self.mongo_db = self.mongo_cli[settings.MONGO_DB_NAME]
+        self.log_collection = self.mongo_db['test_host']
+
+        self.infra_db_url = 'http://localhost:8000/api/'
+        # settings.INFRADB_URL = self.infra_db_url
+
+        self.logger = mongo_logger.MongoLogger(
             'test_host', datetime.datetime.now().isoformat()
         )
-    testing_class = InfraDBAPI('login', 'password', 'test_host', 'test_location', logger)
-    testing_class.session.mount('mock', adapter)
-    test_data = {
-                "name": "test_serv",
-                "status": 'OFFLINE',
-                "location": 1,
-                "hostingprovider": 1,
-                "type": 1,
-                "proxy_software_version":1,
-                "kernel_version":1,
-                "revsw_module_version":1,
-                "IP": '111.111.111.111',
-            }
+        self.testing_class = InfraDBAPI(self.logger)
+        # print name of running test
+        print("RUN_TEST %s" % self._testMethodName)
 
-    def test_add_new_server(self, mock_post):
-        mock_response = mock.Mock()
-        expected_dict = {
-            "breeds": [
-                "pembroke",
-                "cardigan",
+    def test_add_server(self):
+        infradb_url = urljoin(self.infra_db_url, 'server/')
+        self.testing_class._get_location = Mock(return_value={"id": 1})
+        self.testing_class._get_hosting = Mock(return_value={"id": 1})
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.POST, infradb_url,
+                     body='{}', status=201,
+                     content_type='application/json')
+            response_dict = self.testing_class.add_server(
+                "test_host",
+                "111.111.111.111",
+                {
+                    "type": 1,
+                    "proxy_software_version": 1,
+                    "kernel_version": 1,
+                },
+                "test_loc",
+                "test_host"
+            )
+            self.assertEqual(response_dict, None)
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['infraDB'],
+                {
+                    "fw": "no",
+                    "server_add": "yes"
+                }
+            )
+
+    def test_add_server_error(self):
+        infradb_url = urljoin(self.infra_db_url, 'server/')
+        self.testing_class._get_location = Mock(return_value={"id": 1})
+        self.testing_class._get_hosting = Mock(return_value={"id": 1})
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.POST, infradb_url,
+                     body='test error', status=403,
+                     content_type='application/json')
+            test_data = [
+                "test_host",
+                "111.111.111.111",
+                {
+                    "type": 1,
+                    "proxy_software_version": 1,
+                    "kernel_version": 1,
+                },
+                "test_loc",
+                "test_host"
             ]
-        }
-        mock_response.status_code = 201
-        mock_post.return_value = mock_response
+            try:
+                self.assertRaises(DeploymentError, self.testing_class.add_server, *test_data)
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['infraDB'],
+                {
+                    "fw": "no",
+                    "server_add": "fail",
+                    "log": "Server error. Status: 403 Error: test error"
+                }
+            )
 
-        url = urljoin(, 'server/')
-        response_dict = self.testing_class.add_server(self.test_data)
-        mock_post.assert_called_once_with(url, data=self.test_data)
-        self.assertEqual(response_dict, expected_dict)
+    def test_get_location(self):
+        location_name = "test_loc"
+        test_url = urljoin(self.infra_db_url, 'location?code=%s' % location_name)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, test_url,
+                     body='[{"id":1}]', status=200,
+                     content_type='application/json'
+                     )
+            loc_data = self.testing_class._get_location(location_name)
+            self.assertEqual(loc_data, {"id": 1})
+
+    def test_get_location_empty_answer(self):
+        location_name = "test_loc"
+        test_url = urljoin(self.infra_db_url, 'location?code=%s' % location_name)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, test_url,
+                     body='[]', status=200,
+                     content_type='application/json')
+            try:
+                self.assertRaises(DeploymentError, self.testing_class._get_location, location_name)
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['infraDB'],
+                {
+                    "fw": "no",
+                    "server_add": "fail",
+                    "log": "Server error. Wrong location code. Location not found"
+                }
+            )
+
+    def test_get_location_server_error(self):
+        location_name = "test_loc"
+        test_url = urljoin(self.infra_db_url, 'location?code=%s' % location_name)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, test_url,
+                     body='test error', status=403,
+                     content_type='application/json')
+            try:
+                self.assertRaises(DeploymentError, self.testing_class._get_location, location_name)
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['infraDB'],
+                {
+                    "fw": "no",
+                    "server_add": "fail",
+                    "log": "Server error. Status: 403 Error: test error"
+                }
+            )
+
+    def test_get_hosting(self):
+        hosting_name = "test_host"
+        test_url = urljoin(self.infra_db_url, 'hosting?name=%s' % hosting_name)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, test_url,
+                     body='[{"id":1}]', status=200,
+                     content_type='application/json'
+                     )
+            loc_data = self.testing_class._get_hosting(hosting_name)
+            self.assertEqual(loc_data, {"id": 1})
+
+    def test_get_hosting_empty_answer(self):
+        hosting_name = "test_host"
+        test_url = urljoin(self.infra_db_url, 'hosting?name=%s' % hosting_name)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, test_url,
+                     body='[]', status=200,
+                     content_type='application/json')
+            try:
+                self.assertRaises(DeploymentError, self.testing_class._get_hosting, hosting_name)
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['infraDB'],
+                {
+                    "fw": "no",
+                    "server_add": "fail",
+                    "log": "Server error. Wrong hosting provider name. Hosting provider not found"
+                }
+            )
+
+    def test_get_hosting_server_error(self):
+        hosting_name = "test_host"
+        test_url = urljoin(self.infra_db_url, 'hosting?name=%s' % hosting_name)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, test_url,
+                     body='test error', status=403,
+                     content_type='application/json')
+            try:
+                self.assertRaises(DeploymentError, self.testing_class._get_hosting, hosting_name)
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['infraDB'],
+                {
+                    "fw": "no",
+                    "server_add": "fail",
+                    "log": "Server error. Status: 403 Error: test error"
+                }
+            )
+
+
+class TestCDSAPI(TestAbstract):
+    @patch("settings.CDS_URL", 'http://localhost:8000/api/')
+    @patch("settings.MONGO_DB_NAME", 'test_database')
+    def setUp(self):
+        # mocking mogo db variables for conecting to test  database
+        # settings.MONGO_DB_NAME = 'test_database'
+        settings.MONGO_HOST = 'localhost'
+        settings.MONGO_PORT = 27017
+        self.mongo_cli = pymongo.MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        self.mongo_db = self.mongo_cli[settings.MONGO_DB_NAME]
+        self.log_collection = self.mongo_db['test_host']
+
+        self.cds_url = 'http://localhost:8000/api/'
+        self.server_group_id = 123
+        # settings.INFRADB_URL = self.infra_db_url
+
+        self.logger = mongo_logger.MongoLogger(
+            'test_host', datetime.datetime.now().isoformat()
+        )
+        self.host_name = "test_host"
+        self.testing_class = CDSAPI(self.server_group_id, self.host_name, self.logger)
+        # print name of running test
+        print("RUN_TEST %s" % self._testMethodName)
+
+    def test_get_server_group(self):
+        cds_url = urljoin(self.cds_url, 'v1/server_groups/%s' % self.server_group_id)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='{"cds_url":"BP"}', status=200,
+                     content_type='application/json')
+            response_dict = self.testing_class._get_server_group()
+            self.assertEqual(response_dict, {"cds_url":"BP"})
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['CDS'],
+                {"sever_group": "yes"},
+            )
+
+    def test_get_server_group_error(self):
+        cds_url = urljoin(self.cds_url, 'v1/server_groups/%s' % self.server_group_id)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='test error', status=403,
+                     content_type='application/json')
+            try:
+                self.assertRaises(DeploymentError, self.testing_class._get_server_group)
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['CDS'],
+                {"sever_group": "fail", "log": "Server error. Status: 403 Error: test error"},
+            )
+
+    def test_get_server_group_not_found(self):
+        cds_url = urljoin(self.cds_url, 'v1/server_groups/%s' % self.server_group_id)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='', status=200,
+                     content_type='application/json')
+            try:
+                self.assertRaises(DeploymentError, self.testing_class._get_server_group)
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['CDS'],
+                {"sever_group": "fail", "log": "Server error. Wrong server group name. Server group not found"},
+            )
+
+    def test_get_server_group_wrong_type(self):
+        cds_url = urljoin(self.cds_url, 'v1/server_groups/%s' % self.server_group_id)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='{"cds_url":"BP"}', status=200,
+                     content_type='application/json')
+            try:
+                self.assertRaises(DeploymentError, self.testing_class._get_server_group)
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['CDS'],
+                {"sever_group": "fail", "log": "CDS  error. Wrong server group"},
+            )
+
+    def test_get_highest_waf_version(self):
+        cds_url = urljoin(self.cds_url, '/v1/waf_rule_jobs/status')
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='{"highest_waf_rule_job_id":200}', status=200,
+                     content_type='application/json')
+            response = self.testing_class._get_highest_waf_version()
+            self.assertEqual(response, 200)
+
+    def test_get_highest_waf_version_error(self):
+        cds_url = urljoin(self.cds_url, '/v1/waf_rule_jobs/status')
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='test error', status=403,
+                     content_type='application/json')
+            try:
+                self.assertRaises(DeploymentError, self.testing_class._get_highest_waf_version)
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['CDS'],
+                {"sever_group": "fail", "log": "Server error. Status: 403 Error: test error"},
+            )
+
+    def test_get_highest_ssl_version(self):
+        cds_url = urljoin(self.cds_url, 'v1/ssl_jobs/status')
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='{"highest_ssl_cert_job_id":201}', status=200,
+                     content_type='application/json')
+            response = self.testing_class._get_highest_ssl_version()
+            self.assertEqual(response, 201)
+
+    def test_get_highest_ssl_version_error(self):
+        cds_url = urljoin(self.cds_url, 'v1/ssl_jobs/status')
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='test error', status=403,
+                     content_type='application/json')
+            try:
+                self.assertRaises(DeploymentError, self.testing_class._get_highest_ssl_version)
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['CDS'],
+                {"sever_group": "fail", "log": "Server error. Status: 403 Error: test error"},
+            )
+
+    def test_get_highest_sdk_version(self):
+        cds_url = urljoin(self.cds_url, 'v1/app_jobs/status')
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='{"highest_ssl_cert_job_id":202}', status=200,
+                     content_type='application/json')
+            response = self.testing_class._get_highest_sdk_version()
+            self.assertEqual(response, 202)
+
+    def test_get_highest_sdk_version_error(self):
+        cds_url = urljoin(self.cds_url, 'v1/app_jobs/status')
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='test error', status=403,
+                     content_type='application/json')
+            try:
+                self.assertRaises(DeploymentError, self.testing_class._get_highest_sdk_version)
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['CDS'],
+                {"sever_group": "fail", "log": "Server error. Status: 403 Error: test error"},
+            )
+
+    def test_get_highest_purge_version(self):
+        cds_url = urljoin(self.cds_url, 'v1/purge_jobs/status')
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='{"highest_purge_job_id":203}', status=200,
+                     content_type='application/json')
+            response = self.testing_class._get_highest_purge_version()
+            self.assertEqual(response, 203)
+
+    def test_get_highest_purge_version_error(self):
+        cds_url = urljoin(self.cds_url, 'v1/purge_jobs/status')
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='test error', status=403,
+                     content_type='application/json')
+            try:
+                self.assertRaises(DeploymentError, self.testing_class._get_highest_purge_version)
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['CDS'],
+                {"sever_group": "fail", "log": "Server error. Status: 403 Error: test error"},
+            )
+
+    def test_get_highest_domain_version(self):
+        cds_url = urljoin(self.cds_url, 'v1/domain_config_jobs/status')
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='{"highest_domain_config_job_id":205}', status=200,
+                     content_type='application/json')
+            response = self.testing_class._get_highest_domain_version()
+            self.assertEqual(response, 205)
+
+    def test_get_highest_domain_version_error(self):
+        cds_url = urljoin(self.cds_url, 'v1/domain_config_jobs/status')
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='test error', status=403,
+                     content_type='application/json')
+            try:
+                self.assertRaises(DeploymentError, self.testing_class._get_highest_domain_version)
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['CDS'],
+                {"sever_group": "fail", "log": "Server error. Status: 403 Error: test error"},
+            )
+
+    def test_check_server_exist(self):
+        cds_url = urljoin(self.cds_url, 'v1/proxy_servers/byname/%s' % self.host_name)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='{"highest_domain_config_job_id":205}', status=200,
+                     content_type='application/json')
+            response = self.testing_class.check_server_exist()
+            self.assertEqual(response, {"highest_domain_config_job_id":205})
+
+    def test_check_server_exist_error(self):
+        cds_url = urljoin(self.cds_url, 'v1/proxy_servers/byname/%s' % self.host_name)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='test error', status=403,
+                     content_type='application/json')
+            try:
+                self.assertRaises(DeploymentError, self.testing_class.check_server_exist)
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['CDS'],
+                {"sever_group": "fail", "log": "Server error. Status: 403 Error: test error"},
+            )
+
+    def test_check_server_exist_server_not_found(self):
+        cds_url = urljoin(self.cds_url, 'v1/proxy_servers/byname/%s' % self.host_name)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='Server not found', status=400,
+                     content_type='application/json')
+            response = self.testing_class.check_server_exist()
+            self.assertEqual(response, False)
+
+    def test_check_server_exist_server_not_found_wrong_message(self):
+        cds_url = urljoin(self.cds_url, 'v1/proxy_servers/byname/%s' % self.host_name)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, cds_url,
+                     body='wrongmess', status=400,
+                     content_type='application/json')
+            try:
+                self.assertRaises(DeploymentError, self.testing_class.check_server_exist)
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['CDS'],
+                {"sever_group": "fail", "log": "Server error. Status: 400 Error: wrongmess"},
+            )
+
+    def test_add_server(self):
+        cds_url = urljoin(self.cds_url, '/v1/proxy_servers')
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.POST, cds_url,
+                     body='{"highest_domain_config_job_id":205}', status=200,
+                     content_type='application/json')
+            response = self.testing_class.add_server('111.111.111.111', 'env')
+            self.assertEqual(response, {"highest_domain_config_job_id":205})
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['CDS'],
+                {"sever_add": "fail", "log": "Server error. Status: 400 Error: wrongmess"},
+            )
+
+    def test_add_server_wrong_code(self):
+        cds_url = urljoin(self.cds_url, '/v1/proxy_servers')
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.POST, cds_url,
+                     body='wrongmess', status=400,
+                     content_type='application/json')
+            try:
+                self.assertRaises(DeploymentError, self.testing_class.add_server, '111.111.111.111', 'env')
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['CDS'],
+                {"sever_add": "fail", "log": "Server error. Status: 400 Error: wrongmess"},
+            )
+
+    def test_update_server(self):
+        proxy_id =1
+        cds_url = urljoin(self.cds_url, '/v1/proxy_servers/%s' % proxy_id)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.PUT, cds_url,
+                     body='{"highest_domain_config_job_id":205}', status=200,
+                     content_type='application/json')
+            response = self.testing_class.update_server({'ip': '111.111.111.111', "env": 'env'})
+            self.assertEqual(response, {"highest_domain_config_job_id":205})
+
+    def test_update_server_wrong_code(self):
+        proxy_id = 1
+        cds_url = urljoin(self.cds_url, '/v1/proxy_servers/%s' % proxy_id)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.PUT, cds_url,
+                     body='wrongmess', status=400,
+                     content_type='application/json')
+            try:
+                self.assertRaises(
+                    DeploymentError, self.testing_class.add_server, {'ip': '111.111.111.111', "env": 'env'}
+                )
+            except Exception:
+                pass
+            log = self.check_log_exist()
+            self.assertEquals(
+                log['CDS'],
+                {"sever_group": "fail", "log": "Server error. Status: 400 Error: wrongmess"},
+            )
