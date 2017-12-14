@@ -7,8 +7,8 @@ from copy import deepcopy
 from jinja2 import Template, Environment, PackageLoader
 from jinja2.loaders import FileSystemLoader
 
-from code_dir import settings
-from code_dir.server_deployment.utilites import DeploymentError
+import settings
+from server_deployment.utilites import DeploymentError
 
 
 class Nagios():

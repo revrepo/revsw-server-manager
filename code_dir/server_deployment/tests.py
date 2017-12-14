@@ -25,7 +25,6 @@ import requests_mock
 import responses
 from copy import deepcopy
 from urlparse import urljoin
-import settings
 
 import pymongo
 
@@ -33,10 +32,10 @@ import mongo_logger
 
 from mock import Mock, patch, mock
 
-from code_dir import settings
-from code_dir.server_deployment.cds_api import CDSAPI
-from code_dir.server_deployment.infradb import InfraDBAPI
-from code_dir.server_deployment.utilites import DeploymentError
+import settings
+from server_deployment.cds_api import CDSAPI
+from server_deployment.infradb import InfraDBAPI
+from server_deployment.utilites import DeploymentError
 
 TEST_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "temporary_testing_files/")
 

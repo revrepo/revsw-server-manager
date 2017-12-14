@@ -3,5 +3,5 @@ define host{
     host_name  {{ host_name }}
     alias  {{ host_name }}
     address  {{ ip }}
-    hostgroups  all-hosts, FRA02-hosts, bp-servers, linux-servers, standard-kernel-servers, co-hosts
+    hostgroups  all-hosts, {{ location_code }}-hosts, bp-servers, linux-servers, standard-kernel-servers, co-hosts
     }
