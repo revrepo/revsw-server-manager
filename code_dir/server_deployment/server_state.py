@@ -142,7 +142,10 @@ class ServerState():
 
         self.client.exec_command('sudo apt-get update')
         self.client.exec_command('sudo apt-get upgrade -y')
-        self.client.exec_command('sudo apt-get install puppet -y')
+        (stdin, stdout, stderr) = self.client.exec_command('sudo apt-get install puppet -y')
+        lines = stdout.readlines()
+        for line in lines:
+            print line
 
         self.reboot()
         self.re_connect()
@@ -166,11 +169,14 @@ class ServerState():
     def run_puppet(self):
         self.client.exec_command("sudo service puppet restart")
         (stdin, stdout, stderr) = self.client.exec_command("sudo service puppet status")
-
-        if stdout.channel.recv_exit_status() != 0:
-            log_error = "Server error. Status: %s Error: %s"
-            self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
-            raise DeploymentError(log_error)
+        lines = stdout.readlines()
+        for line in lines:
+            print line
+        #
+        # if stdout.channel.recv_exit_status() != 0:
+        #     log_error = "Wrong puppet status"
+        #     self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
+        #     raise DeploymentError(log_error)
 
     def check_system_version(self):
         lines = []

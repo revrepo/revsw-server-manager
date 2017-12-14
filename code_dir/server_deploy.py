@@ -27,7 +27,7 @@ import sys
 import re
 
 import settings
-from code_dir.server_deployment.nagios import Nagios
+from server_deployment.nagios import Nagios
 from server_deployment.cds_api import CDSAPI
 from server_deployment.infradb import InfraDBAPI
 
@@ -213,20 +213,20 @@ if __name__ == "__main__":
         group = deploy_cds(args, logger, server)
 
         #NAGIOS configurate
-
         nagios = Nagios(host_name, logger)
         nagios_data = {
             'host_name': host_name,
             "ip": host,
+            "location_code": location_code
         }
         nagios.create_config_file(nagios_data)
         nagios.send_config_to_server()
-
+        #
         print '\n\n Add answer to NS1 to record %s' % group['edge_host']
         nsone.add_answer(zone, group['edge_host'], record_type)
-        nsone.add_answer(zone, "test-alexus.attested.club", record_type, host)
+        # nsone.add_answer(zone, "test-alexus.attested.club", record_type, host)
 
 
     except DeploymentError as e:
-        print e
+        print e.message
         sys.exit(-1)

@@ -134,13 +134,14 @@ class MongoLogger():
         }
 
     def log(self, log_dict, step):
-        if step not in self.current_server_state.keys():
-            raise DeploymentError("Wrong logging keys.")
-        self.current_server_state['time'] = datetime.datetime.now().isoformat()
-        self.current_server_state[step] = log_dict
-        if not self.validate(self.current_server_state):
-            raise DeploymentError("Log data not validate.")
-        self.log_collection.insert_one(self.current_server_state)
+        pass
+        # if step not in self.current_server_state.keys():
+        #     raise DeploymentError("Wrong logging keys.")
+        # self.current_server_state['time'] = datetime.datetime.now().isoformat()
+        # self.current_server_state[step] = log_dict
+        # if not self.validate(self.current_server_state):
+        #     raise DeploymentError("Log data not validate.")
+        # self.log_collection.insert_one(self.current_server_state)
 
     def validate(self, data):
         try:
