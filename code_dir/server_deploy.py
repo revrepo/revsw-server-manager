@@ -24,6 +24,8 @@ import paramiko
 import pymongo
 import sys
 
+import re
+
 import settings
 from code_dir.server_deployment.nagios import Nagios
 from server_deployment.cds_api import CDSAPI
@@ -114,6 +116,12 @@ def sign_ssl_puppet(logger, host_name):
         raise DeploymentError(log_error)
     client.close()
 
+def get_location_code(hostname):
+    m = re.search('^(.+?)-', hostname)
+    if m:
+        return m.group(1)
+    raise DeploymentError("Wrong Host_name")
+
 
 def remove_server_from_cds(args, logger):
     cds = CDSAPI(args.cdsgroup, args.host_name, logger)
@@ -126,14 +134,13 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Automatic deployment of server.",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-n", "--host_name", help="Host name of server", )
+    parser.add_argument("-n", "--host_name", help="Host name of server", default='')
     parser.add_argument("-z", "--zone_name", help="Name of zone on NSONE.")
     parser.add_argument("-i", "--IP", help="IP of server.")
     parser.add_argument("-r", "--record_type", help="Type of record at NSONE.", default="A")
     parser.add_argument("-l", "--login", help="Login of the server.")
     parser.add_argument("-p", "--password", help="Password of the server.", default='')
     parser.add_argument("-c", "--cert", help="Certificate of the server.")
-    parser.add_argument("--location", help="Code of server location.", default="TESTSJC20")
     parser.add_argument(
         "--hosting", help="Name of server hosting provider.", default="HE Fremont 2 Facility"
     )
@@ -149,6 +156,8 @@ if __name__ == "__main__":
         logger = MongoLogger('test_host', datetime.datetime.now().isoformat())
 
         host_name = args.host_name
+        location_code = get_location_code(host_name)
+
         host = args.IP
         zone_name = args.zone_name
         record_type = args.record_type
@@ -178,14 +187,14 @@ if __name__ == "__main__":
 
         record = nsone.add_record(zone)
         print "NS1 record id %s" % record['id']
-        # record = nsone.get_record(zone, zone_name, record_type)
+        record = nsone.get_record(zone, zone_name, record_type)
         server_versions = {
             "proxy_software_version": 1,
             "kernel_version": 1,
             "revsw_module_version": 1,
         }
         print '\n\nAdding server to inradb'
-        infradb.add_server(host_name, args.IP, server_versions, args.location, args.host_name)
+        infradb.add_server(host_name, args.IP, server_versions, location_code, args.host_name)
 
 
         #upgade FW rules
@@ -213,9 +222,8 @@ if __name__ == "__main__":
         nagios.create_config_file(nagios_data)
         nagios.send_config_to_server()
 
-
         print '\n\n Add answer to NS1 to record %s' % group['edge_host']
-        # nsone.add_answer(zone, group['edge_host'], record_type)
+        nsone.add_answer(zone, group['edge_host'], record_type)
         nsone.add_answer(zone, "test-alexus.attested.club", record_type, host)
 
 

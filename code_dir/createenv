@@ -1,0 +1,24 @@
+#!/bin/bash
+
+sudo apt-get install libpq-dev
+sudo apt-get install python-pip
+
+if [ ! -d ".env" ]; then
+    virtualenv .env
+fi
+
+echo "pip"
+source .env/bin/activate
+pip install --upgrade pip
+sudo pip install -U setuptools
+pip install python_modules/coverage-4.4.2.tar.gz
+pip install python_modules/cryptography-2.1.4.tar.gz
+pip install python_modules/flake8-3.5.0.tar.gz
+pip install python_modules/Jinja2-2.10.tar.gz
+pip install python_modules/jsonschema-2.6.0.tar.gz
+pip install python_modules/nsone-0.9.16.tar.gz
+pip install python_modules/paramiko-2.4.0.tar.gz
+pip install python_modules/pymongo-3.6.0.tar.gz
+pip install python_modules/requests-2.18.4.tar.gz
+pip install python_modules/requests-mock-1.4.0.tar.gz
+pip install python_modules/responses-0.8.1.tar.gz
