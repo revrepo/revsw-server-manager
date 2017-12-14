@@ -110,7 +110,7 @@ CACTI_SERVER_PASSWORD = ""
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 try:
-    from code_dir import local_settings
+    import local_settings
 
 except ImportError:
     pass
