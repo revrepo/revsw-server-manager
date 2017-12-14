@@ -27,7 +27,7 @@ from copy import deepcopy
 import re
 from server_deployment.utilites import DeploymentError
 
-from code_dir import settings
+import settings
 
 
 class ServerState():
