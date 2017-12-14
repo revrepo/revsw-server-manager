@@ -76,8 +76,8 @@ class Nagios():
         self.mongo_log.log({"nagios_conf": "yes",}, "nagios")
 
     def reload_nagios(self):
-        (stdin, stdout, stderr) = self.client.exec_command("/etc/init.d/nagios reload")
-        if stdout != 0:
+        chan = self.client.exec_command("/etc/init.d/nagios reload")
+        if chan.recv_exit_status() != 0:
             log_error = "Nagios reload error"
             self.mongo_log.log({"nagios_reload": "fail", "log": log_error}, "nagios")
             raise DeploymentError(log_error)

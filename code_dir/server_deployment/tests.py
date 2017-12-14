@@ -690,3 +690,7 @@ class TestCDSAPI(TestAbstract):
                 log['CDS'],
                 {"sever_group": "fail", "log": "Server error. Status: 400 Error: wrongmess"},
             )
+
+
+if __name__ == '__main__':
+    unittest.main()
