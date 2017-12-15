@@ -18,6 +18,7 @@
 """
 
 import json
+import logging
 from urlparse import urljoin
 
 import requests
@@ -26,6 +27,9 @@ import settings
 from server_deployment.utilites import DeploymentError
 
 
+logger = logging.getLogger('ServerDeploy')
+logger.setLevel(logging.DEBUG)
+
 class InfraDBAPI():
 
     def __init__(self, logger):
@@ -33,9 +37,9 @@ class InfraDBAPI():
         self.session = requests.Session()
         self.session.auth = (settings.INFRADB_USERNAME, settings.INFRADB_PASSWORD)
         self.url = settings.INFRADB_URL
-        print 1
 
     def add_server(self, host_name, ip, server_versions, location_name, hosting_name):
+        logger.info("Add server to infradb")
         location = self._get_location(location_name)
         hosting = self._get_hosting(hosting_name)
         server_data = {
@@ -55,8 +59,10 @@ class InfraDBAPI():
             self.logger.log({"server_add": "fail", "log": log_error}, "infraDB")
             raise DeploymentError(log_error)
         self.logger.log({"server_add": "ok"}, "infraDB")
+        logger.info("Server succesfuly added to INFRADB")
 
     def _get_location(self, location_name):
+        logger.info("Get location from INFRADB")
         response = self.session.get(
             urljoin(self.url, 'location?code=%s' % location_name)
         )
@@ -71,6 +77,7 @@ class InfraDBAPI():
             log_error = "Server error. Wrong location code. Location not found"
             self.logger.log({"server_add": "fail", "log": log_error}, "infraDB")
             raise DeploymentError(log_error)
+        logger.info(locations[0])
         return locations[0]
 
     def get_server(self, server_name):

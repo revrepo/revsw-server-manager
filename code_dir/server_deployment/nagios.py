@@ -1,4 +1,5 @@
 import datetime
+import logging
 import time
 
 import os
@@ -10,6 +11,9 @@ from jinja2.loaders import FileSystemLoader
 import settings
 from server_deployment.utilites import DeploymentError
 
+
+logger = logging.getLogger('ServerDeploy')
+logger.setLevel(logging.DEBUG)
 
 class Nagios():
     """

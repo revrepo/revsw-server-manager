@@ -19,6 +19,8 @@
 """
 import argparse
 import datetime
+import logging
+import logging.config
 
 import paramiko
 import pymongo
@@ -36,99 +38,228 @@ from server_deployment.nsone_class import NsOneDeploy
 from server_deployment.server_state import ServerState
 from server_deployment.utilites import DeploymentError
 
+logging.config.dictConfig(settings.LOGGING)
+logger = logging.getLogger('ServerDeploy')
+logger.setLevel(logging.DEBUG)
 
-def deploy_cds(args, logger, server):
-    # checking installed packages
-    cds = CDSAPI(args.cdsgroup, args.host_name, logger)
-    cds.check_installed_packages(server)
+class DeploySequence():
 
-    cds_server = cds.check_server_exist()
-    if cds_server:
-        group_added = cds.check_server_in_group()
-        check_list = cds.check_need_update_versions()
-    else:
-        group_added = False
-        check_list = {
-            'ssl': False,
-            'waf_sdk': False,
-            'domain_purge': False
+
+    def __init__(self, args):
+
+
+        self.steps = {
+            "check_hostname": self.check_hostname_step,
+            "add_ns1_record": self.add_ns1_record,
+            "add_to_infradb": self.add_to_infradb,
+            "update_fw_rules": self.update_fw_rules,
+            "install_puppet": self.install_puppet,
+            "run_puppet": self.run_puppet,
+            "add_to_cds": self.deploy_cds,
+            "add_to_nagios": self.add_to_nagios,
+            "add_ns1_monitor": self.add_ns1_monitor,
+            "add_ns1_balansing_rule": self.add_ns1_balansing_rule,
+
         }
-        cds.add_server(args.IP, args.environment)
-    if check_list['ssl']:
-        cds.monitor_ssl_configuration()
-    if check_list['waf_sdk']:
-        cds.update_server(
-            {
-                "app_config_version": 0,
-                "waf_rule_version": 0
-            }
+        self.step_sequence = [
+            "check_hostname",
+            "add_ns1_record",
+            "add_to_infradb",
+            "update_fw_rules",
+            "install_puppet",
+            "run_puppet",
+            "add_to_cds",
+            "add_to_nagios",
+            "add_ns1_monitor",
+            "add_ns1_balansing_rule",
+        ]
+        self.host_name = args.host_name
+        self.cdsgroup = args.cdsgroup
+        self.ip = args.IP
+        self.first_step = args.first_step
+        self.number_of_steps = args.number_of_steps_to_execute
+        self.dns_balancing_name = args.dns_balancing_name
+        self.zone_name = args.zone_name
+        self.record_type = args.record_type
+
+        self.logger = MongoLogger(self.host_name, datetime.datetime.now().isoformat())
+        self.server = ServerState(
+            self.host_name, args.login, args.password,
+           self.logger, ipv4=self.ip, cert=args.cert
         )
-        cds.monitor_waf_and_sdk_configuration()
-    if check_list['domain_purge']:
-        cds.update_server(
-            {
-                "domain_config_version": 0,
-                "purge_version": 0,
+        self.nsone = NsOneDeploy(self.host_name, self.host_name,self.logger)
+        self.zone = self.nsone.get_zone(self.zone_name)
+        self.infradb = InfraDBAPI(self.logger)
+
+
+        self.location_code = self.get_location_code()
+
+    def run_sequence(self):
+        if self.first_step not in self.step_sequence:
+            raise DeploymentError("Wrong first step")
+        first_index = self.step_sequence.index(self.first_step)
+        end_of_sequence = first_index + self.number_of_steps
+        sequence_list = self.step_sequence[first_index:end_of_sequence]
+        for step in sequence_list:
+            logger.info("Running step %s" % step)
+            self.steps[step]()
+
+    def deploy_cds(self):
+        # checking installed packages
+        cds = CDSAPI(self.cdsgroup, self.host_name, self.logger)
+        cds.check_installed_packages(self.server)
+
+        cds_server = cds.check_server_exist()
+        if cds_server:
+            group_added = cds.check_server_in_group()
+            check_list = cds.check_need_update_versions()
+        else:
+            group_added = False
+            check_list = {
+                'ssl': False,
+                'waf_sdk': False,
+                'domain_purge': False
             }
+            cds.add_server(args.IP, args.environment)
+        if check_list['ssl']:
+            cds.monitor_ssl_configuration()
+        if check_list['waf_sdk']:
+            cds.update_server(
+                {
+                    "app_config_version": 0,
+                    "waf_rule_version": 0
+                }
+            )
+            cds.monitor_waf_and_sdk_configuration()
+        if check_list['domain_purge']:
+            cds.update_server(
+                {
+                    "domain_config_version": 0,
+                    "purge_version": 0,
+                }
+            )
+        if not group_added:
+            cds.add_server_to_group()
+        if check_list['domain_purge']:
+            cds.monitor_purge_and_domain_configuration()
+        self.group = cds.server_group
+
+    def update_fw_rules(self):
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(
+            hostname=settings.INSTALL_SERVER_HOST,
+            username=settings.INSTALL_SERVER_LOGIN,
+            password=settings.INSTALL_SERVER_PASSWORD,
+            port=22
         )
-    if not group_added:
-        cds.add_server_to_group()
-    if check_list['domain_purge']:
-        cds.monitor_purge_and_domain_configuration()
-    return cds.server_group
+        stdin_fw, stdout_fw, stderr_fw = client.exec_command("sh /opt/revsw-firewall-manager/update_all.sh")
+        if stdout_fw.channel.recv_exit_status() != 0:
+            log_error = "Problem with FW rules update on INSTALL server"
+            self.logger.log({"fw": "fail", "log": log_error}, "puppet")
+            raise DeploymentError(log_error)
+        stdin_pu, stdout_pu, stderr_pu = client.exec_command("puppet agent -t")
+        if stdout_pu.channel.recv_exit_status() != 0:
+            log_error = "Problem with pupprt agent on INSTALL server"
+            self.logger.log({"fw": "fail", "log": log_error}, "puppet")
+            raise DeploymentError(log_error)
+        client.close()
 
+    def sign_ssl_puppet(self):
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(
+            hostname=settings.INSTALL_SERVER_HOST,
+            username=settings.INSTALL_SERVER_LOGIN,
+            password=settings.INSTALL_SERVER_PASSWORD,
+            port=22
+        )
+        stdin_fw, stdout_fw, stderr_fw = client.exec_command(
+            "puppet cert sign %s" % self.host_name
+        )
+        if stdout_fw.channel.recv_exit_status() != 0:
+            log_error = "Problem with FW rules update on INSTALL server"
+            self.logger.log({"fw": "fail", "log": log_error}, "puppet")
+            raise DeploymentError(log_error)
+        client.close()
 
-def update_fw_rules(logger):
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(
-        hostname=settings.INSTALL_SERVER_HOST,
-        username=settings.INSTALL_SERVER_LOGIN,
-        password=settings.INSTALL_SERVER_PASSWORD,
-        port=22
-    )
-    stdin_fw, stdout_fw, stderr_fw = client.exec_command("sh /opt/revsw-firewall-manager/update_all.sh")
-    if stdout_fw.channel.recv_exit_status() != 0:
-        log_error = "Problem with FW rules update on INSTALL server"
-        logger.log({"fw": "fail", "log": log_error}, "puppet")
-        raise DeploymentError(log_error)
-    stdin_pu, stdout_pu, stderr_pu = client.exec_command("puppet agent -t")
-    if stdout_pu.channel.recv_exit_status() != 0:
-        log_error = "Problem with pupprt agent on INSTALL server"
-        logger.log({"fw": "fail", "log": log_error}, "puppet")
-        raise DeploymentError(log_error)
-    client.close()
+    def get_location_code(self):
+        m = re.search('^(.+?)-', self.host_name)
+        if m:
+            return m.group(1)
+        raise DeploymentError("Wrong Host_name")
 
+    def remove_server_from_cds(self):
+        cds = CDSAPI(self.cdsgroup, self.host_name, self.logger)
+        cds.update_server({"status": "offline"})
+        cds.delete_server_from_groups()
+        cds.delete_server()
 
-def sign_ssl_puppet(logger, host_name):
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(
-        hostname=settings.INSTALL_SERVER_HOST,
-        username=settings.INSTALL_SERVER_LOGIN,
-        password=settings.INSTALL_SERVER_PASSWORD,
-        port=22
-    )
-    stdin_fw, stdout_fw, stderr_fw = client.exec_command("puppet cert sign %s" % host_name)
-    if stdout_fw.channel.recv_exit_status() != 0:
-        log_error = "Problem with FW rules update on INSTALL server"
-        logger.log({"fw": "fail", "log": log_error}, "puppet")
-        raise DeploymentError(log_error)
-    client.close()
+    def check_hostname_step(self):
+        # Start deploing of server
+        logger.info("Checkin hostname")
+        self.server.check_hostname()
 
-def get_location_code(hostname):
-    m = re.search('^(.+?)-', hostname)
-    if m:
-        return m.group(1)
-    raise DeploymentError("Wrong Host_name")
+        # Reboot server to update hostname
+        logger.info("Reboot new server")
+        self.server.reboot()
 
+    def add_to_infradb(self):
+        server_versions = {
+            "proxy_software_version": 1,
+            "kernel_version": 1,
+            "revsw_module_version": 1,
+        }
+        logger.info("Adding server to inradb")
+        self.infradb.add_server(
+            self.host_name, self.ip, server_versions, self.location_code, self.host_name
+        )
 
-def remove_server_from_cds(args, logger):
-    cds = CDSAPI(args.cdsgroup, args.host_name, logger)
-    cds.update_server({"status": "offline"})
-    cds.delete_server_from_groups()
-    cds.delete_server()
+    def install_puppet(self):
+        logger.info("Install  puppet")
+        self.server.install_puppet()
+        self.server.configure_puppet()
 
+    def run_puppet(self):
+        logger.info("Run puppet")
+        self.server.run_puppet()
+        self.sign_ssl_puppet()
+        self.server.run_puppet()
+
+    def add_to_nagios(self):
+        # NAGIOS configurate
+        logger.info("Configure nagios")
+        nagios = Nagios(self.host_name,self.logger)
+        nagios_data = {
+            'host_name': self.host_name,
+            "ip": self.ip,
+            "location_code": self.location_code
+        }
+        nagios.create_config_file(nagios_data)
+        nagios.send_config_to_server()
+
+    def add_ns1_record(self):
+        logger.info("Add NS1 record")
+        record = self.nsone.add_record(self.zone)
+        logger.info("NS1 record id %s" % record['id'])
+        record = self.nsone.get_record(self.zone, self.zone_name, self.record_type)
+
+    def add_ns1_monitor(self):
+        # Add server to NS1
+        logger.info("Start server adding to NS1")
+
+        monitor_id = self.nsone.add_new_monitor()
+        logger.info("New monitor id %s" % monitor_id)
+        self.nsone.add_feed(settings.NS1_DATA_SOURCE_ID)
+
+    def add_ns1_balansing_rule(self):
+        dns_balance_name = self.dns_balancing_name
+        if not dns_balance_name:
+            cds = CDSAPI(self.cdsgroup, self.host_name, self.logger)
+            dns_balance_name = cds.server_group['edge_host']
+        logger.info("Add answer to NS1 to record %s" % self.group['edge_host'])
+        self.nsone.add_answer(self.zone, dns_balance_name, self.record_type, self.ip)
+        # self.nsone.add_answer(self.zone, "test-alexus.attested.club", self.record_type, self.ip)
 
 if __name__ == "__main__":
 
@@ -138,7 +269,7 @@ if __name__ == "__main__":
     parser.add_argument("-z", "--zone_name", help="Name of zone on NSONE.")
     parser.add_argument("-i", "--IP", help="IP of server.")
     parser.add_argument("-r", "--record_type", help="Type of record at NSONE.", default="A")
-    parser.add_argument("-l", "--login", help="Login of the server.")
+    parser.add_argument("-l", "--login", help="Login of the server.", default="robot")
     parser.add_argument("-p", "--password", help="Password of the server.", default='')
     parser.add_argument("-c", "--cert", help="Certificate of the server.")
     parser.add_argument(
@@ -150,83 +281,29 @@ if __name__ == "__main__":
     parser.add_argument(
         "--environment", help="Environment of server.", default='staging'
     )
+    parser.add_argument(
+        "--dns_balancing_name", help="DNS global load balancing name."
+    )
+
+    parser.add_argument(
+        "--first_step", help="First step which sequence must start.", default='check_hostname'
+    )
+    parser.add_argument(
+        "--number_of_steps_to_execute",
+        help="Number of steps need to be execute.",
+        default=10,
+        type = int,
+    )
+
     args = parser.parse_args()
 
     try:
-        logger = MongoLogger('test_host', datetime.datetime.now().isoformat())
-
-        host_name = args.host_name
-        location_code = get_location_code(host_name)
-
-        host = args.IP
-        zone_name = args.zone_name
-        record_type = args.record_type
-        server = ServerState(
-            host_name, args.login, args.password,
-            logger, ipv4=args.IP, cert=args.cert
-        )
-        print server.check_system_version()
-        nsone = NsOneDeploy(host_name, host_name, logger)
-        infradb = InfraDBAPI(logger)
-
-        # Start deploing of server
-        print "\n\n Checkin hostname"
-        server.check_hostname()
-
-        # Reboot server to update hostname
-        print "\n\n reboot server"
-        server.reboot()
-        server.re_connect()
-
-        # Add server to NS1
-        print "\n\n Start server adding to NS1"
-        zone = nsone.get_zone(zone_name)
-        monitor_id = nsone.add_new_monitor()
-        print 'New monitor id %s' % monitor_id
-        nsone.add_feed(settings.NS1_DATA_SOURCE_ID)
-
-        record = nsone.add_record(zone)
-        print "NS1 record id %s" % record['id']
-        record = nsone.get_record(zone, zone_name, record_type)
-        server_versions = {
-            "proxy_software_version": 1,
-            "kernel_version": 1,
-            "revsw_module_version": 1,
-        }
-        print '\n\nAdding server to inradb'
-        infradb.add_server(host_name, args.IP, server_versions, location_code, args.host_name)
-
-
-        #upgade FW rules
-        print '\n\nUpgrade FW rules.'
-        update_fw_rules(logger)
-
-        # install puppet
-        print '\n\nInstall and run puppet.'
-        server.install_puppet()
-        server.configure_puppet()
-        server.run_puppet()
-        sign_ssl_puppet(logger, host_name)
-        server.run_puppet()
-
-        # add server to cds
-        group = deploy_cds(args, logger, server)
-
-        #NAGIOS configurate
-        nagios = Nagios(host_name, logger)
-        nagios_data = {
-            'host_name': host_name,
-            "ip": host,
-            "location_code": location_code
-        }
-        nagios.create_config_file(nagios_data)
-        nagios.send_config_to_server()
-        #
-        print '\n\n Add answer to NS1 to record %s' % group['edge_host']
-        nsone.add_answer(zone, group['edge_host'], record_type)
-        # nsone.add_answer(zone, "test-alexus.attested.club", record_type, host)
-
+        sequence = DeploySequence(args)
+        sequence.run_sequence()
 
     except DeploymentError as e:
-        print e.message
+        logger.critical(e.message)
+        sys.exit(-1)
+    except Exception as e:
+        logger.critical(e.message)
         sys.exit(-1)

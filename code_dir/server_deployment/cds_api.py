@@ -18,6 +18,7 @@
 """
 
 import json
+import logging
 import time
 from datetime import datetime
 from urlparse import urljoin
@@ -27,6 +28,8 @@ import requests
 import settings
 from server_deployment.utilites import DeploymentError
 
+logger = logging.getLogger('ServerDeploy')
+logger.setLevel(logging.DEBUG)
 
 class CDSAPI():
 
@@ -145,7 +148,7 @@ class CDSAPI():
         return resp["highest_domain_config_job_id"]
 
     def check_server_exist(self):
-        print 'Check existed server in CDS'
+        logger.info("Check existed server in CDS")
         response = requests.get(
             urljoin(self.url, 'v1/proxy_servers/byname/%s' % self.server_name),
             headers={'Authorization': 'Bearer %s' % settings.CDS_API_KEY}
@@ -169,7 +172,7 @@ class CDSAPI():
         return self.proxy_server
 
     def add_server(self, ip, environment):
-        print 'Add new server to CDS'
+        logger.info("Add new server to CDS")
         server_data = {
             "server_name": self.server_name,
             "server_ip": ip,
@@ -196,7 +199,7 @@ class CDSAPI():
             raise DeploymentError(log_error)
         self.proxy_server = json.loads(response.text)
         self.logger.log({"sever_add": "yes"}, "CDS")
-        print self.proxy_server
+        logger.info("new server id ")
 
     def update_server(self, update_data):
         response = requests.put(
@@ -213,7 +216,7 @@ class CDSAPI():
         self.proxy_server = json.loads(response.text)
 
     def check_installed_packages(self, server):
-        print '\n\nChecking installed packages for CDS'
+        logger.info("Checking installed packages for CDS")
         packages = ['revsw-proxy-config', 'revsw-libvarnish4api', 'Revsw-nginx-common',
                     'Revsw-nginx-naxsi', 'Revsw-quic-proxy', 'revsw-varnish4-modules',
                     'Revsw-varnish4', 'Varnish-mod-wurfl', 'libwurfl'
@@ -223,12 +226,12 @@ class CDSAPI():
                 log_error = "%s not installed" % pack
                 self.logger.log({"sever_add": "fail", "log": log_error}, "CDS")
                 raise DeploymentError(log_error)
-            print('%s installed.' % pack)
+            logger.info("%s installed." % pack)
 
     def monitor_ssl_configuration(self):
         start_time = datetime.now()
         iteration = 0
-        print '\n\n\nstart monitoring to update ssl configuration %s' % start_time.isoformat()
+        logger.info("start monitoring to update ssl configuration %s" % start_time.isoformat())
         while iteration != (settings.SSL_CONF_MONITORING_TIME*60/10):
             response = requests.get(
                 urljoin(self.url, 'v1/proxy_servers/%s' % self.proxy_server['_id']),
@@ -236,10 +239,10 @@ class CDSAPI():
             )
             if response.status_code == 200:
                 proxy = json.loads(response.text)
-                print "SSL configuration version %s at time %s" % (proxy["ssl_cert_version"], datetime.now().isoformat())
+                logger.info("SSL configuration version %s at time %s" % (proxy["ssl_cert_version"], datetime.now().isoformat()))
                 if proxy["ssl_cert_version"] >= self.highest_versions['ssl']:
                     finish_time = datetime.now()
-                    print 'end monitoring to update ssl configuration %s' % finish_time.isoformat()
+                    logger.info("end monitoring to update ssl configuration %s" % finish_time.isoformat())
                     return {'start_time': start_time, "finish_time": finish_time}
 
             iteration += iteration
@@ -249,7 +252,7 @@ class CDSAPI():
     def monitor_waf_and_sdk_configuration(self):
         start_time = datetime.now()
         iteration = 0
-        print 'start monitoring to update waf and sdk configuration %s' % start_time.isoformat()
+        logger.info("start monitoring to update waf and sdk configuration %s" % start_time.isoformat())
         while iteration != (settings.WAF_SDK_MONITORING_TIME*60/10):
             response = requests.get(
                 urljoin(self.url, 'v1/proxy_servers/%s' % self.proxy_server['_id']),
@@ -257,13 +260,13 @@ class CDSAPI():
             )
             if response.status_code == 200:
                 proxy = json.loads(response.text)
-                print "waf version %s sdk version %s at time %s" % (
+                logger.info("waf version %s sdk version %s at time %s" % (
                     proxy["waf_rule_version"],proxy["app_config_version"],datetime.now().isoformat()
-                )
+                ))
                 if proxy["app_config_version"] >= self.highest_versions['sdk'] and \
                                 proxy["waf_rule_version"] >= self.highest_versions['waf']:
                     finish_time = datetime.now()
-                    print 'end monitoring to update waf and sdk configuration %s' % finish_time.isoformat()
+                    logger.info("end monitoring to update waf and sdk configuration %s" % finish_time.isoformat())
                     return {'start_time': start_time, "finish_time": finish_time}
 
             iteration += iteration
@@ -273,7 +276,7 @@ class CDSAPI():
     def monitor_purge_and_domain_configuration(self):
         start_time = datetime.now()
         iteration = 0
-        print 'start monitoring to update purge and domain configuration %s' % start_time.isoformat()
+        logger.info("start monitoring to update purge and domain configuration %s" % start_time.isoformat())
         while iteration != (settings.DOMAIN_PURGE_MONITORING_TIME*60/10):
             response = requests.get(
                 urljoin(self.url, 'v1/proxy_servers/%s' % self.proxy_server['_id']),
@@ -281,20 +284,20 @@ class CDSAPI():
             )
             if response.status_code == 200:
                 proxy = json.loads(response.text)
-                print "waf version %s sdk version %s at time %s" % (
+                logger.info("waf version %s sdk version %s at time %s" % (
                     proxy["domain_config_version"], proxy["purge_version"], datetime.now().isoformat()
-                )
+                ))
                 if proxy["domain_config_version"] >= self.highest_versions['domain'] and \
                                 proxy["purge_version"] >= self.highest_versions['purge']:
                     finish_time = datetime.now()
-                    print 'end monitoring to update purge and domain configuration %s' % finish_time.isoformat()
+                    logger.info("end monitoring to update purge and domain configuration %s" % finish_time.isoformat())
                     return {'start_time': start_time, "finish_time": finish_time}
             iteration += iteration
             time.sleep(10)
         raise DeploymentError("To long installing")
 
     def add_server_to_group(self):
-        print 'adding server to group'
+        logger.info("adding server to group")
         new_servers = '%s, %s' % (self.server_name, self.server_group['servers'])
         response = requests.put(
             urljoin(self.url, '/v1/server_groups/%s' % self.server_group['_id']),
@@ -308,10 +311,10 @@ class CDSAPI():
             self.logger.log({"sever_add": "fail", "log": log_error}, "CDS")
             raise DeploymentError(log_error)
         self.server_group = json.loads(response.text)
-        print self.server_group
+        logger.info(self.server_group)
 
     def delete_server(self):
-        print 'Delete server from CDS'
+        logger.info("Delete server from CDS")
         response = requests.post(
             urljoin(self.url, '/v1/proxy_servers/%s' % self.proxy_server['_id']),
             headers={'Authorization': 'Bearer %s' % settings.CDS_API_KEY}
@@ -349,7 +352,7 @@ class CDSAPI():
     def delete_server_from_groups(self):
         group_list = self.get_all_group_with_this_server()
         for group in group_list:
-            print 'delete server from group'
+            logger.info("delete server from group")
             servers_list = group['servers'].split(', ')
             new_servers_list = servers_list.remove(self.server_name)
             response = requests.put(
