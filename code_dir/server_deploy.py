@@ -270,7 +270,7 @@ class DeploySequence():
         if not dns_balance_name:
             cds = CDSAPI(self.server_group, self.host_name, self.logger)
             dns_balance_name = cds.server_group['edge_host']
-        logger.info("Add answer to NS1 to record %s" % self.group['edge_host'])
+        logger.info("Add server %s answer to NS1 to record %s" % (self.ip, dns_balance_name))
         self.nsone.add_answer(self.zone, dns_balance_name, self.record_type, self.ip)
         # self.nsone.add_answer(self.zone, "test-alexus.attested.club", self.record_type, self.ip)
 
@@ -292,7 +292,7 @@ if __name__ == "__main__":
         "--server_group", help="CDS group.", default=settings.SERVER_GROUP
     )
     parser.add_argument(
-        "--environment", help="Environment of server.", default='staging'
+        "--environment", help="Environment of server.", default='prod'
     )
     parser.add_argument(
         "--dns_balancing_name", help="DNS global load balancing name."

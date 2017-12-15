@@ -199,6 +199,7 @@ class CDSAPI():
             raise DeploymentError(log_error)
         self.proxy_server = json.loads(response.text)
         self.logger.log({"sever_add": "yes"}, "CDS")
+        # TODO fix this log
         logger.info("new server id ")
 
     def update_server(self, update_data):
@@ -298,7 +299,7 @@ class CDSAPI():
 
     def add_server_to_group(self):
         logger.info("adding server to group")
-        new_servers = '%s, %s' % (self.server_name, self.server_group['servers'])
+        new_servers = '%s,%s' % (self.server_name, self.server_group['servers'])
         response = requests.put(
             urljoin(self.url, '/v1/server_groups/%s' % self.server_group['_id']),
             data={'servers': new_servers},
@@ -386,3 +387,5 @@ class CDSAPI():
             self.highest_versions['purge'] > self.proxy_server["purge_version"]:
             check_list['domain_purge'] = True
         return check_list
+
+
