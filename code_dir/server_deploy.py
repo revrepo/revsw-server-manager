@@ -58,7 +58,7 @@ class DeploySequence():
             "add_to_cds": self.deploy_cds,
             "add_to_nagios": self.add_to_nagios,
             "add_ns1_monitor": self.add_ns1_monitor,
-            "add_ns1_balansing_rule": self.add_ns1_balansing_rule,
+            "add_ns1_balancing_rule": self.add_ns1_balancing_rule,
 
         }
         self.step_sequence = [
@@ -71,7 +71,7 @@ class DeploySequence():
             "add_to_cds",
             "add_to_nagios",
             "add_ns1_monitor",
-            "add_ns1_balansing_rule",
+            "add_ns1_balancing_rule",
         ]
         self.host_name = args.host_name
         self.cdsgroup = args.cdsgroup
@@ -252,7 +252,7 @@ class DeploySequence():
         logger.info("New monitor id %s" % monitor_id)
         self.nsone.add_feed(settings.NS1_DATA_SOURCE_ID)
 
-    def add_ns1_balansing_rule(self):
+    def add_ns1_balancing_rule(self):
         dns_balance_name = self.dns_balancing_name
         if not dns_balance_name:
             cds = CDSAPI(self.cdsgroup, self.host_name, self.logger)

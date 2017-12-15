@@ -130,28 +130,27 @@ class ServerState():
             return True
         return False
 
+    # TODO remake logging to pythonic way
     def install_puppet(self):
         version = self.check_system_version()
         # version = '14.04'
         if version == '14.04':
-            self.client.exec_command('wget %s' % settings.PUPET_LINKS['14.04'])
-            self.client.exec_command('dpkg -i puppetlabs-release-trusty.deb')
+            self.execute_command_with_log('wget %s' % settings.PUPET_LINKS['14.04'])
+            self.execute_command_with_log('sudo dpkg -i puppetlabs-release-trusty.deb')
 
         elif version == '16.04':
-            self.client.exec_command('wget %s' % settings.PUPET_LINKS['16.04'])
-            self.client.exec_command('dpkg -i puppet-release-xenial.deb')
+            self.execute_command_with_log('wget %s' % settings.PUPET_LINKS['16.04'])
+            self.execute_command_with_log('sudo dpkg -i puppet-release-xenial.deb')
         # (stdin, stdout, stderr) = self.client.exec_command("cat /etc/lsb-release | grep DISTRIB_RELEASE")
 
+        self.execute_command_with_log('sudo apt-get update')
+        self.execute_command_with_log('sudo apt-get upgrade -y')
+        self.execute_command_with_log('sudo apt-get install puppet -y')
 
-        self.client.exec_command('sudo apt-get update')
-        self.client.exec_command('sudo apt-get upgrade -y')
-        (stdin, stdout, stderr) = self.client.exec_command('sudo apt-get install puppet -y')
-        lines = stdout.readlines()
-        for line in lines:
-            logger.info(line)
 
         self.reboot()
         self.re_connect()
+        logger.info('dpkg -l | grep puppet')
         (stdin, stdout, stderr) = self.client.exec_command('dpkg -l | grep puppet')
         if stdout.channel.recv_exit_status() != 0:
             log_error = "Server error. Status: %s Error: %s"
@@ -160,8 +159,8 @@ class ServerState():
 
     def configure_puppet(self):
         # (stdin, stdout, stderr) = self.client.exec_command("cat /etc/lsb-release | grep DISTRIB_RELEASE")
-        self.client.exec_command('sudo puppet agent --enable')
-        self.client.exec_command('sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER)
+        self.execute_command_with_log('sudo puppet agent --enable')
+        self.execute_command_with_log('sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER)
         # self.client.exec_command("sudo echo '[agent]' >> /etc/puppet/puppet.conf")
         # self.client.exec_command("sudo echo 'server = %s' >> /etc/puppet/puppet.conf" % settings.PUPPET_SERVER)
         # self.client.exec_command("sudo echo 'environment = production' >> /etc/puppet/puppet.conf")
@@ -200,3 +199,24 @@ class ServerState():
         if m:
             return m.group(1)
         return '14.04'
+
+    def execute_command_with_log(self, command):
+        logger.info(command)
+        (stdin, stdout, stderr) = self.client.exec_command(command)
+        # for l in self.line_buffered(stdout):
+        #     print l
+        # for l in self.line_buffered(stdout):
+        #     print l
+
+        lines = stdout.readlines()
+        for line in lines:
+            logger.info(line)
+
+    #
+    # def line_buffered(self, f):
+    #     line_buf = ""
+    #     while not f.channel.exit_status_ready():
+    #         line_buf += f.read(1)
+    #         if line_buf.endswith('\n'):
+    #             yield line_buf
+    #             line_buf = ''
