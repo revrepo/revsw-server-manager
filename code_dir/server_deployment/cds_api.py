@@ -65,7 +65,7 @@ class CDSAPI():
             self.logger.log({"sever_group": "fail", "log": log_error}, "CDS")
             raise DeploymentError(log_error)
 
-        if server_group["cds_url"] != "BP":
+        if server_group["groupType"] != "BP":
             log_error = "CDS  error. Wrong server group"
             self.logger.log({"sever_group": "fail", "log": log_error}, "CDS")
             raise DeploymentError(log_error)

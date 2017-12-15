@@ -51,7 +51,7 @@ class InfraDBAPI():
                 "IP": ip,
             }
         server_data.update(server_versions)
-        response = self.session.post(urljoin(self.url, 'server/'), data=server_data)
+        response = self.session.post(urljoin(self.url, 'server/'), data=server_data, verify=False)
         if response.status_code != 201:
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
@@ -64,7 +64,7 @@ class InfraDBAPI():
     def _get_location(self, location_name):
         logger.info("Get location from INFRADB")
         response = self.session.get(
-            urljoin(self.url, 'location?code=%s' % location_name)
+            urljoin(self.url, 'location?code=%s' % location_name), verify=False
         )
         if response.status_code != 200:
             log_error = "Server error. Status: %s Error: %s" % (
@@ -81,7 +81,7 @@ class InfraDBAPI():
         return locations[0]
 
     def get_server(self, server_name):
-        response = self.session.get(urljoin(self.url, 'server/'), name=server_name)
+        response = self.session.get(urljoin(self.url, 'server/'), name=server_name, verify=False)
         if response.status_code == 200:
             return response.text
         elif response.status_code == 404:
@@ -94,7 +94,7 @@ class InfraDBAPI():
 
     def _get_hosting(self, provider_name):
         response = self.session.get(
-            urljoin(self.url, 'hosting?name=%s' % provider_name)
+            urljoin(self.url, 'hosting?name=%s' % provider_name), verify=False
         )
         if response.status_code != 200:
             log_error = "Server error. Status: %s Error: %s" % (
