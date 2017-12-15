@@ -104,6 +104,8 @@ INSTALL_SERVER_HOST = "TESTSJC20-INSTALL01.revsw.net"
 INSTALL_SERVER_LOGIN = "sergey"
 INSTALL_SERVER_PASSWORD = ""
 
+REBOOT_SLEEP_TIME = 30
+
 PUPET_LINKS = {
     "14.04": "http://apt.puppetlabs.com/puppetlabs-release-trusty.deb",
     "16.04": "http://apt.puppetlabs.com/puppet-release-xenial.deb"
@@ -123,7 +125,7 @@ CACTI_SERVER_PASSWORD = ""
 BASE_DIR = os.path.dirname(os.path.dirname(__file__))
 
 try:
-    import local_settings
+    from local_settings import *
 
 except ImportError:
     pass

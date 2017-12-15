@@ -100,7 +100,7 @@ class ServerState():
     def reboot(self):
         self.client.exec_command('sudo reboot')
         self.close_connection()
-        time.sleep(120)
+        time.sleep(settings.REBOOT_SLEEP_TIME)
         self.re_connect()
 
     # check hostname
@@ -146,13 +146,10 @@ class ServerState():
         self.execute_command_with_log('sudo apt-get update')
         self.execute_command_with_log('sudo apt-get upgrade -y')
         self.execute_command_with_log('sudo apt-get install puppet -y')
-
-
+        logger.info("Reboot server and  wait for %s" % settings.REBOOT_SLEEP_TIME)
         self.reboot()
-        self.re_connect()
-        logger.info('dpkg -l | grep puppet')
-        (stdin, stdout, stderr) = self.client.exec_command('dpkg -l | grep puppet')
-        if stdout.channel.recv_exit_status() != 0:
+        puppet_installed = self.execute_command_with_log('dpkg -l | grep puppet')
+        if puppet_installed != 0:
             log_error = "Server error. Status: %s Error: %s"
             self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
             raise DeploymentError(log_error)
@@ -211,6 +208,11 @@ class ServerState():
         lines = stdout.readlines()
         for line in lines:
             logger.info(line)
+        if stdout.channel.recv_exit_status() != 0:
+            log_error = "wrong status code after %s " % command
+            self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
+            raise DeploymentError(log_error)
+        return stdout.channel.recv_exit_status()
 
     #
     # def line_buffered(self, f):
