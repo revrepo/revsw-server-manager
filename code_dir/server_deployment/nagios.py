@@ -77,15 +77,30 @@ class Nagios():
         sftp = self.client.open_sftp()
         sftp.put(
             os.path.join(settings.BASE_DIR, 'temp/%s.cfg' % self.host_name),
-            os.path.join(settings.NAGIOS_CFG_PATH, '%s.cfg' % self.host_name)
+            os.path.join(settings.NAGIOS_TEMP_CFG_PATH, '%s.cfg' % self.host_name)
         )
+        self.execute_command_with_log("sudo mv %s %s" %(
+            os.path.join(settings.NAGIOS_TEMP_CFG_PATH, '%s.cfg' % self.host_name),
+            os.path.join(settings.NAGIOS_CFG_PATH, '%s.cfg' % self.host_name)))
         self.mongo_log.log({"nagios_conf": "yes",}, "nagios")
 
     def reload_nagios(self):
         logger.info("Reloading nagios")
-        chan = self.client.exec_command("/etc/init.d/nagios reload")
+        chan = self.execute_command_with_log("sudo /etc/init.d/nagios reload")
         if chan.recv_exit_status() != 0:
             log_error = "Nagios reload error"
             self.mongo_log.log({"nagios_reload": "fail", "log": log_error}, "nagios")
             raise DeploymentError(log_error)
         self.mongo_log.log({"nagios_reload": "yes"}, "nagios")
+
+    def execute_command_with_log(self, command, check_status=False):
+        logger.info(command)
+        (stdin, stdout, stderr) = self.client.exec_command(command)
+        lines = stdout.readlines()
+        for line in lines:
+            logger.info(line)
+        if check_status and stdout.channel.recv_exit_status() != 0:
+            log_error = "wrong status code after %s " % command
+            self.mongo_log.log({"fw": "fail", "log": log_error}, "nagios")
+            raise DeploymentError(log_error)
+        return stdout.channel.recv_exit_status()
