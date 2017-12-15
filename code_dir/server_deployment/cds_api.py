@@ -284,7 +284,7 @@ class CDSAPI():
             )
             if response.status_code == 200:
                 proxy = json.loads(response.text)
-                logger.info("waf version %s sdk version %s at time %s" % (
+                logger.info("domain_config version %s purge_version version %s at time %s" % (
                     proxy["domain_config_version"], proxy["purge_version"], datetime.now().isoformat()
                 ))
                 if proxy["domain_config_version"] >= self.highest_versions['domain'] and \
