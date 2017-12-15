@@ -126,8 +126,8 @@ class ServerState():
         (stdin, stdout, stderr) = self.client.exec_command('dpkg -s %s' % package_name)
         for line in stdout.readlines():
             output.append(line)
-        if output[1] == 'Status: install ok installed\n': return True
-
+        if output and output[1] == 'Status: install ok installed\n':
+            return True
         return False
 
     def install_puppet(self):

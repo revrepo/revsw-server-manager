@@ -276,7 +276,7 @@ if __name__ == "__main__":
         "--hosting", help="Name of server hosting provider.", default="HE Fremont 2 Facility"
     )
     parser.add_argument(
-        "--cdsgroup", help="CDS group."
+        "--cdsgroup", help="CDS group.", default=settings.SERVER_GROUP
     )
     parser.add_argument(
         "--environment", help="Environment of server.", default='staging'
