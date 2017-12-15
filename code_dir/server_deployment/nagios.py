@@ -65,7 +65,7 @@ class Nagios():
     def create_config_file(self, data):
         logger.info("Create nagios conf file")
         env = Environment(
-            loader=FileSystemLoader(os.path.join(settings.BASE_DIR, "templates"))
+            loader=FileSystemLoader(os.path.join(settings.BASE_DIR, "server_deployment/templates"))
         )
         template = env.get_template('nagios_config.jinja')
         result = template.render(**data)
@@ -92,6 +92,11 @@ class Nagios():
             self.mongo_log.log({"nagios_reload": "fail", "log": log_error}, "nagios")
             raise DeploymentError(log_error)
         self.mongo_log.log({"nagios_reload": "yes"}, "nagios")
+
+    def check_nagios_config(self):
+
+        return self.execute_command_with_log("sudo /etc/init.d/nagios checkconfig")
+
 
     def execute_command_with_log(self, command, check_status=False):
         logger.info(command)
