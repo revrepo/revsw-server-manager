@@ -217,9 +217,9 @@ class CDSAPI():
 
     def check_installed_packages(self, server):
         logger.info("Checking installed packages for CDS")
-        packages = ['revsw-proxy-config', 'revsw-libvarnish4api', 'Revsw-nginx-common',
-                    'Revsw-nginx-naxsi', 'Revsw-quic-proxy', 'revsw-varnish4-modules',
-                    'Revsw-varnish4', 'Varnish-mod-wurfl', 'libwurfl'
+        packages = ['revsw-proxy-config', 'revsw-libvarnish4api', 'revsw-nginx-common',
+                    'revsw-nginx-naxsi', 'Revsw-quic-proxy', 'revsw-varnish4-modules',
+                    'revsw-varnish4', 'Varnish-mod-wurfl', 'libwurfl'
                     ]
         for pack in packages:
             if not server.check_install_package(pack):
