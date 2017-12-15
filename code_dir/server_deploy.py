@@ -174,9 +174,13 @@ class DeploySequence():
             password=settings.INSTALL_SERVER_PASSWORD,
             port=22
         )
+        logger.log("sudo puppet cert sign %s" % self.host_name)
         stdin_fw, stdout_fw, stderr_fw = client.exec_command(
-            "puppet cert sign %s" % self.host_name
+            "sudo puppet cert sign %s" % self.host_name
         )
+        lines = stdout_fw.readlines()
+        for line in lines:
+            logger.info(line)
         if stdout_fw.channel.recv_exit_status() != 0:
             log_error = "Problem with FW rules update on INSTALL server"
             self.logger.log({"fw": "fail", "log": log_error}, "puppet")
@@ -237,6 +241,7 @@ class DeploySequence():
         }
         nagios.create_config_file(nagios_data)
         nagios.send_config_to_server()
+        nagios.reload_nagios()
 
     def add_ns1_record(self):
         logger.info("Add NS1 record")
