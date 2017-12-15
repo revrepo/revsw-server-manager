@@ -174,7 +174,7 @@ class DeploySequence():
             password=settings.INSTALL_SERVER_PASSWORD,
             port=22
         )
-        logger.log("sudo puppet cert sign %s" % self.host_name)
+        logger.info("sudo puppet cert sign %s" % self.host_name)
         stdin_fw, stdout_fw, stderr_fw = client.exec_command(
             "sudo puppet cert sign %s" % self.host_name
         )
