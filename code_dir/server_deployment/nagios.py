@@ -63,6 +63,7 @@ class Nagios():
         self.client.close()
 
     def create_config_file(self, data):
+        logger.info("Create nagios conf file")
         env = Environment(
             loader=FileSystemLoader(os.path.join(settings.BASE_DIR, "templates"))
         )
@@ -72,6 +73,7 @@ class Nagios():
             f.write(result)
 
     def send_config_to_server(self):
+        logger.info("Send file to server")
         sftp = self.client.open_sftp()
         sftp.put(
             os.path.join(settings.BASE_DIR, 'temp/%s.cfg' % self.host_name),
@@ -80,6 +82,7 @@ class Nagios():
         self.mongo_log.log({"nagios_conf": "yes",}, "nagios")
 
     def reload_nagios(self):
+        logger.info("Reloading nagios")
         chan = self.client.exec_command("/etc/init.d/nagios reload")
         if chan.recv_exit_status() != 0:
             log_error = "Nagios reload error"

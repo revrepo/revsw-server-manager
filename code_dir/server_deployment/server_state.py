@@ -157,7 +157,7 @@ class ServerState():
     def configure_puppet(self):
         # (stdin, stdout, stderr) = self.client.exec_command("cat /etc/lsb-release | grep DISTRIB_RELEASE")
         self.execute_command_with_log('sudo puppet agent --enable')
-        self.execute_command_with_log('sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER)
+        self.execute_command_with_log('sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER, check_status=False)
         # self.client.exec_command("sudo echo '[agent]' >> /etc/puppet/puppet.conf")
         # self.client.exec_command("sudo echo 'server = %s' >> /etc/puppet/puppet.conf" % settings.PUPPET_SERVER)
         # self.client.exec_command("sudo echo 'environment = production' >> /etc/puppet/puppet.conf")
@@ -166,7 +166,7 @@ class ServerState():
 
 
     def run_puppet(self):
-        self.client.exec_command('sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER)
+        self.execute_command_with_log('sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER, check_status=False)
 
         #
         #
@@ -197,7 +197,7 @@ class ServerState():
             return m.group(1)
         return '14.04'
 
-    def execute_command_with_log(self, command):
+    def execute_command_with_log(self, command, check_status=False):
         logger.info(command)
         (stdin, stdout, stderr) = self.client.exec_command(command)
         # for l in self.line_buffered(stdout):
@@ -208,7 +208,7 @@ class ServerState():
         lines = stdout.readlines()
         for line in lines:
             logger.info(line)
-        if stdout.channel.recv_exit_status() != 0:
+        if check_status and stdout.channel.recv_exit_status() != 0:
             log_error = "wrong status code after %s " % command
             self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
             raise DeploymentError(log_error)
