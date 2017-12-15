@@ -123,7 +123,7 @@ CACTI_SERVER = "TESTSJC02-MONITOR01.REVSW.NET"
 CACTI_SERVER_LOGIN = "sergey"
 CACTI_SERVER_PASSWORD = ""
 
-BASE_DIR = os.path.dirname(os.path.dirname(__file__))
+BASE_DIR = os.path.dirname(__file__)
 
 try:
     from local_settings import *
