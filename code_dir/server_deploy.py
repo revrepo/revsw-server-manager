@@ -74,7 +74,7 @@ class DeploySequence():
             "add_ns1_balancing_rule",
         ]
         self.host_name = args.host_name
-        self.cdsgroup = args.cdsgroup
+        self.server_group = args.server_group
         self.ip = args.IP
         self.first_step = args.first_step
         self.number_of_steps = args.number_of_steps_to_execute
@@ -89,7 +89,7 @@ class DeploySequence():
         )
         self.nsone = NsOneDeploy(self.host_name, self.host_name,self.logger)
         self.zone = self.nsone.get_zone(self.zone_name)
-        self.infradb = InfraDBAPI(self.logger)
+        self.infradb = InfraDBAPI(self.logger, ssl_disable=args.disable_infradb_ssl)
 
 
         self.location_code = self.get_location_code()
@@ -106,7 +106,7 @@ class DeploySequence():
 
     def deploy_cds(self):
         # checking installed packages
-        cds = CDSAPI(self.cdsgroup, self.host_name, self.logger)
+        cds = CDSAPI(self.server_group, self.host_name, self.logger)
         cds.check_installed_packages(self.server)
 
         cds_server = cds.check_server_exist()
@@ -153,12 +153,20 @@ class DeploySequence():
             password=settings.INSTALL_SERVER_PASSWORD,
             port=22
         )
-        stdin_fw, stdout_fw, stderr_fw = client.exec_command("sh /opt/revsw-firewall-manager/update_all.sh")
+        logger.info("sudo sh /opt/revsw-firewall-manager/update_all.sh")
+        stdin_fw, stdout_fw, stderr_fw = client.exec_command("sudo sh /opt/revsw-firewall-manager/update_all.sh")
+        lines = stdout_fw.readlines()
+        for line in lines:
+            logger.info(line)
         if stdout_fw.channel.recv_exit_status() != 0:
             log_error = "Problem with FW rules update on INSTALL server"
             self.logger.log({"fw": "fail", "log": log_error}, "puppet")
             raise DeploymentError(log_error)
-        stdin_pu, stdout_pu, stderr_pu = client.exec_command("puppet agent -t")
+        logger.info("sudo puppet agent -t")
+        stdin_pu, stdout_pu, stderr_pu = client.exec_command("sudo puppet agent -t")
+        lines = stdout_pu.readlines()
+        for line in lines:
+            logger.info(line)
         if stdout_pu.channel.recv_exit_status() != 0:
             log_error = "Problem with pupprt agent on INSTALL server"
             self.logger.log({"fw": "fail", "log": log_error}, "puppet")
@@ -182,7 +190,7 @@ class DeploySequence():
         for line in lines:
             logger.info(line)
         if stdout_fw.channel.recv_exit_status() != 0:
-            log_error = "Problem with FW rules update on INSTALL server"
+            log_error = "Problem with sudo puppet cert sign %s" % self.host_name
             self.logger.log({"fw": "fail", "log": log_error}, "puppet")
             raise DeploymentError(log_error)
         client.close()
@@ -194,7 +202,7 @@ class DeploySequence():
         raise DeploymentError("Wrong Host_name")
 
     def remove_server_from_cds(self):
-        cds = CDSAPI(self.cdsgroup, self.host_name, self.logger)
+        cds = CDSAPI(self.server_group, self.host_name, self.logger)
         cds.update_server({"status": "offline"})
         cds.delete_server_from_groups()
         cds.delete_server()
@@ -260,7 +268,7 @@ class DeploySequence():
     def add_ns1_balancing_rule(self):
         dns_balance_name = self.dns_balancing_name
         if not dns_balance_name:
-            cds = CDSAPI(self.cdsgroup, self.host_name, self.logger)
+            cds = CDSAPI(self.server_group, self.host_name, self.logger)
             dns_balance_name = cds.server_group['edge_host']
         logger.info("Add answer to NS1 to record %s" % self.group['edge_host'])
         self.nsone.add_answer(self.zone, dns_balance_name, self.record_type, self.ip)
@@ -270,9 +278,9 @@ if __name__ == "__main__":
 
     parser = argparse.ArgumentParser(description="Automatic deployment of server.",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-n", "--host_name", help="Host name of server", default='')
+    parser.add_argument("-n", "--host_name", help="Host name of server", required=True)
     parser.add_argument("-z", "--zone_name", help="Name of zone on NSONE.", default="attested.club")
-    parser.add_argument("-i", "--IP", help="IP of server.")
+    parser.add_argument("-i", "--IP", help="IP of server.", required=True)
     parser.add_argument("-r", "--record_type", help="Type of record at NSONE.", default="A")
     parser.add_argument("-l", "--login", help="Login of the server.", default="robot")
     parser.add_argument("-p", "--password", help="Password of the server.", default='')
@@ -281,7 +289,7 @@ if __name__ == "__main__":
         "--hosting", help="Name of server hosting provider.", default="HE Fremont 2 Facility"
     )
     parser.add_argument(
-        "--cdsgroup", help="CDS group.", default=settings.SERVER_GROUP
+        "--server_group", help="CDS group.", default=settings.SERVER_GROUP
     )
     parser.add_argument(
         "--environment", help="Environment of server.", default='staging'
@@ -300,6 +308,8 @@ if __name__ == "__main__":
         type = int,
     )
 
+    parser.add_argument(
+        "--disable_infradb_ssl", help="Disable ssl check  for infradb.", type=bool)
     args = parser.parse_args()
 
     try:
