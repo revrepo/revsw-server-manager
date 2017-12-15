@@ -116,9 +116,9 @@ class DeploySequence():
         else:
             group_added = False
             check_list = {
-                'ssl': False,
-                'waf_sdk': False,
-                'domain_purge': False
+                'ssl': True,
+                'waf_sdk': True,
+                'domain_purge': True
             }
             cds.add_server(args.IP, args.environment)
         if check_list['ssl']:
