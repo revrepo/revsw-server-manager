@@ -266,7 +266,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Automatic deployment of server.",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-n", "--host_name", help="Host name of server", default='')
-    parser.add_argument("-z", "--zone_name", help="Name of zone on NSONE.")
+    parser.add_argument("-z", "--zone_name", help="Name of zone on NSONE.", default="attested.club")
     parser.add_argument("-i", "--IP", help="IP of server.")
     parser.add_argument("-r", "--record_type", help="Type of record at NSONE.", default="A")
     parser.add_argument("-l", "--login", help="Login of the server.", default="robot")
@@ -303,7 +303,8 @@ if __name__ == "__main__":
 
     except DeploymentError as e:
         logger.critical(e.message)
+        logger.error(e, exc_info=True)
         sys.exit(-1)
     except Exception as e:
-        logger.critical(e.message)
+        logger.error(e, exc_info=True)
         sys.exit(-1)
