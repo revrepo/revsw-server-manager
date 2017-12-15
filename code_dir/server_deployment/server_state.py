@@ -16,8 +16,7 @@
  from Rev Software, Inc.
 
 """
-
-
+import logging
 import time
 import datetime
 import paramiko
@@ -29,6 +28,9 @@ from server_deployment.utilites import DeploymentError
 
 import settings
 
+
+logger = logging.getLogger('ServerDeploy')
+logger.setLevel(logging.DEBUG)
 
 class ServerState():
     """
@@ -99,6 +101,7 @@ class ServerState():
         self.client.exec_command('sudo reboot')
         self.close_connection()
         time.sleep(120)
+        self.re_connect()
 
     # check hostname
     def check_hostname(self):
@@ -107,7 +110,7 @@ class ServerState():
         status = stdout_.channel.recv_exit_status()
         lines = stdout_.readlines()
         for line in lines:
-            print 'hostname %s' % line
+            logger.info("hostname %s" % line)
         return lines[0]
 
     # open and rewrite hostname file
@@ -145,7 +148,7 @@ class ServerState():
         (stdin, stdout, stderr) = self.client.exec_command('sudo apt-get install puppet -y')
         lines = stdout.readlines()
         for line in lines:
-            print line
+            logger.info(line)
 
         self.reboot()
         self.re_connect()
@@ -159,24 +162,29 @@ class ServerState():
         # (stdin, stdout, stderr) = self.client.exec_command("cat /etc/lsb-release | grep DISTRIB_RELEASE")
         self.client.exec_command('sudo puppet agent --enable')
         self.client.exec_command('sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER)
-        self.client.exec_command("sudo echo '[agent]' >> /etc/puppet/puppet.conf")
-        self.client.exec_command("sudo echo 'server = %s' >> /etc/puppet/puppet.conf" % settings.PUPPET_SERVER)
-        self.client.exec_command("sudo echo 'environment = production' >> /etc/puppet/puppet.conf")
-        self.client.exec_command("sudo echo 'configtimeout = 600' >> /etc/puppet/puppet.conf")
-        self.client.exec_command("sudo service puppet restart")
+        # self.client.exec_command("sudo echo '[agent]' >> /etc/puppet/puppet.conf")
+        # self.client.exec_command("sudo echo 'server = %s' >> /etc/puppet/puppet.conf" % settings.PUPPET_SERVER)
+        # self.client.exec_command("sudo echo 'environment = production' >> /etc/puppet/puppet.conf")
+        # self.client.exec_command("sudo echo 'configtimeout = 600' >> /etc/puppet/puppet.conf")
+        # self.client.exec_command("sudo service puppet restart")
 
 
     def run_puppet(self):
-        self.client.exec_command("sudo service puppet restart")
-        (stdin, stdout, stderr) = self.client.exec_command("sudo service puppet status")
-        lines = stdout.readlines()
-        for line in lines:
-            print line
+        self.client.exec_command('sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER)
+
         #
-        # if stdout.channel.recv_exit_status() != 0:
-        #     log_error = "Wrong puppet status"
-        #     self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
-        #     raise DeploymentError(log_error)
+        #
+        #
+        # self.client.exec_command("sudo service puppet restart")
+        # (stdin, stdout, stderr) = self.client.exec_command("sudo service puppet status")
+        # lines = stdout.readlines()
+        # for line in lines:
+        #     print line
+        # #
+        # # if stdout.channel.recv_exit_status() != 0:
+        # #     log_error = "Wrong puppet status"
+        # #     self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
+        # #     raise DeploymentError(log_error)
 
     def check_system_version(self):
         lines = []

@@ -16,6 +16,8 @@
  from Rev Software, Inc.
 
 """
+import logging
+
 from nsone.records import Record
 from nsone.rest.errors import ResourceException
 from nsone.zones import ZoneException
@@ -25,6 +27,9 @@ from nsone import NSONE
 
 from server_deployment.utilites import DeploymentError
 
+
+logger = logging.getLogger('ServerDeploy')
+logger.setLevel(logging.DEBUG)
 
 class NsOneDeploy():
 
@@ -102,7 +107,7 @@ class NsOneDeploy():
                 "log": log_error
             }, "infraDB")
             raise DeploymentError(log_error)
-        print "Zone id %s" % zone['id']
+        logger.info("Zone id %s" % zone['id'])
         return zone
 
     def add_record(self, zone):

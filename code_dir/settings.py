@@ -28,6 +28,9 @@ LOGGING = {
         'simple': {
             'format': '%(levelname)-5s %(module)-6s %(message)s'
         },
+        'timing': {
+            'format': '%(levelname)s %(asctime)s %(message)s'
+        },
     },
     'handlers': {
         'null': {
@@ -38,6 +41,11 @@ LOGGING = {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
             'formatter': 'simple'
+        },
+        'console_full':{
+            'level': 'DEBUG',
+            'class': 'logging.StreamHandler',
+            'formatter': 'timing'
         },
     },
     'loggers': {
@@ -63,6 +71,10 @@ LOGGING = {
         },
         'Nagios': {
             'handlers': ['console'],
+            'level': 'DEBUG',
+        },
+        'ServerDeploy': {
+            'handlers': ['console_full'],
             'level': 'DEBUG',
         },
     }
