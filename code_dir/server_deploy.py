@@ -210,11 +210,12 @@ class DeploySequence():
     def check_hostname_step(self):
         # Start deploing of server
         logger.info("Checkin hostname")
-        self.server.check_hostname()
-
-        # Reboot server to update hostname
-        logger.info("Reboot new server")
-        self.server.reboot()
+        hostname = self.server.check_hostname()
+        if hostname.rstrip() != self.host_name:
+            self.server.update_hostname(self.host_name)
+            # Reboot server to update hostname
+            logger.info("Reboot new server")
+            self.server.reboot()
 
     def add_to_infradb(self):
         server_versions = {

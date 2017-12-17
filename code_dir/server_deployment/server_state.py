@@ -19,6 +19,8 @@
 import logging
 import time
 import datetime
+
+import os
 import paramiko
 
 from copy import deepcopy
@@ -109,17 +111,28 @@ class ServerState():
         time.sleep(2) # sleep some time for complete command
         status = stdout_.channel.recv_exit_status()
         lines = stdout_.readlines()
+
         for line in lines:
             logger.info("hostname %s" % line)
         return lines[0]
 
     # open and rewrite hostname file
-    def set_hostname(self, hostname):
-        ftp = self.client.open_sftp()
-        file = ftp.file('/etc/hostname', "w", -1)
-        file.write(hostname)
-        file.flush()
-        ftp.close()
+    def update_hostname(self, hostname):
+        os.system("mkdir %s" % os.path.join(settings.BASE_DIR, 'temp'))
+
+        with open(os.path.join(settings.BASE_DIR, 'temp/hostname'), 'w') as f:
+            f.write(hostname)
+        logger.info("Send file to server")
+        self.execute_command_with_log("sudo rm /etc/hostname")
+        sftp = self.client.open_sftp()
+        sftp.put(
+            os.path.join(settings.BASE_DIR, 'temp/hostname'),
+            os.path.join(settings.NAGIOS_TEMP_CFG_PATH, 'hostname')
+        )
+        self.execute_command_with_log("sudo mv %s %s" % (
+            os.path.join(settings.NAGIOS_TEMP_CFG_PATH, 'hostname'),
+            '/etc/hostname'))
+        os.system("rm -r %s" % os.path.join(settings.BASE_DIR, 'temp'))
 
     def check_install_package(self, package_name):
         output = []
@@ -130,7 +143,6 @@ class ServerState():
             return True
         return False
 
-    # TODO remake logging to pythonic way
     def install_puppet(self):
         version = self.check_system_version()
         # version = '14.04'
