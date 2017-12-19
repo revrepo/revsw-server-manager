@@ -259,15 +259,16 @@ class DeploySequence():
     def add_ns1_monitor(self):
         # Add server to NS1
         logger.info("Start server adding to NS1")
-
-        monitor_id = self.nsone.add_new_monitor()
-        logger.info("New monitor id %s" % monitor_id)
-        time.sleep(60)
+        monitor_id = self.nsone.check_is_monitor_exist()
+        if not monitor_id:
+            monitor_id = self.nsone.add_new_monitor()
+            logger.info("New monitor id %s" % monitor_id)
+            time.sleep(60)
         monitor_status = self.nsone.check_monitor_status(monitor_id)
         if monitor_status != 'up':
             raise DeploymentError("New monito not in UP status")
         logger.info("New monitor is UP")
-        self.nsone.add_feed(settings.NS1_DATA_SOURCE_ID)
+        self.nsone.add_feed(settings.NS1_DATA_SOURCE_ID, monitor_id)
 
     def add_ns1_balancing_rule(self):
         dns_balance_name = self.dns_balancing_name
