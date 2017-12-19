@@ -75,6 +75,7 @@ class DeploySequence():
             "add_ns1_balancing_rule",
         ]
         self.host_name = args.host_name
+        self.short_name = self.get_short_name()
         self.server_group = args.server_group
         self.ip = args.IP
         self.first_step = args.first_step
@@ -238,9 +239,9 @@ class DeploySequence():
     def add_to_nagios(self):
         # NAGIOS configurate
         logger.info("Configure nagios")
-        nagios = Nagios(self.host_name,self.logger)
+        nagios = Nagios(self.host_name,self.logger, self.short_name)
         nagios_data = {
-            'host_name': self.host_name,
+            'host_name': self.short_name,
             "ip": self.ip,
             "location_code": self.location_code
         }
@@ -266,7 +267,7 @@ class DeploySequence():
             time.sleep(60)
         monitor_status = self.nsone.check_monitor_status(monitor_id)
         if monitor_status != 'up':
-            raise DeploymentError("New monito not in UP status")
+            raise DeploymentError("New monitor not in UP status")
         logger.info("New monitor is UP")
         self.nsone.add_feed(settings.NS1_DATA_SOURCE_ID, monitor_id)
 
@@ -278,6 +279,12 @@ class DeploySequence():
         logger.info("Add server %s answer to NS1 to record %s" % (self.ip, dns_balance_name))
         self.nsone.add_answer(self.zone, dns_balance_name, self.record_type, self.ip)
         # self.nsone.add_answer(self.zone, "test-alexus.attested.club", self.record_type, self.ip)
+
+    def get_short_name(self):
+        m = re.search('^(.+?)\.', self.host_name)
+        if m:
+            return m.group(1)
+        raise DeploymentError("Wrong Host_name")
 
 if __name__ == "__main__":
 

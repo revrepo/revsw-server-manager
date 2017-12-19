@@ -48,7 +48,6 @@ class DestroySequence():
 
     def __init__(self, args):
 
-
         self.steps = {
             "remove_from_nagios":self.remove_from_nagios,
             "remove_from_cds": self.remove_from_cds,
