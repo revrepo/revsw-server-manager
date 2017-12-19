@@ -67,17 +67,17 @@ class DestroySequence():
         self.ip = args.IP
         self.first_step = args.first_step
         self.number_of_steps = args.number_of_steps_to_execute
-        self.dns_balancing_name = args.dns_balancing_name
-        self.zone_name = args.zone_name
+        # self.dns_balancing_name = args.dns_balancing_name
+        # self.zone_name = args.zone_name
         self.record_type = args.record_type
 
         self.logger = MongoLogger(self.host_name, datetime.datetime.now().isoformat())
-        self.server = ServerState(
-            self.host_name, args.login, args.password,
-           self.logger, ipv4=self.ip, cert=args.cert, first_step=self.first_step,
-        )
+        # self.server = ServerState(
+        #     self.host_name, args.login, args.password,
+        #    self.logger, ipv4=self.ip, first_step=self.first_step,
+        # )
         self.nsone = NsOneDeploy(self.host_name, self.host_name,self.logger)
-        self.zone = self.nsone.get_zone(self.zone_name)
+        # self.zone = self.nsone.get_zone(self.zone_name)
         self.infradb = InfraDBAPI(self.logger, ssl_disable=args.disable_infradb_ssl)
 
 

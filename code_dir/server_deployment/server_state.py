@@ -104,7 +104,7 @@ class ServerState():
         self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         if using_key:
             k = paramiko.RSAKey.from_private_key_file(settings.KEY_PATH)
-            self.client.connect(hostname=self.ipv4, username=self.robot,  pkey=k, port=22)
+            self.client.connect(hostname=self.ipv4, username='robot',  pkey=k, port=22)
         else:
             self.client.connect(hostname=self.ipv4, username=self.login, password=self.password, port=22)
         return self.client.get_transport().is_active()
