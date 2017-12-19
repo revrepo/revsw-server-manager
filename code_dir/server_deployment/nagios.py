@@ -90,7 +90,7 @@ class Nagios():
     def reload_nagios(self):
         logger.info("Reloading nagios")
         chan = self.execute_command_with_log("sudo /etc/init.d/nagios reload")
-        if chan.recv_exit_status() != 0:
+        if chan != 0:
             log_error = "Nagios reload error"
             self.mongo_log.log({"nagios_reload": "fail", "log": log_error}, "nagios")
             raise DeploymentError(log_error)
