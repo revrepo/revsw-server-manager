@@ -127,7 +127,7 @@ CACTI_SERVER_PASSWORD = ""
 
 BASE_DIR = os.path.dirname(__file__)
 
-KEY_PATH = os.path.join(BASE_DIR, 'keys/id_rsa.pub')
+KEY_PATH = os.path.join(BASE_DIR, 'keys/id_rsa')
 
 try:
     from local_settings import *

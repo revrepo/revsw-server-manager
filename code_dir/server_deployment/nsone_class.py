@@ -46,6 +46,29 @@ class NsOneDeploy():
         # print(record)
 
 
+    def get_monitor_list(self):
+        try:
+            monitors = self.monitor.list()
+        except ResourceException as e:
+            log_error = e.message
+            self.logger.log({
+                "host_added": 'no',
+                "monitored": 'fail',
+                "log": log_error
+            }, "infraDB")
+            raise DeploymentError(log_error)
+        return monitors
+
+    def check_is_monitor_exist(self):
+        logger.info('Cheking  monitors list if server already have monitor')
+        monitors = self.get_monitor_list()
+        for monitor in monitors:
+            if monitor['name'] == self.host_name:
+                logger.info("monitor already exist with id %s" % monitor['id'])
+                return monitor['id']
+        return False
+
+
     def add_new_monitor(self):
         monitor_data = {
             "region_scope":"fixed",
@@ -181,12 +204,12 @@ class NsOneDeploy():
 
         return record
 
-    def add_feed(self, source_id):
+    def add_feed(self, source_id, monitor_id):
         try:
             feedAPI = self.nsone.datafeed()
             feed = feedAPI.create(source_id,
                                    "%s status" % self.host_name,
-                                   config={'label': self.host_name})
+                                   config={"entity_id": monitor_id})
         except ResourceException as e:
             log_error = e.message
             self.logger.log({

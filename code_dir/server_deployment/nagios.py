@@ -65,7 +65,6 @@ class Nagios():
         self.client.close()
 
     def create_config_file(self, data):
-        os.system("mkdir %s" % os.path.join(settings.BASE_DIR, 'temp'))
         logger.info("Create nagios conf file")
         env = Environment(
             loader=FileSystemLoader(os.path.join(settings.BASE_DIR, "server_deployment/templates"))
@@ -80,14 +79,13 @@ class Nagios():
         logger.info("Send file to server")
         sftp = self.client.open_sftp()
         sftp.put(
-            os.path.join(settings.BASE_DIR, 'temp/%s.cfg' % self.file_name),
+            os.path.join(settings.BASE_DIR, '/tmp/%s.cfg' % self.file_name),
             os.path.join(settings.NAGIOS_TEMP_CFG_PATH, '%s.cfg' % self.file_name)
         )
         self.execute_command_with_log("sudo mv %s %s" %(
             os.path.join(settings.NAGIOS_TEMP_CFG_PATH, '%s.cfg' % self.file_name),
             os.path.join(settings.NAGIOS_CFG_PATH, '%s.cfg' % self.file_name)))
         self.mongo_log.log({"nagios_conf": "yes",}, "nagios")
-        os.system("rm -r %s" % os.path.join(settings.BASE_DIR, 'temp'))
 
     def reload_nagios(self):
         logger.info("Reloading nagios")
