@@ -209,7 +209,7 @@ class NsOneDeploy():
             feedAPI = self.nsone.datafeed()
             feed = feedAPI.create(source_id,
                                    "%s status" % self.host_name,
-                                   config={"entity_id": monitor_id})
+                                   config={"jobid": monitor_id})
         except ResourceException as e:
             log_error = e.message
             self.logger.log({

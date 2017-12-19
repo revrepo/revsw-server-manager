@@ -22,9 +22,10 @@ class Nagios():
     Class which contact with server and save state its deploy
     """
 
-    def __init__(self, host_name, mongo_log):
+    def __init__(self, host_name, mongo_log, short_name):
 
         self.host_name = host_name
+        self.short_name = short_name
         self.login = settings.NAGIOS_SERVER_LOGIN
         self.server_name = settings.NAGIOS_SERVER
         self.password = settings.NAGIOS_SERVER_PASSWORD
@@ -71,20 +72,19 @@ class Nagios():
         )
         template = env.get_template('nagios_config.jinja')
         result = template.render(**data)
-        self.file_name = self.get_name_of_config_file()
-        with open('/tmp/%s.cfg' % self.file_name, 'w') as f:
+        with open('/tmp/%s.cfg' % self.short_name, 'w') as f:
             f.write(result)
 
     def send_config_to_server(self):
         logger.info("Send file to server")
         sftp = self.client.open_sftp()
         sftp.put(
-            os.path.join(settings.BASE_DIR, '/tmp/%s.cfg' % self.file_name),
-            os.path.join(settings.NAGIOS_TEMP_CFG_PATH, '%s.cfg' % self.file_name)
+            os.path.join(settings.BASE_DIR, '/tmp/%s.cfg' % self.short_name),
+            os.path.join(settings.NAGIOS_TEMP_CFG_PATH, '%s.cfg' % self.short_name)
         )
         self.execute_command_with_log("sudo mv %s %s" %(
-            os.path.join(settings.NAGIOS_TEMP_CFG_PATH, '%s.cfg' % self.file_name),
-            os.path.join(settings.NAGIOS_CFG_PATH, '%s.cfg' % self.file_name)))
+            os.path.join(settings.NAGIOS_TEMP_CFG_PATH, '%s.cfg' % self.short_name),
+            os.path.join(settings.NAGIOS_CFG_PATH, '%s.cfg' % self.short_name)))
         self.mongo_log.log({"nagios_conf": "yes",}, "nagios")
 
     def reload_nagios(self):
@@ -111,11 +111,5 @@ class Nagios():
             log_error = "wrong status code after %s " % command
             self.mongo_log.log({"fw": "fail", "log": log_error}, "nagios")
             raise DeploymentError(log_error)
-        logger.info("%s was finished with code %" % (command, stdout.channel.recv_exit_status()))
+        logger.info("%s was finished with code %s" % (command, stdout.channel.recv_exit_status()))
         return stdout.channel.recv_exit_status()
-
-    def get_name_of_config_file(self):
-        m = re.search('^(.+?)\.', self.host_name)
-        if m:
-            return m.group(1)
-        raise DeploymentError("Wrong Host_name")
