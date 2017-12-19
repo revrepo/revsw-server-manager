@@ -19,6 +19,8 @@
 import logging
 import time
 import datetime
+
+import os
 import paramiko
 
 from copy import deepcopy
@@ -37,7 +39,7 @@ class ServerState():
     Class which contact with server and save state its deploy
     """
 
-    def __init__(self, host_name, login, password, mongo_log, ipv4='', ipv6='', cert=''):
+    def __init__(self, host_name, login, password, mongo_log, ipv4='', ipv6='', cert='', first_step="check_hostname"):
 
         self.host_name = host_name
         self.start_time = datetime.datetime.now()
@@ -71,8 +73,16 @@ class ServerState():
             "update": None,
             "upgrade": None
         }
-
-        self.re_connect()
+        use_key =False
+        if first_step not in [
+            "check_hostname",
+            "add_ns1_record",
+            "add_to_infradb",
+            "update_fw_rules",
+            "install_puppet",
+            "run_puppet",]:
+            use_key = True
+        self.re_connect(using_key=use_key)
 
     def log_changes(self, log=None):
         log_dict = deepcopy(self.steps)
@@ -87,21 +97,26 @@ class ServerState():
         else:
             raise DeploymentError("Log data not validate.")
 
-    # reconect to server and check connection status
-    def re_connect(self):
+    # reconect to server
+    def re_connect(self, using_key=False):
+
         self.client = paramiko.SSHClient()
         self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        self.client.connect(hostname=self.ipv4, username=self.login, password=self.password, port=22)
+        if using_key:
+            k = paramiko.RSAKey.from_private_key_file(settings.KEY_PATH)
+            self.client.connect(hostname=self.ipv4, username=self.robot,  pkey=k, port=22)
+        else:
+            self.client.connect(hostname=self.ipv4, username=self.login, password=self.password, port=22)
         return self.client.get_transport().is_active()
 
     def close_connection(self):
         self.client.close()
 
-    def reboot(self):
+    def reboot(self, using_key=False):
         self.client.exec_command('sudo reboot')
         self.close_connection()
         time.sleep(settings.REBOOT_SLEEP_TIME)
-        self.re_connect()
+        self.re_connect(using_key=using_key)
 
     # check hostname
     def check_hostname(self):
@@ -109,17 +124,13 @@ class ServerState():
         time.sleep(2) # sleep some time for complete command
         status = stdout_.channel.recv_exit_status()
         lines = stdout_.readlines()
+
         for line in lines:
             logger.info("hostname %s" % line)
         return lines[0]
 
-    # open and rewrite hostname file
-    def set_hostname(self, hostname):
-        ftp = self.client.open_sftp()
-        file = ftp.file('/etc/hostname', "w", -1)
-        file.write(hostname)
-        file.flush()
-        ftp.close()
+    def update_hostname(self, hostname):
+        self.execute_command_with_log("sudo echo -n %s > /etc/hostname" % hostname)
 
     def check_install_package(self, package_name):
         output = []
@@ -130,7 +141,6 @@ class ServerState():
             return True
         return False
 
-    # TODO remake logging to pythonic way
     def install_puppet(self):
         version = self.check_system_version()
         # version = '14.04'
@@ -166,7 +176,20 @@ class ServerState():
 
 
     def run_puppet(self):
-        self.execute_command_with_log('sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER, check_status=False)
+        logger.info('sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER)
+        (stdin, stdout, stderr) = self.client.exec_command('sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER)
+        lines = stdout.readlines()
+        lines_list = []
+        for line in lines:
+            lines_list.append(line)
+            logger.info(line)
+        logger.info("sudo puppet agent -t --server=%s was finished with code %s" % (
+            settings.PUPPET_SERVER, stdout.channel.recv_exit_status()
+        ))
+        if stdout.channel.recv_exit_status() != 0 and \
+                        lines_list[0] == "Exiting; no certificate found and waitforcert is disabled":
+            return 0
+        return stdout.channel.recv_exit_status()
 
         #
         #
@@ -197,14 +220,9 @@ class ServerState():
             return m.group(1)
         return '14.04'
 
-    def execute_command_with_log(self, command, check_status=False):
+    def execute_command_with_log(self, command, check_status=True):
         logger.info(command)
         (stdin, stdout, stderr) = self.client.exec_command(command)
-        # for l in self.line_buffered(stdout):
-        #     print l
-        # for l in self.line_buffered(stdout):
-        #     print l
-
         lines = stdout.readlines()
         for line in lines:
             logger.info(line)
@@ -212,13 +230,5 @@ class ServerState():
             log_error = "wrong status code after %s " % command
             self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
             raise DeploymentError(log_error)
+        logger.info("%s was finished with code %s" % (command, stdout.channel.recv_exit_status()))
         return stdout.channel.recv_exit_status()
-
-    #
-    # def line_buffered(self, f):
-    #     line_buf = ""
-    #     while not f.channel.exit_status_ready():
-    #         line_buf += f.read(1)
-    #         if line_buf.endswith('\n'):
-    #             yield line_buf
-    #             line_buf = ''

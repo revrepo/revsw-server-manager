@@ -240,7 +240,9 @@ class CDSAPI():
             )
             if response.status_code == 200:
                 proxy = json.loads(response.text)
-                logger.info("SSL configuration version %s at time %s" % (proxy["ssl_cert_version"], datetime.now().isoformat()))
+                logger.info("SSL configuration version %s of %s  at time %s" % (
+                    proxy["ssl_cert_version"], self.highest_versions['ssl'], datetime.now().isoformat())
+                            )
                 if proxy["ssl_cert_version"] >= self.highest_versions['ssl']:
                     finish_time = datetime.now()
                     logger.info("end monitoring to update ssl configuration %s" % finish_time.isoformat())
@@ -261,8 +263,9 @@ class CDSAPI():
             )
             if response.status_code == 200:
                 proxy = json.loads(response.text)
-                logger.info("waf version %s sdk version %s at time %s" % (
-                    proxy["waf_rule_version"],proxy["app_config_version"],datetime.now().isoformat()
+                logger.info("waf version %s of %s sdk version %s of %s at time %s" % (
+                    proxy["waf_rule_version"], self.highest_versions['waf'],
+                    proxy["app_config_version"], self.highest_versions['sdk'], datetime.now().isoformat()
                 ))
                 if proxy["app_config_version"] >= self.highest_versions['sdk'] and \
                                 proxy["waf_rule_version"] >= self.highest_versions['waf']:
@@ -285,9 +288,11 @@ class CDSAPI():
             )
             if response.status_code == 200:
                 proxy = json.loads(response.text)
-                logger.info("domain_config version %s purge_version version %s at time %s" % (
-                    proxy["domain_config_version"], proxy["purge_version"], datetime.now().isoformat()
+                logger.info("domain_config version %s of %s purge_version version %s of %s at time %s" % (
+                    proxy["domain_config_version"], self.highest_versions['domain'],
+                    proxy["purge_version"], self.highest_versions['purge'], datetime.now().isoformat()
                 ))
+
                 if proxy["domain_config_version"] >= self.highest_versions['domain'] and \
                                 proxy["purge_version"] >= self.highest_versions['purge']:
                     finish_time = datetime.now()

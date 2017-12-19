@@ -18,6 +18,7 @@
 
 """
 import argparse
+import time
 import datetime
 import logging
 import logging.config
@@ -85,7 +86,7 @@ class DeploySequence():
         self.logger = MongoLogger(self.host_name, datetime.datetime.now().isoformat())
         self.server = ServerState(
             self.host_name, args.login, args.password,
-           self.logger, ipv4=self.ip, cert=args.cert
+           self.logger, ipv4=self.ip, cert=args.cert, first_step=self.first_step,
         )
         self.nsone = NsOneDeploy(self.host_name, self.host_name,self.logger)
         self.zone = self.nsone.get_zone(self.zone_name)
@@ -201,20 +202,15 @@ class DeploySequence():
             return m.group(1)
         raise DeploymentError("Wrong Host_name")
 
-    def remove_server_from_cds(self):
-        cds = CDSAPI(self.server_group, self.host_name, self.logger)
-        cds.update_server({"status": "offline"})
-        cds.delete_server_from_groups()
-        cds.delete_server()
-
     def check_hostname_step(self):
         # Start deploing of server
         logger.info("Checkin hostname")
-        self.server.check_hostname()
-
-        # Reboot server to update hostname
-        logger.info("Reboot new server")
-        self.server.reboot()
+        hostname = self.server.check_hostname()
+        if hostname.rstrip() != self.host_name:
+            self.server.update_hostname(self.host_name)
+            # Reboot server to update hostname
+            logger.info("Reboot new server")
+            self.server.reboot()
 
     def add_to_infradb(self):
         server_versions = {
@@ -234,9 +230,10 @@ class DeploySequence():
 
     def run_puppet(self):
         logger.info("Run puppet")
-        self.server.run_puppet()
-        self.sign_ssl_puppet()
-        self.server.run_puppet()
+        first_run = self.server.run_puppet()
+        if first_run != 0:
+            self.sign_ssl_puppet()
+            self.server.run_puppet()
 
     def add_to_nagios(self):
         # NAGIOS configurate
@@ -250,6 +247,8 @@ class DeploySequence():
         nagios.create_config_file(nagios_data)
         nagios.send_config_to_server()
         nagios.reload_nagios()
+        if nagios.check_nagios_config() != 0:
+            raise DeploymentError('nagios config is not ok')
 
     def add_ns1_record(self):
         logger.info("Add NS1 record")
@@ -263,6 +262,11 @@ class DeploySequence():
 
         monitor_id = self.nsone.add_new_monitor()
         logger.info("New monitor id %s" % monitor_id)
+        time.sleep(60)
+        monitor_status = self.nsone.check_monitor_status(monitor_id)
+        if monitor_status != 'up':
+            raise DeploymentError("New monito not in UP status")
+        logger.info("New monitor is UP")
         self.nsone.add_feed(settings.NS1_DATA_SOURCE_ID)
 
     def add_ns1_balancing_rule(self):
@@ -279,7 +283,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Automatic deployment of server.",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-n", "--host_name", help="Host name of server", required=True)
-    parser.add_argument("-z", "--zone_name", help="Name of zone on NSONE.", default="attested.club")
+    parser.add_argument("-z", "--zone_name", help="Name of zone on NSONE.", default=settings.NS1_DNS_ZONE_DEFAULT)
     parser.add_argument("-i", "--IP", help="IP of server.", required=True)
     parser.add_argument("-r", "--record_type", help="Type of record at NSONE.", default="A")
     parser.add_argument("-l", "--login", help="Login of the server.", default="robot")
@@ -299,7 +303,19 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--first_step", help="First step which sequence must start.", default='check_hostname'
+        "--first_step", help="First step which sequence must start.", default='check_hostname',
+        choices=[
+            "check_hostname",
+            "add_ns1_record",
+            "add_to_infradb",
+            "update_fw_rules",
+            "install_puppet",
+            "run_puppet",
+            "add_to_cds",
+            "add_to_nagios",
+            "add_ns1_monitor",
+            "add_ns1_balancing_rule",
+        ]
     )
     parser.add_argument(
         "--number_of_steps_to_execute",

@@ -48,16 +48,30 @@ class NsOneDeploy():
 
     def add_new_monitor(self):
         monitor_data = {
-            "name": self.host_name,
-            "job_type": "tcp",
-            "region_scope": "fixed",
-            "regions":["ams"],
-            "frequency":60,
-            "config": {"host":self.host, "port": 80},
-            "rules": [
-                {"key":"output", "comparison":"contains", "value":"200 OK"}
+            "region_scope":"fixed",
+            "frequency":20,
+            "rapid_recheck":False,
+            "policy":"quorum",
+            "notify_delay":0,
+            "notify_repeat":0,
+            "notify_failback":True,
+            "notify_regional":False,
+            "rules":[
+                {"key":"output","comparison":"contains","value":"this is a test"}
             ],
-        }
+            "regions":["sjc","sin","lga"],
+            "job_type":"tcp",
+            "config":{
+                "response_timeout":1000,
+                "connect_timeout":2000,
+                "host":self.host_name,
+                "port":80,
+                "send":"GET /test-cache.js HTTP/1.1\nHost: monitor.revsw.net\n\n"
+            },
+            "name": self.host_name,
+            "notify_list": settings.NS1_NOTIFY_LIST_ID
+            }
+
         try:
             monitor = self.monitor.create(monitor_data)
         except ResourceException as e:
@@ -75,6 +89,10 @@ class NsOneDeploy():
             }, "nsone")
         return monitor['id']
 
+    def check_monitor_status(self, monitor_id):
+        monitor = self.get_monitor(monitor_id)
+        return monitor["status"]["global"]["status"]
+
     def get_monitor(self, monitor_id):
         try:
             monitor = self.monitor.retrieve(monitor_id)
@@ -85,6 +103,14 @@ class NsOneDeploy():
                 "monitored": 'fail',
                 "log": log_error
             }, "infraDB")
+            raise DeploymentError(log_error)
+        return monitor
+
+    def delete_monitor(self, monitor_id):
+        try:
+            monitor = self.monitor.delete(monitor_id)
+        except ResourceException as e:
+            log_error = e.message
             raise DeploymentError(log_error)
         return monitor
 
