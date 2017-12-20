@@ -97,6 +97,9 @@ class DestroySequence():
 
     def remove_from_cds(self):
         cds = CDSAPI(self.server_group, self.host_name, self.logger)
+        server = cds.check_server_exist()
+        if not server:
+            logger.info("Server not exist in CDS")
         logger.info('Turnoff server on cds')
         cds.update_server({"status": "offline"})
         logger.info('Deleting server from groups')

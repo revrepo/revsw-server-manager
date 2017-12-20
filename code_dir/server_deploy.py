@@ -266,11 +266,14 @@ class DeploySequence():
     def add_ns1_monitor(self):
         # Add server to NS1
         logger.info("Start server adding to NS1")
+        logger.info('Cheking  monitors list if server already have monitor')
         monitor_id = self.nsone.check_is_monitor_exist()
         if not monitor_id:
             monitor_id = self.nsone.add_new_monitor()
             logger.info("New monitor id %s" % monitor_id)
             time.sleep(60)
+        else:
+            logger.info("monitor already exist with id %s" % monitor_id)
         monitor_status = self.nsone.check_monitor_status(monitor_id)
         if monitor_status != 'up':
             raise DeploymentError("New monitor not in UP status")
