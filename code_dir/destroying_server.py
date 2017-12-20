@@ -78,9 +78,7 @@ class DestroySequence():
         self.nsone = NsOneDeploy(self.host_name, self.host_name,self.logger)
         # self.zone = self.nsone.get_zone(self.zone_name)
         self.infradb = InfraDBAPI(self.logger, ssl_disable=args.disable_infradb_ssl)
-
-
-        # self.location_code = self.get_location_code()
+        self.short_name = self.get_short_name()
 
     def run_sequence(self):
         if self.first_step not in self.step_sequence:
@@ -93,7 +91,9 @@ class DestroySequence():
             self.steps[step]()
 
     def remove_from_nagios(self):
-        pass
+        nagios = Nagios(self.host_name, self.logger, self.short_name)
+        nagios.delete_config_file()
+        nagios.reload_nagios()
 
     def remove_from_cds(self):
         cds = CDSAPI(self.server_group, self.host_name, self.logger)
@@ -105,10 +105,22 @@ class DestroySequence():
         cds.delete_server()
 
     def remove_from_nsone(self):
-        pass
+        logger.info("Start server adding to NS1")
+        monitor_id = self.nsone.check_is_monitor_exist()
+        if not monitor_id:
+            logger.info("NS1 monitor not exist")
+            return
+        self.nsone.delete_monitor(monitor_id)
+        self.nsone.delete_feed(settings.NS1_DATA_SOURCE_ID, monitor_id)
 
     def remove_from_infradb(self):
-        pass
+        self.infradb.delete_server(self.host_name)
+
+    def get_short_name(self):
+        m = re.search('^(.+?)\.', self.host_name)
+        if m:
+            return m.group(1)
+        raise DeploymentError("Wrong Host_name")
 
 
 if __name__ == "__main__":
