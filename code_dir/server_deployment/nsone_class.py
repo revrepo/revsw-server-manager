@@ -60,11 +60,9 @@ class NsOneDeploy():
         return monitors
 
     def check_is_monitor_exist(self):
-        logger.info('Cheking  monitors list if server already have monitor')
         monitors = self.get_monitor_list()
         for monitor in monitors:
             if monitor['name'] == self.host_name:
-                logger.info("monitor already exist with id %s" % monitor['id'])
                 return monitor['id']
         return False
 
@@ -130,11 +128,13 @@ class NsOneDeploy():
         return monitor
 
     def delete_monitor(self, monitor_id):
+        logger.info("Deleting monitor from NS1")
         try:
             monitor = self.monitor.delete(monitor_id)
         except ResourceException as e:
             log_error = e.message
             raise DeploymentError(log_error)
+        logger.info("Monitor deleted")
         return monitor
 
     def get_zone(self, zone_name):
@@ -238,6 +238,7 @@ class NsOneDeploy():
         return feed
 
     def delete_feed(self, source_id, monitor_id):
+        logger.info("Deleting data feed")
         try:
             feedAPI = self.nsone.datafeed()
             feed_list = feedAPI.list(source_id)
@@ -248,6 +249,7 @@ class NsOneDeploy():
             if not feed_id:
                 logger.info("Feed not exist")
             feed = feedAPI.delete(source_id, feed_id)
+            logger.info("Feed succesfuly deleted")
         except ResourceException as e:
             log_error = e.message
             self.logger.log({
