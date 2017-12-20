@@ -83,7 +83,7 @@ class DeploySequence():
         self.dns_balancing_name = args.dns_balancing_name
         self.zone_name = args.zone_name
         self.record_type = args.record_type
-
+        self.hosting_name = args.hosting
         self.logger = MongoLogger(self.host_name, datetime.datetime.now().isoformat())
         self.server = ServerState(
             self.host_name, args.login, args.password,
@@ -220,8 +220,13 @@ class DeploySequence():
             "revsw_module_version": 1,
         }
         logger.info("Adding server to inradb")
+        server = self.infradb.get_server(self.host_name)
+        if server:
+            logger.info("Server already added to infradb")
+            return
         self.infradb.add_server(
-            self.host_name, self.ip, server_versions, self.location_code, self.host_name
+            self.host_name, self.ip, server_versions,
+            self.location_code, self.hosting_name
         )
 
     def install_puppet(self):
@@ -247,9 +252,10 @@ class DeploySequence():
         }
         nagios.create_config_file(nagios_data)
         nagios.send_config_to_server()
-        nagios.reload_nagios()
         if nagios.check_nagios_config() != 0:
             raise DeploymentError('nagios config is not ok')
+        nagios.reload_nagios()
+
 
     def add_ns1_record(self):
         logger.info("Add NS1 record")

@@ -63,6 +63,25 @@ class InfraDBAPI():
         self.logger.log({"server_add": "ok"}, "infraDB")
         logger.info("Server succesfuly added to INFRADB")
 
+    def delete_server(self, host_name):
+        logger.info("Delete server from infradb")
+        server = self.get_server(host_name)
+        server_data = json.loads(server)
+        if not server_data:
+            logger.info("Server not found in infradb")
+            return
+
+        response = self.session.delete(urljoin(self.url, 'server/%s' % server_data[0]['id']), verify=self.ssl_verify)
+        if response.status_code != 204:
+            log_error = "Server error. Status: %s Error: %s" % (
+                response.status_code, response.text
+            )
+            # self.logger.log({"server_add": "fail", "log": log_error}, "infraDB")
+            raise DeploymentError(log_error)
+        # self.logger.log({"server_add": "ok"}, "infraDB")
+        logger.info("Server succesfuly deleted from INFRADB")
+
+
     def _get_location(self, location_name):
         logger.info("Get location from INFRADB")
         response = self.session.get(
@@ -83,7 +102,7 @@ class InfraDBAPI():
         return locations[0]
 
     def get_server(self, server_name):
-        response = self.session.get(urljoin(self.url, 'server/'), name=server_name, verify=self.ssl_verify)
+        response = self.session.get(urljoin(self.url, 'server?name=%s' % server_name), verify=self.ssl_verify)
         if response.status_code == 200:
             return response.text
         elif response.status_code == 404:

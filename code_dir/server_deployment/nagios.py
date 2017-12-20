@@ -87,6 +87,10 @@ class Nagios():
             os.path.join(settings.NAGIOS_CFG_PATH, '%s.cfg' % self.short_name)))
         self.mongo_log.log({"nagios_conf": "yes",}, "nagios")
 
+    def delete_config_file(self):
+        logger.info("Delete nagios conf file")
+        self.execute_command_with_log("sudo rm %s" % os.path.join(settings.NAGIOS_CFG_PATH, '%s.cfg' % self.short_name))
+
     def reload_nagios(self):
         logger.info("Reloading nagios")
         chan = self.execute_command_with_log("sudo /etc/init.d/nagios reload")

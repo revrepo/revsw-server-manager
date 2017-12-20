@@ -237,6 +237,44 @@ class NsOneDeploy():
 
         return feed
 
+    def delete_feed(self, source_id, monitor_id):
+        try:
+            feedAPI = self.nsone.datafeed()
+            feed_list = feedAPI.list(source_id)
+            feed_id = None
+            for feed in feed_list:
+                if feed['config']['jobid'] == monitor_id:
+                    feed_id = feed['id']
+            if not feed_id:
+                logger.info("Feed not exist")
+            feed = feedAPI.delete(source_id, feed_id)
+        except ResourceException as e:
+            log_error = e.message
+            self.logger.log({
+                "host_added": 'fail',
+                "monitored": 'yes',
+                "log": log_error
+            }, "infraDB")
+            raise DeploymentError(log_error)
+        except ZoneException as e:
+            log_error = e.message
+            self.logger.log({
+                "host_added": 'fail',
+                "monitored": 'yes',
+                "log": log_error
+            }, "infraDB")
+            raise DeploymentError(log_error)
+        except Exception as e:
+            log_error = e.message
+            self.logger.log({
+                "host_added": 'fail',
+                "monitored": 'yes',
+                "log": log_error
+            }, "infraDB")
+            raise DeploymentError(log_error)
+
+        return feed
+
     def add_answer(self, zone, record_name, record_type, answer_host):
         try:
             record = self.nsone.loadRecord(record_name, record_type)
