@@ -359,11 +359,11 @@ class CDSAPI():
         group_list = self.get_all_group_with_this_server()
         for group in group_list:
             logger.info("delete server from group")
-            servers_list = group['servers'].split(', ')
+            servers_list = group['servers'].split(',')
             new_servers_list = servers_list.remove(self.server_name)
             response = requests.put(
                 urljoin(self.url, '/v1/proxy_servers/%s' % group['_id']),
-                data={'servers': ", ".join(new_servers_list)},
+                data={'servers': ",".join(new_servers_list)},
                 headers={'Authorization': 'Bearer %s' % settings.CDS_API_KEY}
             )
             if response.status_code not in [200, 201]:

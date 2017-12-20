@@ -107,7 +107,6 @@ class Nagios():
 
         return self.execute_command_with_log("sudo /etc/init.d/nagios checkconfig")
 
-
     def execute_command_with_log(self, command, check_status=True):
         logger.info(command)
         (stdin, stdout, stderr) = self.client.exec_command(command)
