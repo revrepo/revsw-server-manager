@@ -164,9 +164,9 @@ class Ns1Deploy():
         logger.info("Zone id %s" % zone['id'])
         return zone
 
-    def add_record(self, zone):
+    def add_a_record(self, zone, short_name):
         try:
-            record = zone.add_A(self.host_name, [self.host])
+            record = zone.add_A(short_name, [self.host])
         except ResourceException as e:
             log_error = e.message
             self.logger.log({
@@ -186,7 +186,7 @@ class Ns1Deploy():
 
         return record
 
-    def get_record(self, zone, domain, record_type):
+    def get_a_record(self, zone, domain, record_type):
         try:
             logger.info(
                     "Checkig if record already exist get by zone %s, domain %s, record_type %s" %
@@ -195,6 +195,8 @@ class Ns1Deploy():
             record = Record(zone, domain, record_type)
             record.load()
         except ResourceException as e:
+            if e.message == 'server error: record not found':
+                return
             log_error = e.message
             self.logger.log({
                 "host_added": 'fail',

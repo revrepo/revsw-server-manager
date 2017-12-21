@@ -52,10 +52,12 @@ class DestroySequence():
             "remove_from_nagios":self.remove_from_nagios,
             "remove_from_cds": self.remove_from_cds,
             "remove_from_ns1": self.remove_from_ns1,
+            "remove_ns1_a_record": self.remove_ns1_a_record,
             "remove_from_infradb": self.remove_from_infradb
 
         }
         self.step_sequence = [
+            "remove_ns1_a_record",
             "remove_from_nagios",
             "remove_from_cds",
             "remove_from_ns1",
@@ -67,7 +69,8 @@ class DestroySequence():
         self.first_step = args.first_step
         self.number_of_steps = args.number_of_steps_to_execute
         # self.dns_balancing_name = args.dns_balancing_name
-        # self.zone_name = args.zone_name
+        self.zone_name = self.get_zone_name()
+        # self.zone_name = "attested.club"
         self.record_type = args.record_type
 
         self.logger = MongoLogger(self.host_name, datetime.datetime.now().isoformat())
@@ -76,7 +79,7 @@ class DestroySequence():
         #    self.logger, ipv4=self.ip, first_step=self.first_step,
         # )
         self.ns1 = Ns1Deploy(self.host_name, self.host_name,self.logger)
-        # self.zone = self.nsone.get_zone(self.zone_name)
+        self.zone = self.ns1.get_zone(self.zone_name)
         self.infradb = InfraDBAPI(self.logger, ssl_disable=args.disable_infradb_ssl)
         self.short_name = self.get_short_name()
 
@@ -120,8 +123,27 @@ class DestroySequence():
     def remove_from_infradb(self):
         self.infradb.delete_server(self.host_name)
 
+    def remove_ns1_a_record(self):
+        logger.info("Deleting NS1 A record")
+
+        record = self.ns1.get_a_record(
+            self.zone, self.short_name, self.record_type
+        )
+        if not record:
+            logger.info(' A record not found')
+            return
+
+        record.delete()
+        logger.info("Record succesfully deleted")
+
     def get_short_name(self):
         m = re.search('^(.+?)\.', self.host_name)
+        if m:
+            return m.group(1)
+        raise DeploymentError("Wrong Host_name")
+
+    def get_zone_name(self):
+        m = re.search('^[a-zA-Z0-9_]*-[a-zA-Z0-9_]*.(.+?)$', self.host_name)
         if m:
             return m.group(1)
         raise DeploymentError("Wrong Host_name")
@@ -153,6 +175,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--first_step", help="First step which sequence must start.", default='remove_from_nagios',
         choices=[
+            "remove_ns1_a_record",
             "remove_from_nagios",
             "remove_from_cds",
             "remove_from_ns1",
