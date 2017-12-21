@@ -35,7 +35,7 @@ from server_deployment.cds_api import CDSAPI
 from server_deployment.infradb import InfraDBAPI
 
 from server_deployment.mongo_logger import MongoLogger
-from server_deployment.nsone_class import NsOneDeploy
+from server_deployment.nsone_class import Ns1Deploy
 from server_deployment.server_state import ServerState
 from server_deployment.utilites import DeploymentError
 
@@ -51,14 +51,14 @@ class DestroySequence():
         self.steps = {
             "remove_from_nagios":self.remove_from_nagios,
             "remove_from_cds": self.remove_from_cds,
-            "remove_from_nsone": self.remove_from_nsone,
+            "remove_from_ns1": self.remove_from_ns1,
             "remove_from_infradb": self.remove_from_infradb
 
         }
         self.step_sequence = [
             "remove_from_nagios",
             "remove_from_cds",
-            "remove_from_nsone",
+            "remove_from_ns1",
             "remove_from_infradb"
         ]
         self.host_name = args.host_name
@@ -75,7 +75,7 @@ class DestroySequence():
         #     self.host_name, args.login, args.password,
         #    self.logger, ipv4=self.ip, first_step=self.first_step,
         # )
-        self.nsone = NsOneDeploy(self.host_name, self.host_name,self.logger)
+        self.ns1 = Ns1Deploy(self.host_name, self.host_name,self.logger)
         # self.zone = self.nsone.get_zone(self.zone_name)
         self.infradb = InfraDBAPI(self.logger, ssl_disable=args.disable_infradb_ssl)
         self.short_name = self.get_short_name()
@@ -100,6 +100,7 @@ class DestroySequence():
         server = cds.check_server_exist()
         if not server:
             logger.info("Server not exist in CDS")
+            return
         logger.info('Turnoff server on cds')
         cds.update_server({"status": "offline"})
         logger.info('Deleting server from groups')
@@ -107,14 +108,14 @@ class DestroySequence():
         logger.info('Deleting server from cds')
         cds.delete_server()
 
-    def remove_from_nsone(self):
+    def remove_from_ns1(self):
         logger.info("Start server adding to NS1")
-        monitor_id = self.nsone.check_is_monitor_exist()
+        monitor_id = self.ns1.check_is_monitor_exist()
         if not monitor_id:
             logger.info("NS1 monitor not exist")
             return
-        self.nsone.delete_monitor(monitor_id)
-        self.nsone.delete_feed(settings.NS1_DATA_SOURCE_ID, monitor_id)
+        self.ns1.delete_feed(settings.NS1_DATA_SOURCE_ID, monitor_id)
+        self.ns1.delete_monitor(monitor_id)
 
     def remove_from_infradb(self):
         self.infradb.delete_server(self.host_name)
@@ -131,9 +132,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Automatic deployment of server.",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-n", "--host_name", help="Host name of server", required=True)
-    parser.add_argument("-z", "--zone_name", help="Name of zone on NSONE.", default=settings.NS1_DNS_ZONE_DEFAULT)
+    parser.add_argument("-z", "--zone_name", help="Name of zone on NS1.", default=settings.NS1_DNS_ZONE_DEFAULT)
     parser.add_argument("-i", "--IP", help="IP of server.", required=True)
-    parser.add_argument("-r", "--record_type", help="Type of record at NSONE.", default="A")
+    parser.add_argument("-r", "--record_type", help="Type of record at NS1.", default="A")
     parser.add_argument("-l", "--login", help="Login of the server.", default="robot")
     parser.add_argument("-p", "--password", help="Password of the server.", default='')
     parser.add_argument(
@@ -150,11 +151,11 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--first_step", help="First step which sequence must start.", default='check_hostname',
+        "--first_step", help="First step which sequence must start.", default='remove_from_nagios',
         choices=[
             "remove_from_nagios",
             "remove_from_cds",
-            "remove_from_nsone",
+            "remove_from_ns1",
             "remove_from_infradb"
         ]
     )

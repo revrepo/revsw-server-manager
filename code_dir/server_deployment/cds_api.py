@@ -168,6 +168,7 @@ class CDSAPI():
             )
             self.logger.log({"sever_group": "fail", "log": log_error}, "CDS")
             raise DeploymentError(log_error)
+        logger.info('Server found with id %s' % resp["_id"])
         self.proxy_server = resp
         return self.proxy_server
 
@@ -240,8 +241,8 @@ class CDSAPI():
             )
             if response.status_code == 200:
                 proxy = json.loads(response.text)
-                logger.info("SSL configuration version %s of %s  at time %s" % (
-                    proxy["ssl_cert_version"], self.highest_versions['ssl'], datetime.now().isoformat())
+                logger.info("SSL configuration version %s of %s" % (
+                    proxy["ssl_cert_version"], self.highest_versions['ssl'])
                             )
                 if proxy["ssl_cert_version"] >= self.highest_versions['ssl']:
                     finish_time = datetime.now()
@@ -263,9 +264,9 @@ class CDSAPI():
             )
             if response.status_code == 200:
                 proxy = json.loads(response.text)
-                logger.info("waf version %s of %s sdk version %s of %s at time %s" % (
+                logger.info("waf version %s of %s sdk version %s of %s" % (
                     proxy["waf_rule_version"], self.highest_versions['waf'],
-                    proxy["app_config_version"], self.highest_versions['sdk'], datetime.now().isoformat()
+                    proxy["app_config_version"], self.highest_versions['sdk']
                 ))
                 if proxy["app_config_version"] >= self.highest_versions['sdk'] and \
                                 proxy["waf_rule_version"] >= self.highest_versions['waf']:
@@ -288,9 +289,9 @@ class CDSAPI():
             )
             if response.status_code == 200:
                 proxy = json.loads(response.text)
-                logger.info("domain_config version %s of %s purge_version version %s of %s at time %s" % (
+                logger.info("domain_config version %s of %s purge_version version %s of %s" % (
                     proxy["domain_config_version"], self.highest_versions['domain'],
-                    proxy["purge_version"], self.highest_versions['purge'], datetime.now().isoformat()
+                    proxy["purge_version"], self.highest_versions['purge']
                 ))
 
                 if proxy["domain_config_version"] >= self.highest_versions['domain'] and \
@@ -316,12 +317,13 @@ class CDSAPI():
             )
             self.logger.log({"sever_add": "fail", "log": log_error}, "CDS")
             raise DeploymentError(log_error)
+        logger.info("server succesful added to group")
         self.server_group = json.loads(response.text)
         logger.info(self.server_group)
 
     def delete_server(self):
         logger.info("Delete server from CDS")
-        response = requests.post(
+        response = requests.delete(
             urljoin(self.url, '/v1/proxy_servers/%s' % self.proxy_server['_id']),
             headers={'Authorization': 'Bearer %s' % settings.CDS_API_KEY}
         )
@@ -358,12 +360,12 @@ class CDSAPI():
     def delete_server_from_groups(self):
         group_list = self.get_all_group_with_this_server()
         for group in group_list:
-            logger.info("delete server from group")
+            logger.info("delete server from group %s" % group['_id'])
             servers_list = group['servers'].split(',')
-            new_servers_list = servers_list.remove(self.server_name)
+            servers_list.remove(self.server_name)
             response = requests.put(
-                urljoin(self.url, '/v1/proxy_servers/%s' % group['_id']),
-                data={'servers': ",".join(new_servers_list)},
+                urljoin(self.url, '/v1/server_groups/%s' % group['_id']),
+                data={'servers': ",".join(servers_list)},
                 headers={'Authorization': 'Bearer %s' % settings.CDS_API_KEY}
             )
             if response.status_code not in [200, 201]:

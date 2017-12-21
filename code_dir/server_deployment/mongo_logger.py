@@ -69,7 +69,7 @@ class MongoLogger():
                     "log": {"type": "string"} # [|if some fail]
                 }
             },
-            "nsone": {
+            "ns1": {
                 "type": "object",
                 "properties": {
                     "host_added": {"type": "string", "pattern": "yes|no|fail"},
@@ -121,7 +121,7 @@ class MongoLogger():
                 "api": 'no',
                 "fw": 'off',
             },
-            "nsone": {
+            "ns1": {
                 "host_added": 'no',
                 "monitored": 'no',
             },
