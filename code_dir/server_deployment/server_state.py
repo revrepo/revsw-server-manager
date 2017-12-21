@@ -171,7 +171,7 @@ class ServerState():
         # (stdin, stdout, stderr) = self.client.exec_command("cat /etc/lsb-release | grep DISTRIB_RELEASE")
 
         self.execute_command_with_log('sudo apt-get update')
-        self.execute_command_with_log('sudo apt-get upgrade -y')
+        self.execute_command_with_log('sudo DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade')
         self.execute_command_with_log('sudo apt-get install puppet -y')
         logger.info("Reboot server and  wait for %s seconds" % settings.REBOOT_SLEEP_TIME)
         self.reboot()
