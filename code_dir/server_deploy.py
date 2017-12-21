@@ -35,7 +35,7 @@ from server_deployment.cds_api import CDSAPI
 from server_deployment.infradb import InfraDBAPI
 
 from server_deployment.mongo_logger import MongoLogger
-from server_deployment.nsone_class import NsOneDeploy
+from server_deployment.nsone_class import Ns1Deploy
 from server_deployment.server_state import ServerState
 from server_deployment.utilites import DeploymentError
 
@@ -47,7 +47,6 @@ class DeploySequence():
 
 
     def __init__(self, args):
-
 
         self.steps = {
             "check_hostname": self.check_hostname_step,
@@ -81,7 +80,8 @@ class DeploySequence():
         self.first_step = args.first_step
         self.number_of_steps = args.number_of_steps_to_execute
         self.dns_balancing_name = args.dns_balancing_name
-        self.zone_name = args.zone_name
+        self.location_code = self.get_location_code()
+        self.zone_name = self.location_code
         self.record_type = args.record_type
         self.hosting_name = args.hosting
         self.logger = MongoLogger(self.host_name, datetime.datetime.now().isoformat())
@@ -89,11 +89,9 @@ class DeploySequence():
             self.host_name, args.login, args.password,
            self.logger, ipv4=self.ip, cert=args.cert, first_step=self.first_step,
         )
-        self.nsone = NsOneDeploy(self.host_name, self.host_name,self.logger)
-        self.zone = self.nsone.get_zone(self.zone_name)
+        self.ns1 = Ns1Deploy(self.host_name, self.ip, self.logger)
+        self.zone = self.ns1.get_zone(self.zone_name)
         self.infradb = InfraDBAPI(self.logger, ssl_disable=args.disable_infradb_ssl)
-
-
         self.location_code = self.get_location_code()
 
     def run_sequence(self):
@@ -145,6 +143,7 @@ class DeploySequence():
         if check_list['domain_purge']:
             cds.monitor_purge_and_domain_configuration()
         self.group = cds.server_group
+        self.server.reboot()
 
     def update_fw_rules(self):
         client = paramiko.SSHClient()
@@ -170,7 +169,7 @@ class DeploySequence():
         for line in lines:
             logger.info(line)
         if stdout_pu.channel.recv_exit_status() != 0:
-            log_error = "Problem with pupprt agent on INSTALL server"
+            log_error = "Problem with puppet agent on INSTALL server"
             self.logger.log({"fw": "fail", "log": log_error}, "puppet")
             raise DeploymentError(log_error)
         client.close()
@@ -259,26 +258,32 @@ class DeploySequence():
 
     def add_ns1_record(self):
         logger.info("Add NS1 record")
-        record = self.nsone.add_record(self.zone)
+
+        record = self.ns1.get_record(self.zone, self.zone_name, self.record_type)
+        if record:
+            logger.info('record already exist with id %s' % record['id'])
+            return
+        record = self.ns1.add_record(self.zone)
         logger.info("NS1 record id %s" % record['id'])
-        record = self.nsone.get_record(self.zone, self.zone_name, self.record_type)
 
     def add_ns1_monitor(self):
         # Add server to NS1
         logger.info("Start server adding to NS1")
         logger.info('Cheking  monitors list if server already have monitor')
-        monitor_id = self.nsone.check_is_monitor_exist()
+        monitor_id = self.ns1.check_is_monitor_exist()
         if not monitor_id:
-            monitor_id = self.nsone.add_new_monitor()
+            monitor_id = self.ns1.add_new_monitor()
             logger.info("New monitor id %s" % monitor_id)
-            time.sleep(60)
+            time.sleep(settings.NS1_WAITING_TIME)
         else:
             logger.info("monitor already exist with id %s" % monitor_id)
-        monitor_status = self.nsone.check_monitor_status(monitor_id)
+        monitor_status = self.ns1.check_monitor_status(monitor_id)
         if monitor_status != 'up':
             raise DeploymentError("New monitor not in UP status")
         logger.info("New monitor is UP")
-        self.nsone.add_feed(settings.NS1_DATA_SOURCE_ID, monitor_id)
+        feed_id = self.ns1.find_feed(settings.NS1_DATA_SOURCE_ID, monitor_id)
+        if not feed_id:
+            self.ns1.add_feed(settings.NS1_DATA_SOURCE_ID, monitor_id)
 
     def add_ns1_balancing_rule(self):
         dns_balance_name = self.dns_balancing_name
@@ -286,8 +291,7 @@ class DeploySequence():
             cds = CDSAPI(self.server_group, self.host_name, self.logger)
             dns_balance_name = cds.server_group['edge_host']
         logger.info("Add server %s answer to NS1 to record %s" % (self.ip, dns_balance_name))
-        self.nsone.add_answer(self.zone, dns_balance_name, self.record_type, self.ip)
-        # self.nsone.add_answer(self.zone, "test-alexus.attested.club", self.record_type, self.ip)
+        self.ns1.add_answer(self.zone, dns_balance_name, self.record_type, self.ip, self.location_code)
 
     def get_short_name(self):
         m = re.search('^(.+?)\.', self.host_name)
@@ -300,9 +304,9 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Automatic deployment of server.",
                                      formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-n", "--host_name", help="Host name of server", required=True)
-    parser.add_argument("-z", "--zone_name", help="Name of zone on NSONE.", default=settings.NS1_DNS_ZONE_DEFAULT)
+    parser.add_argument("-z", "--zone_name", help="Name of zone on NS1.", default=settings.NS1_DNS_ZONE_DEFAULT)
     parser.add_argument("-i", "--IP", help="IP of server.", required=True)
-    parser.add_argument("-r", "--record_type", help="Type of record at NSONE.", default="A")
+    parser.add_argument("-r", "--record_type", help="Type of record at NS1.", default="A")
     parser.add_argument("-l", "--login", help="Login of the server.", default="robot")
     parser.add_argument("-p", "--password", help="Password of the server.", default='')
     parser.add_argument("-c", "--cert", help="Certificate of the server.")

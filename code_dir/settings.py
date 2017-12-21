@@ -93,6 +93,7 @@ NSONE_KEY = "0mSdz88RzfIElZRshilB"
 NS1_DATA_SOURCE_ID = "c53f31f5e1817442d16b3eaac813a644"
 NS1_DNS_ZONE_DEFAULT = "attested.club"
 NS1_NOTIFY_LIST_ID = "53ab4ad82db15606fd61f1e6"
+NS1_WAITING_TIME = 60
 
 CDS_URL = 'https://testsjc20-cds02.revsw.net:9000/'
 CDS_API_KEY = 'sdtq34tqsdfasfdsdKJHIJHKJH656HGFhfyhgf'
@@ -111,7 +112,6 @@ REBOOT_SLEEP_TIME = 30
 PUPET_LINKS = {
     "14.04": "http://apt.puppetlabs.com/puppetlabs-release-trusty.deb",
     "16.04": "http://apt.puppetlabs.com/puppet-release-xenial.deb"
-
 }
 PUPPET_SERVER = "TESTSJC20-INSTALL01.REVSW.NET"
 
@@ -126,6 +126,9 @@ CACTI_SERVER_LOGIN = "sergey"
 CACTI_SERVER_PASSWORD = ""
 
 BASE_DIR = os.path.dirname(__file__)
+
+DEFAULT_USERNAME = 'robot'
+DEFAULT_PASSWORD = '12345678'
 
 KEY_PATH = os.path.join(BASE_DIR, 'keys/id_rsa')
 

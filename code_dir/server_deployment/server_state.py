@@ -102,12 +102,29 @@ class ServerState():
 
         self.client = paramiko.SSHClient()
         self.client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        if using_key:
-            k = paramiko.RSAKey.from_private_key_file(settings.KEY_PATH)
-            self.client.connect(hostname=self.ipv4, username='robot',  pkey=k, port=22)
-        else:
-            self.client.connect(hostname=self.ipv4, username=self.login, password=self.password, port=22)
-        return self.client.get_transport().is_active()
+        connect = self.connection(self.login, password=self.password)
+        if connect:
+            return
+        logger.info('authentification with  custom credetials fail. trying to auth with default')
+        connect = self.connection(settings.DEFAULT_USERNAME, password=settings.DEFAULT_PASSWORD)
+        if connect:
+            return
+        logger.info('authentification with  default credetials fail. trying to auth with key')
+        connect = self.connection(settings.DEFAULT_USERNAME, using_key=True)
+        if connect:
+            return
+        raise DeploymentError("Problem with auth to server")
+
+    def connection(self, username, password='', using_key=False):
+        try:
+            if using_key:
+                k = paramiko.RSAKey.from_private_key_file(settings.KEY_PATH)
+                self.client.connect(hostname=self.ipv4, username=username,  pkey=k, port=22)
+            else:
+                self.client.connect(hostname=self.ipv4, username=username, password=password, port=22)
+        except paramiko.BadAuthenticationType:
+            return False
+        return True
 
     def close_connection(self):
         self.client.close()
@@ -156,7 +173,7 @@ class ServerState():
         self.execute_command_with_log('sudo apt-get update')
         self.execute_command_with_log('sudo apt-get upgrade -y')
         self.execute_command_with_log('sudo apt-get install puppet -y')
-        logger.info("Reboot server and  wait for %s" % settings.REBOOT_SLEEP_TIME)
+        logger.info("Reboot server and  wait for %s seconds" % settings.REBOOT_SLEEP_TIME)
         self.reboot()
         puppet_installed = self.execute_command_with_log('dpkg -l | grep puppet')
         if puppet_installed != 0:
