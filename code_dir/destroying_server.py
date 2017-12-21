@@ -51,17 +51,21 @@ class DestroySequence():
         self.steps = {
             "remove_from_nagios":self.remove_from_nagios,
             "remove_from_cds": self.remove_from_cds,
-            "remove_from_ns1": self.remove_from_ns1,
+            "remove_ns1_monitor": self.remove_ns1_monitor,
             "remove_ns1_a_record": self.remove_ns1_a_record,
-            "remove_from_infradb": self.remove_from_infradb
+            "remove_from_infradb": self.remove_from_infradb,
+            "remove_from_puppet": self.remove_from_puppet,
+            "remove_ns1_balancing_rule": self.remove_ns1_balancing_rule,
 
         }
         self.step_sequence = [
             "remove_ns1_a_record",
             "remove_from_nagios",
             "remove_from_cds",
-            "remove_from_ns1",
-            "remove_from_infradb"
+            "remove_ns1_monitor",
+            "remove_from_infradb",
+            "remove_from_puppet",
+            "remove_ns1_balancing_rule"
         ]
         self.host_name = args.host_name
         self.server_group = args.server_group
@@ -111,7 +115,7 @@ class DestroySequence():
         logger.info('Deleting server from cds')
         cds.delete_server()
 
-    def remove_from_ns1(self):
+    def remove_ns1_monitor(self):
         logger.info("Start server adding to NS1")
         monitor_id = self.ns1.check_is_monitor_exist()
         if not monitor_id:
@@ -135,6 +139,52 @@ class DestroySequence():
 
         record.delete()
         logger.info("Record succesfully deleted")
+
+    def remove_from_puppet(self):
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(
+            hostname=settings.INSTALL_SERVER_HOST,
+            username=settings.INSTALL_SERVER_LOGIN,
+            password=settings.INSTALL_SERVER_PASSWORD,
+            port=22
+        )
+        logger.info("Deleting server %s from puppet" % self.host_name)
+        logger.info("sudo puppet cert clean %s" % self.host_name)
+        stdin_fw, stdout_fw, stderr_fw = client.exec_command(
+            "sudo puppet cert clean %s" % self.host_name
+        )
+        lines = stdout_fw.readlines()
+        for line in lines:
+            logger.info(line)
+
+        logger.info("command sudo puppet cert clean %s was executed with status %s" %
+                    (self.host_name, stdout_fw.channel.recv_exit_status())
+                    )
+        if stdout_fw.channel.recv_exit_status() != 0:
+            log_error = "Problem with removing from puppet."
+            raise DeploymentError(log_error)
+        logger.info("Server %s was deleted from puppet" % self.host_name)
+
+    def remove_ns1_balancing_rule(self):
+        logger.info("Getting dns balance name from CDS")
+        cds = CDSAPI(self.server_group, self.host_name, self.logger)
+        dns_balance_name = cds.server_group['edge_host']
+        logger.info("DNS balancing name is %s" % dns_balance_name)
+        logger.info("Getting DNS balance record")
+        record = self.ns1.get_a_record(
+            self.zone, dns_balance_name, self.record_type
+        )
+        if not record:
+            logger.info(' A dns balance record not found')
+            return
+        new_answers = []
+        logger.info("Deleting balance rule for  %s" % self.ip)
+        for answer in record.data['answers']:
+            if answer['answer'] != [self.ip]:
+                new_answers.append(answer)
+        record.update(answers=new_answers)
+        logger.info("DNS balancing rules succesfuly changed")
 
     def get_short_name(self):
         m = re.search('^(.+?)\.', self.host_name)
@@ -178,8 +228,10 @@ if __name__ == "__main__":
             "remove_ns1_a_record",
             "remove_from_nagios",
             "remove_from_cds",
-            "remove_from_ns1",
-            "remove_from_infradb"
+            "remove_ns1_monitor",
+            "remove_from_infradb",
+            "remove_from_puppet",
+            "remove_ns1_balancing_rule"
         ]
     )
     parser.add_argument(
