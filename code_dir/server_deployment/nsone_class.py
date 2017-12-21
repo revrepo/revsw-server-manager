@@ -166,7 +166,7 @@ class Ns1Deploy():
 
     def add_record(self, zone):
         try:
-            record = zone.add_A('honey', [self.host])
+            record = zone.add_A(self.host_name, [self.host])
         except ResourceException as e:
             log_error = e.message
             self.logger.log({
