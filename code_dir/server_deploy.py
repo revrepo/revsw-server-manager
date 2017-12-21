@@ -49,7 +49,7 @@ class DeploySequence():
 
         self.steps = {
             "check_hostname": self.check_hostname_step,
-            "add_ns1_record": self.add_ns1_record,
+            "add_ns1_a_record": self.add_ns1_a_record,
             "add_to_infradb": self.add_to_infradb,
             "update_fw_rules": self.update_fw_rules,
             "install_puppet": self.install_puppet,
@@ -62,7 +62,7 @@ class DeploySequence():
         }
         self.step_sequence = [
             "check_hostname",
-            "add_ns1_record",
+            "add_ns1_a_record",
             "add_to_infradb",
             "update_fw_rules",
             "install_puppet",
@@ -80,8 +80,9 @@ class DeploySequence():
         self.number_of_steps = args.number_of_steps_to_execute
         self.dns_balancing_name = args.dns_balancing_name
         self.location_code = self.get_location_code()
-        self.zone_name = self.location_code
+        self.zone_name = self.get_zone_name()
         self.record_type = args.record_type
+        # self.zone_name = "attested.club"
         self.hosting_name = args.hosting
         self.logger = MongoLogger(
             self.host_name, datetime.datetime.now().isoformat()
@@ -264,17 +265,17 @@ class DeploySequence():
             raise DeploymentError('nagios config is not ok')
         nagios.reload_nagios()
 
-    def add_ns1_record(self):
-        logger.info("Add NS1 record")
+    def add_ns1_a_record(self):
+        logger.info("Add NS1 A record")
 
-        record = self.ns1.get_record(
-            self.zone, self.zone_name, self.record_type
+        record = self.ns1.get_a_record(
+            self.zone, self.short_name, self.record_type
         )
         if record:
-            logger.info('record already exist with id %s' % record['id'])
+            logger.info(' A record already exist with id %s' % record['id'])
             return
-        record = self.ns1.add_record(self.zone)
-        logger.info("NS1 record id %s" % record['id'])
+        record = self.ns1.add_a_record(self.zone, self.short_name)
+        logger.info("A NS1 record id %s" % record['id'])
 
     def add_ns1_monitor(self):
         # Add server to NS1
@@ -296,6 +297,16 @@ class DeploySequence():
             self.ns1.add_feed(settings.NS1_DATA_SOURCE_ID, monitor_id)
 
     def add_ns1_balancing_rule(self):
+        monitor_id = self.ns1.check_is_monitor_exist()
+        if not monitor_id:
+            raise DeploymentError("Monitor not exist")
+        monitor_status = self.ns1.check_monitor_status(monitor_id)
+        if monitor_status != 'up':
+            raise DeploymentError("Monitor not in UP status")
+        feed_id = self.ns1.find_feed(settings.NS1_DATA_SOURCE_ID, monitor_id)
+        if not feed_id:
+            raise DeploymentError("Data feed for moniton %s not found" % monitor_id)
+
         dns_balance_name = self.dns_balancing_name
         if not dns_balance_name:
             cds = CDSAPI(self.server_group, self.host_name, self.logger)
@@ -310,6 +321,12 @@ class DeploySequence():
 
     def get_short_name(self):
         m = re.search('^(.+?)\.', self.host_name)
+        if m:
+            return m.group(1)
+        raise DeploymentError("Wrong Host_name")
+
+    def get_zone_name(self):
+        m = re.search('^[a-zA-Z0-9_]*-[a-zA-Z0-9_]*.(.+?)$', self.host_name)
         if m:
             return m.group(1)
         raise DeploymentError("Wrong Host_name")
@@ -368,7 +385,7 @@ if __name__ == "__main__":
         default='check_hostname',
         choices=[
             "check_hostname",
-            "add_ns1_record",
+            "add_ns1_a_record",
             "add_to_infradb",
             "update_fw_rules",
             "install_puppet",
