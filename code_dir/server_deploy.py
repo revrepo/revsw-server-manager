@@ -24,7 +24,6 @@ import logging
 import logging.config
 
 import paramiko
-import pymongo
 import sys
 
 import re
@@ -43,8 +42,8 @@ logging.config.dictConfig(settings.LOGGING)
 logger = logging.getLogger('ServerDeploy')
 logger.setLevel(logging.DEBUG)
 
-class DeploySequence():
 
+class DeploySequence():
 
     def __init__(self, args):
 
@@ -84,14 +83,19 @@ class DeploySequence():
         self.zone_name = self.location_code
         self.record_type = args.record_type
         self.hosting_name = args.hosting
-        self.logger = MongoLogger(self.host_name, datetime.datetime.now().isoformat())
+        self.logger = MongoLogger(
+            self.host_name, datetime.datetime.now().isoformat()
+        )
         self.server = ServerState(
             self.host_name, args.login, args.password,
-           self.logger, ipv4=self.ip, cert=args.cert, first_step=self.first_step,
+            self.logger, ipv4=self.ip, cert=args.cert,
+            first_step=self.first_step,
         )
         self.ns1 = Ns1Deploy(self.host_name, self.ip, self.logger)
         self.zone = self.ns1.get_zone(self.zone_name)
-        self.infradb = InfraDBAPI(self.logger, ssl_disable=args.disable_infradb_ssl)
+        self.infradb = InfraDBAPI(
+            self.logger, ssl_disable=args.disable_infradb_ssl
+        )
         self.location_code = self.get_location_code()
 
     def run_sequence(self):
@@ -155,7 +159,9 @@ class DeploySequence():
             port=22
         )
         logger.info("sudo sh /opt/revsw-firewall-manager/update_all.sh")
-        stdin_fw, stdout_fw, stderr_fw = client.exec_command("sudo sh /opt/revsw-firewall-manager/update_all.sh")
+        stdin_fw, stdout_fw, stderr_fw = client.exec_command(
+            "sudo sh /opt/revsw-firewall-manager/update_all.sh"
+        )
         lines = stdout_fw.readlines()
         for line in lines:
             logger.info(line)
@@ -164,7 +170,9 @@ class DeploySequence():
             self.logger.log({"fw": "fail", "log": log_error}, "puppet")
             raise DeploymentError(log_error)
         logger.info("sudo puppet agent -t")
-        stdin_pu, stdout_pu, stderr_pu = client.exec_command("sudo puppet agent -t")
+        stdin_pu, stdout_pu, stderr_pu = client.exec_command(
+            "sudo puppet agent -t"
+        )
         lines = stdout_pu.readlines()
         for line in lines:
             logger.info(line)
@@ -191,7 +199,8 @@ class DeploySequence():
         for line in lines:
             logger.info(line)
         if stdout_fw.channel.recv_exit_status() != 0:
-            log_error = "Problem with sudo puppet cert sign %s" % self.host_name
+            log_error = "Problem with sudo puppet cert sign %s" % \
+                        self.host_name
             self.logger.log({"fw": "fail", "log": log_error}, "puppet")
             raise DeploymentError(log_error)
         client.close()
@@ -243,7 +252,7 @@ class DeploySequence():
     def add_to_nagios(self):
         # NAGIOS configurate
         logger.info("Configure nagios")
-        nagios = Nagios(self.host_name,self.logger, self.short_name)
+        nagios = Nagios(self.host_name, self.logger, self.short_name)
         nagios_data = {
             'host_name': self.short_name,
             "ip": self.ip,
@@ -255,11 +264,12 @@ class DeploySequence():
             raise DeploymentError('nagios config is not ok')
         nagios.reload_nagios()
 
-
     def add_ns1_record(self):
         logger.info("Add NS1 record")
 
-        record = self.ns1.get_record(self.zone, self.zone_name, self.record_type)
+        record = self.ns1.get_record(
+            self.zone, self.zone_name, self.record_type
+        )
         if record:
             logger.info('record already exist with id %s' % record['id'])
             return
@@ -290,8 +300,13 @@ class DeploySequence():
         if not dns_balance_name:
             cds = CDSAPI(self.server_group, self.host_name, self.logger)
             dns_balance_name = cds.server_group['edge_host']
-        logger.info("Add server %s answer to NS1 to record %s" % (self.ip, dns_balance_name))
-        self.ns1.add_answer(self.zone, dns_balance_name, self.record_type, self.ip, self.location_code)
+        logger.info("Add server %s answer to NS1 to record %s" % (
+            self.ip, dns_balance_name
+        ))
+        self.ns1.add_answer(
+            self.zone, dns_balance_name, self.record_type,
+            self.ip, self.location_code
+        )
 
     def get_short_name(self):
         m = re.search('^(.+?)\.', self.host_name)
@@ -299,32 +314,58 @@ class DeploySequence():
             return m.group(1)
         raise DeploymentError("Wrong Host_name")
 
+
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="Automatic deployment of server.",
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-n", "--host_name", help="Host name of server", required=True)
-    parser.add_argument("-z", "--zone_name", help="Name of zone on NS1.", default=settings.NS1_DNS_ZONE_DEFAULT)
-    parser.add_argument("-i", "--IP", help="IP of server.", required=True)
-    parser.add_argument("-r", "--record_type", help="Type of record at NS1.", default="A")
-    parser.add_argument("-l", "--login", help="Login of the server.", default="robot")
-    parser.add_argument("-p", "--password", help="Password of the server.", default='')
-    parser.add_argument("-c", "--cert", help="Certificate of the server.")
-    parser.add_argument(
-        "--hosting", help="Name of server hosting provider.", default="HE Fremont 2 Facility"
+    parser = argparse.ArgumentParser(
+        description="Automatic deployment of server.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
     )
     parser.add_argument(
-        "--server_group", help="CDS group.", default=settings.SERVER_GROUP
+        "-n", "--host_name", help="Host name of server",
+        required=True
     )
     parser.add_argument(
-        "--environment", help="Environment of server.", default='prod'
+        "-z", "--zone_name", help="Name of zone on NS1.",
+        default=settings.NS1_DNS_ZONE_DEFAULT
+    )
+    parser.add_argument(
+        "-i", "--IP", help="IP of server.", required=True
+    )
+    parser.add_argument(
+        "-r", "--record_type", help="Type of record at NS1.",
+        default="A"
+    )
+    parser.add_argument(
+        "-l", "--login", help="Login of the server.",
+        default="robot"
+    )
+    parser.add_argument(
+        "-p", "--password", help="Password of the server.",
+        default=''
+    )
+    parser.add_argument(
+        "-c", "--cert", help="Certificate of the server."
+    )
+    parser.add_argument(
+        "--hosting", help="Name of server hosting provider.",
+        default="HE Fremont 2 Facility"
+    )
+    parser.add_argument(
+        "--server_group", help="CDS group.",
+        default=settings.SERVER_GROUP
+    )
+    parser.add_argument(
+        "--environment", help="Environment of server.",
+        default='prod'
     )
     parser.add_argument(
         "--dns_balancing_name", help="DNS global load balancing name."
     )
 
     parser.add_argument(
-        "--first_step", help="First step which sequence must start.", default='check_hostname',
+        "--first_step", help="First step which sequence must start.",
+        default='check_hostname',
         choices=[
             "check_hostname",
             "add_ns1_record",
@@ -342,11 +383,13 @@ if __name__ == "__main__":
         "--number_of_steps_to_execute",
         help="Number of steps need to be execute.",
         default=10,
-        type = int,
+        type=int,
     )
 
     parser.add_argument(
-        "--disable_infradb_ssl", help="Disable ssl check  for infradb.", type=bool)
+        "--disable_infradb_ssl", help="Disable ssl check  for infradb.",
+        type=bool
+    )
     args = parser.parse_args()
 
     try:

@@ -31,6 +31,7 @@ from server_deployment.utilites import DeploymentError
 logger = logging.getLogger('ServerDeploy')
 logger.setLevel(logging.DEBUG)
 
+
 class Ns1Deploy():
 
     def __init__(self, host_name, host, logger):
@@ -44,7 +45,6 @@ class Ns1Deploy():
         # print(zone)
         # record = zone.add_A('honey', ['1.2.3.4', '5.6.7.8'])
         # print(record)
-
 
     def get_monitor_list(self):
         try:
@@ -70,26 +70,29 @@ class Ns1Deploy():
 
     def add_new_monitor(self):
         monitor_data = {
-            "region_scope":"fixed",
-            "frequency":60,
-            "rapid_recheck":False,
-            "policy":"quorum",
-            "notify_delay":0,
-            "notify_repeat":0,
-            "notify_failback":True,
-            "notify_regional":False,
-            "rules":[
-                {"key":"output","comparison":"contains","value":"this is a test"}
+            "region_scope": "fixed",
+            "frequency": 60,
+            "rapid_recheck": False,
+            "policy": "quorum",
+            "notify_delay": 0,
+            "notify_repeat": 0,
+            "notify_failback": True,
+            "notify_regional": False,
+            "rules": [
+                {
+                    "key": "output",
+                    "comparison": "contains",
+                    "value": "this is a test"}
             ],
-            # "regions":["sjc","sin","lga"],
-            "regions": ["sjc",],
-            "job_type":"tcp",
-            "config":{
-                "response_timeout":1000,
-                "connect_timeout":2000,
-                "host":self.host_name,
-                "port":80,
-                "send":"GET /test-cache.js HTTP/1.1\nHost: monitor.revsw.net\n\n"
+            "regions": ["sjc", "sin", "lga"],
+            # "regions": ["sjc",],
+            "job_type": "tcp",
+            "config": {
+                "response_timeout": 1000,
+                "connect_timeout": 2000,
+                "host": self.host_name,
+                "port": 80,
+                "send": "GET /test-cache.js HTTP/1.1\nHost: monitor.revsw.net\n\n"
             },
             "name": self.host_name,
             # "notify_list": settings.NS1_NOTIFY_LIST_ID
@@ -185,9 +188,10 @@ class Ns1Deploy():
 
     def get_record(self, zone, domain, record_type):
         try:
-            logger.info("Checkig if record already exist get by zone %s, domain %s, record_type %s" %
-                        (zone, domain, record_type)
-                        )
+            logger.info(
+                    "Checkig if record already exist get by zone %s, domain %s, record_type %s" %
+                    (zone, domain, record_type)
+                )
             record = Record(zone, domain, record_type)
             record.load()
         except ResourceException as e:
@@ -211,7 +215,9 @@ class Ns1Deploy():
 
     def add_feed(self, source_id, monitor_id):
         try:
-            logger.info('Adding new data feed to NS1 to monitor %s and data source %s'% (monitor_id, source_id))
+            logger.info(
+                'Adding new data feed to NS1 to monitor %s and data source %s' % (monitor_id, source_id)
+            )
             feedAPI = self.ns1.datafeed()
             feed = feedAPI.create(
                 source_id,
@@ -246,7 +252,9 @@ class Ns1Deploy():
         return feed
 
     def find_feed(self, source_id, monitor_id):
-        logger.info("Finding in NS1 data feed  by monitor %s in data source %s" % (monitor_id, source_id))
+        logger.info(
+            "Finding in NS1 data feed  by monitor %s in data source %s" % (monitor_id, source_id)
+        )
         try:
             feedAPI = self.ns1.datafeed()
             feed_list = feedAPI.list(source_id)
@@ -282,7 +290,6 @@ class Ns1Deploy():
         logger.info('Feed was not found')
         return None
 
-
     def delete_feed(self, source_id, monitor_id):
         logger.info("Deleting data feed")
         try:
@@ -290,7 +297,7 @@ class Ns1Deploy():
             feed_id = self.find_feed(source_id, monitor_id)
             if not feed_id:
                 return
-            feed = feedAPI.delete(source_id, feed_id)
+            feedAPI.delete(source_id, feed_id)
             logger.info("Feed succesfuly deleted")
         except ResourceException as e:
             log_error = e.message
