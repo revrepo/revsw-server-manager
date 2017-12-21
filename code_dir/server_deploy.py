@@ -148,6 +148,7 @@ class DeploySequence():
         if check_list['domain_purge']:
             cds.monitor_purge_and_domain_configuration()
         self.group = cds.server_group
+        logger.info("Reboot server to apply  changes")
         self.server.reboot()
 
     def update_fw_rules(self):
@@ -239,6 +240,7 @@ class DeploySequence():
         )
 
     def install_puppet(self):
+        self.remove_from_puppet()
         logger.info("Install  puppet")
         self.server.install_puppet()
         self.server.configure_puppet()
@@ -285,6 +287,9 @@ class DeploySequence():
         if not monitor_id:
             monitor_id = self.ns1.add_new_monitor()
             logger.info("New monitor id %s" % monitor_id)
+            logger.info(
+                "Waiting for %s seconds  to new monitor is setting" % settings.NS1_WAITING_TIME
+            )
             time.sleep(settings.NS1_WAITING_TIME)
         else:
             logger.info("monitor already exist with id %s" % monitor_id)
@@ -316,7 +321,7 @@ class DeploySequence():
         ))
         self.ns1.add_answer(
             self.zone, dns_balance_name, self.record_type,
-            self.ip, self.location_code
+            self.ip, self.location_code, feed_id
         )
 
     def get_short_name(self):
@@ -330,6 +335,30 @@ class DeploySequence():
         if m:
             return m.group(1)
         raise DeploymentError("Wrong Host_name")
+
+    def remove_from_puppet(self):
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(
+            hostname=settings.INSTALL_SERVER_HOST,
+            username=settings.INSTALL_SERVER_LOGIN,
+            password=settings.INSTALL_SERVER_PASSWORD,
+            port=22
+        )
+        logger.info("Deleting server %s from puppet" % self.host_name)
+        logger.info("sudo puppet cert clean %s" % self.host_name)
+        stdin_fw, stdout_fw, stderr_fw = client.exec_command(
+            "sudo puppet cert clean %s" % self.host_name
+        )
+        lines = stdout_fw.readlines()
+        for line in lines:
+            logger.info(line)
+
+        logger.info("command sudo puppet cert clean %s was executed with status %s" %
+                    (self.host_name, stdout_fw.channel.recv_exit_status())
+                    )
+        logger.info("Server %s was deleted from puppet" % self.host_name)
+        return stdout_fw.channel.recv_exit_status()
 
 
 if __name__ == "__main__":

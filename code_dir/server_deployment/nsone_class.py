@@ -84,8 +84,8 @@ class Ns1Deploy():
                     "comparison": "contains",
                     "value": "this is a test"}
             ],
-            "regions": ["sjc", "sin", "lga"],
-            # "regions": ["sjc",],
+            # "regions": ["sjc", "sin", "lga"],
+            "regions": ["sjc",],
             "job_type": "tcp",
             "config": {
                 "response_timeout": 1000,
@@ -326,13 +326,13 @@ class Ns1Deploy():
             }, "infraDB")
             raise DeploymentError(log_error)
 
-    def add_answer(self, zone, record_name, record_type, answer_host, region):
+    def add_answer(self, zone, record_name, record_type, answer_host, region, feed_id):
         answer_data = {
             'answer': [answer_host],
             'region': region,
             'meta': {
                 "priority": 1,
-                "up": True
+                "up": {'feed': feed_id}
             }
         }
         try:
