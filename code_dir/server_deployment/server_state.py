@@ -73,7 +73,7 @@ class ServerState():
             "update": None,
             "upgrade": None
         }
-        use_key =False
+        use_key = False
         if first_step not in [
             "check_hostname",
             "add_ns1_record",
@@ -110,7 +110,7 @@ class ServerState():
         if connect:
             return
         logger.info('authentification with  default credetials fail. trying to auth with key')
-        connect = self.connection(settings.DEFAULT_USERNAME, using_key=True)
+        connect = self.connection('robot', using_key=True)
         if connect:
             return
         raise DeploymentError("Problem with auth to server")
