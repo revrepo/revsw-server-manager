@@ -84,8 +84,8 @@ class Ns1Deploy():
                     "comparison": "contains",
                     "value": "this is a test"}
             ],
-            # "regions": ["sjc", "sin", "lga"],
-            "regions": ["sjc",],
+            "regions": ["sjc", "sin", "lga"],
+            # "regions": ["sjc",],
             "job_type": "tcp",
             "config": {
                 "response_timeout": 1000,
