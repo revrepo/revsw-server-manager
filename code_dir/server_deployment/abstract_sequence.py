@@ -30,7 +30,7 @@ from server_deployment.mongo_logger import MongoLogger
 from server_deployment.nsone_class import Ns1Deploy
 from server_deployment.server_state import ServerState
 
-from code_dir.server_deployment.utilites import DeploymentError
+from server_deployment.utilites import DeploymentError
 
 # logging.config.dictConfig(settings.LOGGING)
 logger = logging.getLogger('ServerDeploy')
