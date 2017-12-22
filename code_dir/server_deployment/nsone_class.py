@@ -41,10 +41,6 @@ class Ns1Deploy():
         self.logger = logger
         self.ns1 = NSONE(apiKey=settings.NSONE_KEY)
         self.monitor = self.ns1.monitors()
-        # self.zone = self.nsone.
-        # print(zone)
-        # record = zone.add_A('honey', ['1.2.3.4', '5.6.7.8'])
-        # print(record)
 
     def get_monitor_list(self):
         try:
@@ -71,7 +67,7 @@ class Ns1Deploy():
     def add_new_monitor(self):
         monitor_data = {
             "region_scope": "fixed",
-            "frequency": 60,
+            "frequency": 20,
             "rapid_recheck": False,
             "policy": "quorum",
             "notify_delay": 0,
@@ -95,7 +91,7 @@ class Ns1Deploy():
                 "send": "GET /test-cache.js HTTP/1.1\nHost: monitor.revsw.net\n\n"
             },
             "name": self.host_name,
-            # "notify_list": settings.NS1_NOTIFY_LIST_ID
+            "notify_list": settings.NS1_NOTIFY_LIST_ID
             }
 
         try:
@@ -337,7 +333,17 @@ class Ns1Deploy():
         }
         try:
             record = self.ns1.loadRecord(record_name, record_type)
+            if not record:
+                logger.info(' A dns balance record not found')
+                return
+            logger.info("Checking if answer already exist")
+            for answer in record.data['answers']:
+                if answer['answer'] == [answer_host]:
+                    logger.info("Answer already exist")
+                    return
+            logger.info("Answer not found. Adding new answer")
             record.addAnswers([answer_data])
+            logger.info("Answer succesfully added")
 
         except ResourceException as e:
             log_error = e.message

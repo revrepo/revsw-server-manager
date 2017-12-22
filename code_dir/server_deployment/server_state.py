@@ -39,7 +39,7 @@ class ServerState():
     Class which contact with server and save state its deploy
     """
 
-    def __init__(self, host_name, login, password, mongo_log, ipv4='', ipv6='', cert='', first_step="check_hostname"):
+    def __init__(self, host_name, login, password, mongo_log, ipv4='', ipv6='', first_step="check_hostname"):
 
         self.host_name = host_name
         self.start_time = datetime.datetime.now()
@@ -47,7 +47,6 @@ class ServerState():
         self.ipv6 = ipv6
         self.login = login
         self.password = password
-        self.cert = cert
         self.mongo_log = mongo_log
         self.server_constants = {
             "host_name": self.host_name,
@@ -55,7 +54,6 @@ class ServerState():
             "ipv6": self.ipv6,
             "login": self.login,
             "password": self.password,
-            "cert": self.cert,
             "udp_port_list": [],
             "tcp_port_list": [],
         }

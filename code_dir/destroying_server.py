@@ -30,6 +30,7 @@ import sys
 import re
 
 import settings
+from server_deployment.abstract_sequence import SequenceAbstract
 from server_deployment.nagios import Nagios
 from server_deployment.cds_api import CDSAPI
 from server_deployment.infradb import InfraDBAPI
@@ -43,11 +44,11 @@ logging.config.dictConfig(settings.LOGGING)
 logger = logging.getLogger('ServerDeploy')
 logger.setLevel(logging.DEBUG)
 
-class DestroySequence():
 
+class DestroySequence(SequenceAbstract):
 
     def __init__(self, args):
-
+        super(DestroySequence, self).__init__(args)
         self.steps = {
             "remove_from_nagios":self.remove_from_nagios,
             "remove_from_cds": self.remove_from_cds,
@@ -67,35 +68,9 @@ class DestroySequence():
             "remove_from_puppet",
             "remove_ns1_balancing_rule"
         ]
-        self.host_name = args.host_name
         self.server_group = args.server_group
-        self.ip = args.IP
-        self.first_step = args.first_step
-        self.number_of_steps = args.number_of_steps_to_execute
-        # self.dns_balancing_name = args.dns_balancing_name
-        self.zone_name = self.get_zone_name()
-        # self.zone_name = "attested.club"
         self.record_type = args.record_type
-
-        self.logger = MongoLogger(self.host_name, datetime.datetime.now().isoformat())
-        # self.server = ServerState(
-        #     self.host_name, args.login, args.password,
-        #    self.logger, ipv4=self.ip, first_step=self.first_step,
-        # )
-        self.ns1 = Ns1Deploy(self.host_name, self.host_name,self.logger)
-        self.zone = self.ns1.get_zone(self.zone_name)
-        self.infradb = InfraDBAPI(self.logger, ssl_disable=args.disable_infradb_ssl)
-        self.short_name = self.get_short_name()
-
-    def run_sequence(self):
-        if self.first_step not in self.step_sequence:
-            raise DeploymentError("Wrong first step")
-        first_index = self.step_sequence.index(self.first_step)
-        end_of_sequence = first_index + self.number_of_steps
-        sequence_list = self.step_sequence[first_index:end_of_sequence]
-        for step in sequence_list:
-            logger.info("Running step %s" % step)
-            self.steps[step]()
+        self.dns_balancing_name = args.dns_balancing_name
 
     def remove_from_nagios(self):
         nagios = Nagios(self.host_name, self.logger, self.short_name)
@@ -168,8 +143,10 @@ class DestroySequence():
 
     def remove_ns1_balancing_rule(self):
         logger.info("Getting dns balance name from CDS")
-        cds = CDSAPI(self.server_group, self.host_name, self.logger)
-        dns_balance_name = cds.server_group['edge_host']
+        dns_balance_name = self.dns_balancing_name
+        if not dns_balance_name:
+            cds = CDSAPI(self.server_group, self.host_name, self.logger)
+            dns_balance_name = cds.server_group['edge_host']
         logger.info("DNS balancing name is %s" % dns_balance_name)
         logger.info("Getting DNS balance record")
         record = self.ns1.get_a_record(
@@ -185,19 +162,6 @@ class DestroySequence():
                 new_answers.append(answer)
         record.update(answers=new_answers)
         logger.info("DNS balancing rules succesfuly changed")
-
-    def get_short_name(self):
-        m = re.search('^(.+?)\.', self.host_name)
-        if m:
-            return m.group(1)
-        raise DeploymentError("Wrong Host_name")
-
-    def get_zone_name(self):
-        m = re.search('^[a-zA-Z0-9_]*-[a-zA-Z0-9_]*.(.+?)$', self.host_name)
-        if m:
-            return m.group(1)
-        raise DeploymentError("Wrong Host_name")
-
 
 if __name__ == "__main__":
 
@@ -238,7 +202,7 @@ if __name__ == "__main__":
         "--number_of_steps_to_execute",
         help="Number of steps need to be execute.",
         default=10,
-        type = int,
+        type=int,
     )
 
     parser.add_argument(
