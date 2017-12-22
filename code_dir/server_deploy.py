@@ -29,6 +29,7 @@ import sys
 import re
 
 import settings
+from server_deployment.abstract_sequence import SequenceAbstract
 from server_deployment.nagios import Nagios
 from server_deployment.cds_api import CDSAPI
 from server_deployment.infradb import InfraDBAPI
@@ -38,14 +39,16 @@ from server_deployment.nsone_class import Ns1Deploy
 from server_deployment.server_state import ServerState
 from server_deployment.utilites import DeploymentError
 
+
 logging.config.dictConfig(settings.LOGGING)
 logger = logging.getLogger('ServerDeploy')
 logger.setLevel(logging.DEBUG)
 
 
-class DeploySequence():
+class DeploySequence(SequenceAbstract):
 
     def __init__(self, args):
+        super(DeploySequence, self).__init__(args)
 
         self.steps = {
             "check_hostname": self.check_hostname_step,
@@ -72,42 +75,16 @@ class DeploySequence():
             "add_ns1_monitor",
             "add_ns1_balancing_rule",
         ]
-        self.host_name = args.host_name
-        self.short_name = self.get_short_name()
         self.server_group = args.server_group
-        self.ip = args.IP
-        self.first_step = args.first_step
-        self.number_of_steps = args.number_of_steps_to_execute
         self.dns_balancing_name = args.dns_balancing_name
-        self.location_code = self.get_location_code()
-        self.zone_name = self.get_zone_name()
         self.record_type = args.record_type
         # self.zone_name = "attested.club"
         self.hosting_name = args.hosting
-        self.logger = MongoLogger(
-            self.host_name, datetime.datetime.now().isoformat()
-        )
         self.server = ServerState(
             self.host_name, args.login, args.password,
-            self.logger, ipv4=self.ip, cert=args.cert,
+            self.logger, ipv4=self.ip,
             first_step=self.first_step,
         )
-        self.ns1 = Ns1Deploy(self.host_name, self.ip, self.logger)
-        self.zone = self.ns1.get_zone(self.zone_name)
-        self.infradb = InfraDBAPI(
-            self.logger, ssl_disable=args.disable_infradb_ssl
-        )
-        self.location_code = self.get_location_code()
-
-    def run_sequence(self):
-        if self.first_step not in self.step_sequence:
-            raise DeploymentError("Wrong first step")
-        first_index = self.step_sequence.index(self.first_step)
-        end_of_sequence = first_index + self.number_of_steps
-        sequence_list = self.step_sequence[first_index:end_of_sequence]
-        for step in sequence_list:
-            logger.info("Running step %s" % step)
-            self.steps[step]()
 
     def deploy_cds(self):
         # checking installed packages
@@ -206,12 +183,6 @@ class DeploySequence():
             self.logger.log({"fw": "fail", "log": log_error}, "puppet")
             raise DeploymentError(log_error)
         client.close()
-
-    def get_location_code(self):
-        m = re.search('^(.+?)-', self.host_name)
-        if m:
-            return m.group(1)
-        raise DeploymentError("Wrong Host_name")
 
     def check_hostname_step(self):
         # Start deploing of server
@@ -323,42 +294,6 @@ class DeploySequence():
             self.zone, dns_balance_name, self.record_type,
             self.ip, self.location_code, feed_id
         )
-
-    def get_short_name(self):
-        m = re.search('^(.+?)\.', self.host_name)
-        if m:
-            return m.group(1)
-        raise DeploymentError("Wrong Host_name")
-
-    def get_zone_name(self):
-        m = re.search('^[a-zA-Z0-9_]*-[a-zA-Z0-9_]*.(.+?)$', self.host_name)
-        if m:
-            return m.group(1)
-        raise DeploymentError("Wrong Host_name")
-
-    def remove_from_puppet(self):
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(
-            hostname=settings.INSTALL_SERVER_HOST,
-            username=settings.INSTALL_SERVER_LOGIN,
-            password=settings.INSTALL_SERVER_PASSWORD,
-            port=22
-        )
-        logger.info("Deleting server %s from puppet" % self.host_name)
-        logger.info("sudo puppet cert clean %s" % self.host_name)
-        stdin_fw, stdout_fw, stderr_fw = client.exec_command(
-            "sudo puppet cert clean %s" % self.host_name
-        )
-        lines = stdout_fw.readlines()
-        for line in lines:
-            logger.info(line)
-
-        logger.info("command sudo puppet cert clean %s was executed with status %s" %
-                    (self.host_name, stdout_fw.channel.recv_exit_status())
-                    )
-        logger.info("Server %s was deleted from puppet" % self.host_name)
-        return stdout_fw.channel.recv_exit_status()
 
 
 if __name__ == "__main__":

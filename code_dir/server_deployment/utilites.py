@@ -17,7 +17,6 @@
 
 """
 
-
 class DeploymentError(Exception):
     """Exception raised for errors which was raised while deployment.
         message -- explanation of the error
