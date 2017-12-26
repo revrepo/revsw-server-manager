@@ -185,7 +185,7 @@ class Ns1Deploy():
     def get_a_record(self, zone, domain, record_type):
         try:
             logger.info(
-                    "Checkig if record already exist get by zone %s, domain %s, record_type %s" %
+                    "Checking if record already exist get by zone %s, domain %s, record_type %s" %
                     (zone, domain, record_type)
                 )
             record = Record(zone, domain, record_type)

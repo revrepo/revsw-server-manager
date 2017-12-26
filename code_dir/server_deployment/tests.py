@@ -27,6 +27,7 @@ from copy import deepcopy
 from urlparse import urljoin
 
 import pymongo
+from nsone.rest.errors import ResourceException
 
 import mongo_logger
 
@@ -36,6 +37,10 @@ import settings
 from server_deployment.cds_api import CDSAPI
 from server_deployment.infradb import InfraDBAPI
 from server_deployment.utilites import DeploymentError
+
+from server_deployment.nsone_class import Ns1Deploy
+
+from code_dir.server_deployment.test_utilites import NS1MonitorMock, MockNSONE
 
 TEST_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "temporary_testing_files/")
 
@@ -59,9 +64,8 @@ class TestAbstract(unittest.TestCase):
         # remove all temporary test files
         os.system("rm -r %s" % TEST_DIR)
 
-
     def check_log_exist(self):
-        return  self.log_collection.find_one()
+        return self.log_collection.find_one()
         # return self.log_collection.find().sort("_id", -1).limit(1)
 
 
@@ -69,7 +73,6 @@ class TestLoggerClass(TestAbstract):
     testing_class = mongo_logger.MongoLogger(
         'test_host', datetime.datetime.now().isoformat()
     )
-
 
     test_server_status = {
             "time": datetime.datetime.now().isoformat(),
@@ -689,6 +692,129 @@ class TestCDSAPI(TestAbstract):
                 log['CDS'],
                 {"sever_group": "fail", "log": "Server error. Status: 400 Error: wrongmess"},
             )
+
+
+class TestNS1Class(TestAbstract):
+
+    test_monitor = {
+        'status': {'sjc': {'status': 'down', 'since': 1513890023,
+                           'fail_set': ['Failure for Rule: output contains this is a test',
+                                        'Connection error/Timeout']},
+                   'global': {'status': 'up', 'since': 1513890023, 'fail_set': ['sjc']}},
+        'notify_list': None, 'notify_repeat': 0, 'notify_failback': True, 'name': 'test-test2.host',
+        'mute': False, 'rules': [{'comparison': 'contains', 'key': 'output', 'value': 'this is a test'}],
+        'notes': None, 'notify_delay': 0, 'job_type': 'tcp', 'notify_regional': False, 'regions': ['sjc'],
+        'active': True, 'v2': True, 'frequency': 60, 'rapid_recheck': False, 'policy': 'quorum',
+        'region_scope': 'fixed',
+        'config': {'response_timeout': 1000, 'host': 'test-test2.host', 'connect_timeout': 2000,
+                     'send': 'GET /test-cache.js HTTP/1.1\nHost: monitor.revsw.net\n\n', 'port': 80},
+        'id': '1234'
+    }
+
+    @patch("settings.INFRADB_URL", 'http://localhost:8000/api/')
+    @patch("settings.MONGO_DB_NAME", 'test_database')
+    def setUp(self):
+        # mocking mogo db variables for conecting to test  database
+        # settings.MONGO_DB_NAME = 'test_database'
+        settings.MONGO_HOST = 'localhost'
+        settings.MONGO_PORT = 27017
+        self.mongo_cli = pymongo.MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        self.mongo_db = self.mongo_cli[settings.MONGO_DB_NAME]
+        self.log_collection = self.mongo_db['test_host']
+
+        self.logger = mongo_logger.MongoLogger(
+            'test_host', datetime.datetime.now().isoformat()
+        )
+        self.mocked_ns1_class = MockNSONE(apikey="1234")
+        self.mocked_ns1_monitors = NS1MonitorMock()
+        self.host_name = 'test-test1.host'
+        self.ip = '111.111.111.111'
+        self.testing_class = Ns1Deploy(self.host_name, self.ip, self.logger)
+        self.testing_class.ns1 = self.mocked_ns1_class
+        self.testing_class.monitor = self.mocked_ns1_monitors
+        # print name of running test
+        print("RUN_TEST %s" % self._testMethodName)
+
+    def test_get_monitor_list(self):
+
+        monitors = self.testing_class.get_monitor_list()
+        self.assertEquals([self.test_monitor], monitors)
+
+    def test_check_is_monitor_exist(self):
+        self.mocked_ns1_monitors.monitor_list.append(self.test_monitor)
+
+        monitor_exist = self.testing_class.check_monitor_exist()
+        self.assertEquals(monitor_exist, '5678')
+
+    def test_check_is_monitor_not_exist(self):
+        monitor_exist = self.testing_class.check_monitor_exist()
+        self.assertFalse(monitor_exist)
+
+    def test_add_monitor(self):
+        monitor_id = ''
+        raised_exception = False
+        try:
+            monitor_id = self.testing_class.add_new_monitor()
+        except DeploymentError as e:
+            raised_exception = True
+        self.assertFalse(raised_exception)
+        self.assertEquals(monitor_id, '5432')
+
+    def test_add_monitor_fail(self):
+
+        raised_exception = False
+        try:
+            monitor_id = self.testing_class.add_new_monitor()
+        except DeploymentError as e:
+            raised_exception = True
+        self.assertTrue(raised_exception)
+
+    def test_check_get_monitor(self):
+        monitor =None
+        self.mocked_ns1_monitors.monitor_list.append(self.test_monitor)
+        raised_exception = False
+        try:
+            monitor = self.testing_class.get_monitor('5678')
+        except DeploymentError as e:
+            raised_exception = True
+        self.assertFalse(raised_exception)
+        self.assertEquals(self.test_monitor, monitor)
+
+    def test_check_get_monitor_fail(self):
+        raised_exception = False
+        try:
+            monitor = self.testing_class.get_monitor('5678')
+        except DeploymentError as e:
+            raised_exception = True
+        self.assertTrue(raised_exception)
+
+    def test_check_monitor_status(self):
+        status = self.testing_class.check_monitor_status('1234')
+        self.assertEquals('up', status)
+
+    def test_delete_monitor(self):
+        raised_exception = False
+        try:
+            monitor = self.testing_class.delete_monitor('5678')
+        except DeploymentError as e:
+            raised_exception = True
+        self.assertFalse(raised_exception)
+
+    def test_delete_monitor_fail(self):
+        raised_exception = False
+        try:
+            monitor = self.testing_class.delete_monitor('5678')
+        except DeploymentError as e:
+            raised_exception = True
+        self.assertTrue(raised_exception)
+
+    def test_add_feed(self):
+        raised_exception = False
+        try:
+            feed = self.testing_class.add_feed('1234', '5678')
+        except DeploymentError as e:
+            raised_exception = True
+        self.assertTrue(raised_exception)
 
 
 if __name__ == '__main__':

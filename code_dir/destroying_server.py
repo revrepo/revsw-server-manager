@@ -33,11 +33,7 @@ import settings
 from server_deployment.abstract_sequence import SequenceAbstract
 from server_deployment.nagios import Nagios
 from server_deployment.cds_api import CDSAPI
-from server_deployment.infradb import InfraDBAPI
 
-from server_deployment.mongo_logger import MongoLogger
-from server_deployment.nsone_class import Ns1Deploy
-from server_deployment.server_state import ServerState
 from server_deployment.utilites import DeploymentError
 
 logging.config.dictConfig(settings.LOGGING)
@@ -60,13 +56,13 @@ class DestroySequence(SequenceAbstract):
 
         }
         self.step_sequence = [
-            "remove_ns1_a_record",
+            "remove_ns1_balancing_rule"
+            "remove_ns1_monitor",
             "remove_from_nagios",
             "remove_from_cds",
-            "remove_ns1_monitor",
             "remove_from_infradb",
             "remove_from_puppet",
-            "remove_ns1_balancing_rule"
+            "remove_ns1_a_record",
         ]
         self.server_group = args.server_group
         self.record_type = args.record_type
@@ -162,6 +158,10 @@ class DestroySequence(SequenceAbstract):
                 new_answers.append(answer)
         record.update(answers=new_answers)
         logger.info("DNS balancing rules succesfuly changed")
+        logger.info("Waiting for %s seconds to get enough time for end users to stop using the proxy servers")
+        time.sleep(settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME)
+        logger.info("Continue work")
+
 
 if __name__ == "__main__":
 
