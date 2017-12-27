@@ -75,8 +75,7 @@ class DeploySequence(SequenceAbstract):
             "add_ns1_monitor",
             "add_ns1_balancing_rule",
         ]
-        self.server_group = args.server_group
-        self.dns_balancing_name = args.dns_balancing_name
+
         self.record_type = args.record_type
         # self.zone_name = "attested.club"
         self.hosting_name = args.hosting
@@ -282,16 +281,11 @@ class DeploySequence(SequenceAbstract):
         feed_id = self.ns1.find_feed(settings.NS1_DATA_SOURCE_ID, monitor_id)
         if not feed_id:
             raise DeploymentError("Data feed for moniton %s not found" % monitor_id)
-
-        dns_balance_name = self.dns_balancing_name
-        if not dns_balance_name:
-            cds = CDSAPI(self.server_group, self.host_name, self.logger)
-            dns_balance_name = cds.server_group['edge_host']
         logger.info("Add server %s answer to NS1 to record %s" % (
-            self.ip, dns_balance_name
+            self.ip, self.dns_balancing_name
         ))
         self.ns1.add_answer(
-            self.zone, dns_balance_name, self.record_type,
+            self.balancing_rule_zone, self.dns_balancing_name, self.record_type,
             self.ip, self.location_code, feed_id
         )
 

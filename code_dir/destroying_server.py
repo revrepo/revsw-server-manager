@@ -64,9 +64,7 @@ class DestroySequence(SequenceAbstract):
             "remove_from_puppet",
             "remove_ns1_a_record",
         ]
-        self.server_group = args.server_group
         self.record_type = args.record_type
-        self.dns_balancing_name = args.dns_balancing_name
 
     def remove_from_nagios(self):
         nagios = Nagios(self.host_name, self.logger, self.short_name)
@@ -139,14 +137,10 @@ class DestroySequence(SequenceAbstract):
 
     def remove_ns1_balancing_rule(self):
         logger.info("Getting dns balance name from CDS")
-        dns_balance_name = self.dns_balancing_name
-        if not dns_balance_name:
-            cds = CDSAPI(self.server_group, self.host_name, self.logger)
-            dns_balance_name = cds.server_group['edge_host']
-        logger.info("DNS balancing name is %s" % dns_balance_name)
+        logger.info("DNS balancing name is %s" % self.dns_balancing_name)
         logger.info("Getting DNS balance record")
         record = self.ns1.get_a_record(
-            self.zone, dns_balance_name, self.record_type
+            self.balancing_rule_zone, self.dns_balancing_name, self.record_type
         )
         if not record:
             logger.info(' A dns balance record not found')
