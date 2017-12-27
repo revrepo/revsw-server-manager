@@ -77,7 +77,7 @@ class SequenceAbstract(object):
         raise DeploymentError("Wrong Host_name")
 
     def get_zone_name(self, name):
-        m = re.search('^[a-zA-Z0-9_]*-[a-zA-Z0-9_]*.(.+?)$', name)
+        m = re.search('^[-a-zA-Z0-9_]*.(.+?)$', name)
         if m:
             return m.group(1)
         raise DeploymentError("Wrong Host_name")

@@ -56,7 +56,7 @@ class DestroySequence(SequenceAbstract):
 
         }
         self.step_sequence = [
-            "remove_ns1_balancing_rule"
+            "remove_ns1_balancing_rule",
             "remove_ns1_monitor",
             "remove_from_nagios",
             "remove_from_cds",
