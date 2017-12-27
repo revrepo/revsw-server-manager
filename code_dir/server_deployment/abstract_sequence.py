@@ -30,6 +30,7 @@ from server_deployment.mongo_logger import MongoLogger
 from server_deployment.nsone_class import Ns1Deploy
 from server_deployment.server_state import ServerState
 
+from server_deployment.cds_api import CDSAPI
 from server_deployment.utilites import DeploymentError
 
 # logging.config.dictConfig(settings.LOGGING)
@@ -58,6 +59,12 @@ class SequenceAbstract(object):
         )
 
         self.ns1 = Ns1Deploy(self.host_name, self.ip, self.logger)
+        self.server_group = args.server_group
+        self.dns_balancing_name = args.dns_balancing_name
+        if not self.dns_balancing_name:
+            cds = CDSAPI(self.server_group, self.host_name, self.logger)
+            self.dns_balancing_name = cds.server_group['edge_host']
+        self.balancing_rule_zone = self.ns1.get_zone(self.dns_balancing_name)
         self.zone = self.ns1.get_zone(self.zone_name)
         self.infradb = InfraDBAPI(
             self.logger, ssl_disable=args.disable_infradb_ssl
