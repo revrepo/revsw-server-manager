@@ -52,7 +52,7 @@ class SequenceAbstract(object):
         self.first_step = args.first_step
         self.number_of_steps = args.number_of_steps_to_execute
         self.location_code = self.get_location_code()
-        self.zone_name = self.get_zone_name()
+        self.zone_name = self.get_zone_name(self.host_name)
         # self.zone_name = "attested.club"
         self.logger = MongoLogger(
             self.host_name, datetime.datetime.now().isoformat()
@@ -64,7 +64,7 @@ class SequenceAbstract(object):
         if not self.dns_balancing_name:
             cds = CDSAPI(self.server_group, self.host_name, self.logger)
             self.dns_balancing_name = cds.server_group['edge_host']
-        self.balancing_rule_zone = self.ns1.get_zone(self.dns_balancing_name)
+        self.balancing_rule_zone = self.ns1.get_zone(self.get_zone_name(self.dns_balancing_name))
         self.zone = self.ns1.get_zone(self.zone_name)
         self.infradb = InfraDBAPI(
             self.logger, ssl_disable=args.disable_infradb_ssl
@@ -76,8 +76,8 @@ class SequenceAbstract(object):
             return m.group(1)
         raise DeploymentError("Wrong Host_name")
 
-    def get_zone_name(self):
-        m = re.search('^[a-zA-Z0-9_]*-[a-zA-Z0-9_]*.(.+?)$', self.host_name)
+    def get_zone_name(self, name):
+        m = re.search('^[a-zA-Z0-9_]*-[a-zA-Z0-9_]*.(.+?)$', name)
         if m:
             return m.group(1)
         raise DeploymentError("Wrong Host_name")
@@ -100,7 +100,8 @@ class SequenceAbstract(object):
         for line in lines:
             logger.info(line)
 
-        logger.info("command sudo puppet cert clean %s was executed with status %s" %
+        logger.info(
+            "command sudo puppet cert clean %s was executed with status %s" %
                     (self.host_name, stdout_fw.channel.recv_exit_status())
                     )
         logger.info("Server %s was deleted from puppet" % self.host_name)
