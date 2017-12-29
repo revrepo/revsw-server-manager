@@ -20,7 +20,6 @@ import logging
 import time
 import datetime
 
-import os
 import paramiko
 
 from copy import deepcopy
@@ -34,12 +33,16 @@ import settings
 logger = logging.getLogger('ServerDeploy')
 logger.setLevel(logging.DEBUG)
 
+
 class ServerState():
     """
     Class which contact with server and save state its deploy
     """
 
-    def __init__(self, host_name, login, password, mongo_log, ipv4='', ipv6='', first_step="check_hostname"):
+    def __init__(
+            self, host_name, login, password,
+            mongo_log, ipv4='', ipv6='', first_step="check_hostname"
+    ):
 
         self.host_name = host_name
         self.start_time = datetime.datetime.now()
@@ -78,14 +81,16 @@ class ServerState():
             "add_to_infradb",
             "update_fw_rules",
             "install_puppet",
-            "run_puppet",]:
+            "run_puppet"
+        ]:
             use_key = True
         self.re_connect(using_key=use_key)
 
     def log_changes(self, log=None):
         log_dict = deepcopy(self.steps)
         log_dict.update(self.server_constants)
-        if log: log_dict['log'] = log
+        if log:
+            log_dict['log'] = log
         self.mongo_log.log(log_dict, step='host')
 
     def change_step_status(self, step, result, log=None):
@@ -103,11 +108,20 @@ class ServerState():
         connect = self.connection(self.login, password=self.password)
         if connect:
             return
-        logger.info('authentification with  custom credetials fail. trying to auth with default')
-        connect = self.connection(settings.DEFAULT_USERNAME, password=settings.DEFAULT_PASSWORD)
+        logger.info(
+            'authentification with  custom credetials fail. '
+            'trying to auth with default'
+        )
+        connect = self.connection(
+            settings.DEFAULT_USERNAME,
+            password=settings.DEFAULT_PASSWORD
+        )
         if connect:
             return
-        logger.info('authentification with  default credetials fail. trying to auth with key')
+        logger.info(
+            'authentification with  default credetials '
+            'fail. trying to auth with key'
+        )
         connect = self.connection('robot', using_key=True)
         if connect:
             return
@@ -117,9 +131,19 @@ class ServerState():
         try:
             if using_key:
                 k = paramiko.RSAKey.from_private_key_file(settings.KEY_PATH)
-                self.client.connect(hostname=self.ipv4, username=username,  pkey=k, port=22)
+                self.client.connect(
+                    hostname=self.ipv4,
+                    username=username,
+                    pkey=k,
+                    port=22
+                )
             else:
-                self.client.connect(hostname=self.ipv4, username=username, password=password, port=22)
+                self.client.connect(
+                    hostname=self.ipv4,
+                    username=username,
+                    password=password,
+                    port=22
+                )
         except paramiko.BadAuthenticationType:
             return False
         return True
@@ -136,8 +160,8 @@ class ServerState():
     # check hostname
     def check_hostname(self):
         stdin_, stdout_, stderr_ = self.client.exec_command("hostname")
-        time.sleep(2) # sleep some time for complete command
-        status = stdout_.channel.recv_exit_status()
+        time.sleep(2)  # sleep some time for complete command
+        # status = stdout_.channel.recv_exit_status()
         lines = stdout_.readlines()
 
         for line in lines:
@@ -145,11 +169,15 @@ class ServerState():
         return lines[0]
 
     def update_hostname(self, hostname):
-        self.execute_command_with_log("sudo echo -n %s > /etc/hostname" % hostname)
+        self.execute_command_with_log(
+            "sudo echo -n %s > /etc/hostname" % hostname
+        )
 
     def check_install_package(self, package_name):
         output = []
-        (stdin, stdout, stderr) = self.client.exec_command('dpkg -s %s' % package_name)
+        (stdin, stdout, stderr) = self.client.exec_command(
+            'dpkg -s %s' % package_name
+        )
         for line in stdout.readlines():
             output.append(line)
         if output and output[1] == 'Status: install ok installed\n':
@@ -160,65 +188,76 @@ class ServerState():
         version = self.check_system_version()
         # version = '14.04'
         if version == '14.04':
-            self.execute_command_with_log('wget %s' % settings.PUPET_LINKS['14.04'])
-            self.execute_command_with_log('sudo dpkg -i puppetlabs-release-trusty.deb')
+            self.execute_command_with_log(
+                'wget %s' % settings.PUPET_LINKS['14.04']
+            )
+            self.execute_command_with_log(
+                'sudo dpkg -i puppetlabs-release-trusty.deb'
+            )
 
         elif version == '16.04':
-            self.execute_command_with_log('wget %s' % settings.PUPET_LINKS['16.04'])
-            self.execute_command_with_log('sudo dpkg -i puppet-release-xenial.deb')
-        # (stdin, stdout, stderr) = self.client.exec_command("cat /etc/lsb-release | grep DISTRIB_RELEASE")
+            self.execute_command_with_log(
+                'wget %s' % settings.PUPET_LINKS['16.04']
+            )
+            self.execute_command_with_log(
+                'sudo dpkg -i puppet-release-xenial.deb'
+            )
 
         self.execute_command_with_log('sudo apt-get update')
-        self.execute_command_with_log('sudo DEBIAN_FRONTEND=noninteractive apt-get -y -o Dpkg::Options::="--force-confdef" -o Dpkg::Options::="--force-confold" upgrade')
+        self.execute_command_with_log(
+            'sudo DEBIAN_FRONTEND=noninteractive apt-get -y -o '
+            'Dpkg::Options::="--force-confdef" -o Dpkg::Options::='
+            '"--force-confold" upgrade'
+        )
         self.execute_command_with_log('sudo apt-get install puppet -y')
-        logger.info("Reboot server and  wait for %s seconds" % settings.REBOOT_SLEEP_TIME)
+        logger.info(
+            "Reboot server and  wait for %s "
+            "seconds" % settings.REBOOT_SLEEP_TIME
+        )
         self.reboot()
-        puppet_installed = self.execute_command_with_log('dpkg -l | grep puppet')
+        puppet_installed = self.execute_command_with_log(
+            'dpkg -l | grep puppet'
+        )
         if puppet_installed != 0:
             log_error = "Server error. Status: %s Error: %s"
             self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
             raise DeploymentError(log_error)
 
     def configure_puppet(self):
-        # (stdin, stdout, stderr) = self.client.exec_command("cat /etc/lsb-release | grep DISTRIB_RELEASE")
         self.execute_command_with_log('sudo puppet agent --enable')
-        self.execute_command_with_log('sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER, check_status=False)
-        # self.client.exec_command("sudo echo '[agent]' >> /etc/puppet/puppet.conf")
-        # self.client.exec_command("sudo echo 'server = %s' >> /etc/puppet/puppet.conf" % settings.PUPPET_SERVER)
-        # self.client.exec_command("sudo echo 'environment = production' >> /etc/puppet/puppet.conf")
-        # self.client.exec_command("sudo echo 'configtimeout = 600' >> /etc/puppet/puppet.conf")
-        # self.client.exec_command("sudo service puppet restart")
+        self.execute_command_with_log(
+            'sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER,
+            check_status=False
+        )
 
+    def remove_puppet(self):
+        logger.info('Removing puppet from server')
+        self.execute_command_with_log("pkill -9 puppet")
+        self.execute_command_with_log("sudo rm -r /var/lib/puppet/ssl", check_status=False)
 
     def run_puppet(self):
-        logger.info('sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER)
-        (stdin, stdout, stderr) = self.client.exec_command('sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER)
+        logger.info(
+            'sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER
+        )
+        (stdin, stdout, stderr) = self.client.exec_command(
+            'sudo puppet agent -t --server=%s' % settings.PUPPET_SERVER
+        )
         lines = stdout.readlines()
         lines_list = []
         for line in lines:
             lines_list.append(line)
             logger.info(line)
-        logger.info("sudo puppet agent -t --server=%s was finished with code %s" % (
-            settings.PUPPET_SERVER, stdout.channel.recv_exit_status()
-        ))
+        logger.info(
+            "sudo puppet agent -t --server=%s was finished "
+            "with code %s" % (
+                settings.PUPPET_SERVER, stdout.channel.recv_exit_status()
+            )
+        )
         if stdout.channel.recv_exit_status() != 0 and \
-                        lines_list[0] == "Exiting; no certificate found and waitforcert is disabled":
+            lines_list[0] == "Exiting; no certificate " \
+                             "found and waitforcert is disabled":
             return 0
         return stdout.channel.recv_exit_status()
-
-        #
-        #
-        #
-        # self.client.exec_command("sudo service puppet restart")
-        # (stdin, stdout, stderr) = self.client.exec_command("sudo service puppet status")
-        # lines = stdout.readlines()
-        # for line in lines:
-        #     print line
-        # #
-        # # if stdout.channel.recv_exit_status() != 0:
-        # #     log_error = "Wrong puppet status"
-        # #     self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
-        # #     raise DeploymentError(log_error)
 
     def check_system_version(self):
         lines = []
@@ -245,5 +284,84 @@ class ServerState():
             log_error = "wrong status code after %s " % command
             self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
             raise DeploymentError(log_error)
-        logger.info("%s was finished with code %s" % (command, stdout.channel.recv_exit_status()))
+        logger.info(
+            "%s was finished with code %s" % (
+                command, stdout.channel.recv_exit_status()
+            )
+        )
         return stdout.channel.recv_exit_status()
+
+    def check_ram_size(self):
+        logger.info('Checking RAM size')
+        (stdin, stdout, stderr) = self.client.exec_command("grep 'MemTotal:'  /proc/meminfo")
+        lines = stdout.readlines()
+        lines_list = []
+        for line in lines:
+            lines_list.append(line)
+            logger.info(line)
+        m = re.search('^MemTotal:\s*(.+?) kB', lines_list[0])
+        ram_size = m.group(1)
+        if int(ram_size) <  (settings.REQUIRED_RAM_SIZE*1024):
+            raise DeploymentError("Not enough RAM")
+
+    def check_hw_architecture(self):
+        logger.info('Checking HW architecture')
+        (stdin, stdout, stderr) = self.client.exec_command("arch")
+        lines = stdout.readlines()
+        lines_list = []
+        for line in lines:
+            lines_list.append(line)
+            logger.info(line)
+        if lines_list[0].strip() != settings.REQUIRED_HW_ARCHITECTURE:
+            raise DeploymentError('Wrong HW architecture')
+
+    def check_os_version(self):
+        logger.info('Checking OS version')
+        lines = []
+        (stdin_v, stdout_v, stderr_v) = self.client.exec_command(
+            "cat /etc/lsb-release | grep DISTRIB_RELEASE"
+        )
+        for line in stdout_v.readlines():
+            lines.append(line)
+            logger.info(line)
+        try:
+            m = re.search('DISTRIB_RELEASE=(.+?)$', lines[0])
+        except AttributeError:
+            raise DeploymentError('Wrong OS version')
+        if not m or m.group(1) != settings.REQUIRED_SYSTEM_VERSION:
+            raise DeploymentError('Wrong OS version')
+
+    def check_ping_8888(self):
+        packet_lose = None
+        logger.info('ping -f -c 1000 8.8.8.8')
+        lines = []
+        (stdin_v, stdout_v, stderr_v) = self.client.exec_command(
+            "sudo ping -f -c 1000 8.8.8.8"
+        )
+        for line in stdout_v.readlines():
+            lines.append(line)
+            logger.info(line)
+            m = re.search('1000 received, (.+?)% packet loss,', line)
+            if m and m.group(1):
+                packet_lose = m.group(1)
+        if  packet_lose != '0':
+            raise DeploymentError('Problem with ping to  8.8.8.8')
+
+    def check_free_space(self):
+        free_space = None
+        logger.info('Checking free space')
+        lines = []
+        (stdin_v, stdout_v, stderr_v) = self.client.exec_command("df")
+        for line in stdout_v.readlines():
+            lines.append(line)
+            logger.info(line)
+            m = re.search('(\d+?)\s+\d+% \/$', line.strip())
+            if m and m.group(1):
+                free_space = m.group(1)
+        if int(free_space) < settings.REQUIRED_FREE_SPACE * 1024:
+            raise DeploymentError('Not enough free space. Need %s Mb '
+                                  'and available only %s Mb'% (
+                settings.REQUIRED_FREE_SPACE,
+                int(free_space)/1024
+            ))
+
