@@ -53,6 +53,7 @@ class DestroySequence(SequenceAbstract):
             "remove_from_infradb": self.remove_from_infradb,
             "remove_from_puppet": self.remove_from_puppet,
             "remove_ns1_balancing_rule": self.remove_ns1_balancing_rule,
+            "remove_from_pssh_file": self.remove_from_pssh_file,
 
         }
         self.step_sequence = [
@@ -63,6 +64,7 @@ class DestroySequence(SequenceAbstract):
             "remove_from_infradb",
             "remove_from_puppet",
             "remove_ns1_a_record",
+            "remove_from_pssh_file",
         ]
         self.record_type = args.record_type
 
@@ -85,7 +87,6 @@ class DestroySequence(SequenceAbstract):
         cds.delete_server()
 
     def remove_ns1_monitor(self):
-        logger.info("Start server adding to NS1")
         monitor_id = self.ns1.check_is_monitor_exist()
         if not monitor_id:
             logger.info("NS1 monitor not exist")
@@ -97,7 +98,6 @@ class DestroySequence(SequenceAbstract):
         self.infradb.delete_server(self.host_name)
 
     def remove_ns1_a_record(self):
-        logger.info("Deleting NS1 A record")
 
         record = self.ns1.get_a_record(
             self.zone, self.short_name, self.record_type
@@ -145,6 +145,12 @@ class DestroySequence(SequenceAbstract):
         if not record:
             logger.info(' A dns balance record not found')
             return
+        answer_exist = False
+        for answer in record.data['answers']:
+            if answer['answer'] == [self.ip]:
+                answer_exist = True
+        if not answer_exist:
+            return
         new_answers = []
         logger.info("Deleting balance rule for %s" % self.ip)
         for answer in record.data['answers']:
@@ -155,6 +161,31 @@ class DestroySequence(SequenceAbstract):
         logger.info("Waiting for %s seconds to get enough time for end users to stop using the proxy servers" % settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME)
         time.sleep(settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME)
         logger.info("Continue work")
+
+    def remove_from_pssh_file(self):
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(
+            hostname=settings.PSSH_SERVER,
+            username=settings.PSSH_SERVER_LOGIN,
+            password=settings.PSSH_SERVER_PASSWORD,
+            port=22
+        )
+        logger.info("Check if server already added")
+        (stdin, stdout, stderr) = client.exec_command('grep "%s" %s' % (
+            "BLR02-BP09", settings.PSSH_FILE_PATH
+        ))
+        founded_lines = []
+        lines = stdout.readlines()
+        for line in lines:
+            founded_lines.append(line)
+        if not founded_lines:
+            logger.info("Server not found")
+            return
+        logger.info("deleting server from %s" % settings.PSSH_FILE_PATH)
+        client.exec_command("sudo sed '%s' %s" % (
+            self.short_name, settings.PSSH_FILE_PATH
+        ))
 
 
 if __name__ == "__main__":
@@ -189,7 +220,8 @@ if __name__ == "__main__":
             "remove_ns1_monitor",
             "remove_from_infradb",
             "remove_from_puppet",
-            "remove_ns1_balancing_rule"
+            "remove_ns1_balancing_rule",
+            "remove_from_pssh_file",
         ]
     )
     parser.add_argument(

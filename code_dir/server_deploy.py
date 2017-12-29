@@ -51,6 +51,7 @@ class DeploySequence(SequenceAbstract):
         super(DeploySequence, self).__init__(args)
 
         self.steps = {
+            "check_server_consistency": self.check_server_consistency,
             "check_hostname": self.check_hostname_step,
             "add_ns1_a_record": self.add_ns1_a_record,
             "add_to_infradb": self.add_to_infradb,
@@ -61,9 +62,11 @@ class DeploySequence(SequenceAbstract):
             "add_to_nagios": self.add_to_nagios,
             "add_ns1_monitor": self.add_ns1_monitor,
             "add_ns1_balancing_rule": self.add_ns1_balancing_rule,
+            "add_to_pssh_file": self.add_to_pssh_file()
 
         }
         self.step_sequence = [
+            "check_server_consistency",
             "check_hostname",
             "add_ns1_a_record",
             "add_to_infradb",
@@ -74,6 +77,7 @@ class DeploySequence(SequenceAbstract):
             "add_to_nagios",
             "add_ns1_monitor",
             "add_ns1_balancing_rule",
+            "add_to_pssh_file",
         ]
 
         self.record_type = args.record_type
@@ -185,7 +189,6 @@ class DeploySequence(SequenceAbstract):
 
     def check_hostname_step(self):
         # Start deploing of server
-        logger.info("Checkin hostname")
         hostname = self.server.check_hostname()
         if hostname.rstrip() != self.host_name:
             self.server.update_hostname(self.host_name)
@@ -199,7 +202,6 @@ class DeploySequence(SequenceAbstract):
             "kernel_version": 1,
             "revsw_module_version": 1,
         }
-        logger.info("Adding server to inradb")
         server = self.infradb.get_server(self.host_name)
         if server:
             logger.info("Server already added to infradb")
@@ -210,8 +212,8 @@ class DeploySequence(SequenceAbstract):
         )
 
     def install_puppet(self):
+        self.server.remove_puppet()
         self.remove_from_puppet()
-        logger.info("Install  puppet")
         self.server.install_puppet()
         self.server.configure_puppet()
 
@@ -289,6 +291,38 @@ class DeploySequence(SequenceAbstract):
             self.ip, self.location_code, feed_id
         )
 
+    def check_server_consistency(self):
+        self.server.check_ram_size()
+        self.server.check_free_space()
+        self.server.check_hw_architecture()
+        self.server.check_os_version()
+        self.server.check_ping_8888()
+
+    def add_to_pssh_file(self):
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(
+            hostname=settings.PSSH_SERVER,
+            username=settings.PSSH_SERVER_LOGIN,
+            password=settings.PSSH_SERVER_PASSWORD,
+            port=22
+        )
+        logger.info("Check if server already added")
+        (stdin, stdout, stderr) = client.exec_command('grep "%s" %s' % (
+            self.short_name, settings.PSSH_FILE_PATH
+        ))
+        founded_lines = []
+        lines = stdout.readlines()
+        for line in lines:
+            founded_lines.append(line)
+        if founded_lines:
+            logger.info("Server already added")
+            return
+        logger.info("adding server to %s" % settings.PSSH_FILE_PATH)
+        client.exec_command("sudo echo %s >> %s" % (
+            self.short_name, settings.PSSH_FILE_PATH
+        ))
+
 
 if __name__ == "__main__":
 
@@ -340,8 +374,9 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--first_step", help="First step which sequence must start.",
-        default='check_hostname',
+        default="check_server_consistency",
         choices=[
+            "check_server_consistency",
             "check_hostname",
             "add_ns1_a_record",
             "add_to_infradb",
@@ -352,6 +387,7 @@ if __name__ == "__main__":
             "add_to_nagios",
             "add_ns1_monitor",
             "add_ns1_balancing_rule",
+            "add_to_pssh_file",
         ]
     )
     parser.add_argument(

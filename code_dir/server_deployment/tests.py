@@ -40,7 +40,10 @@ from server_deployment.utilites import DeploymentError
 
 from server_deployment.nsone_class import Ns1Deploy
 
-from code_dir.server_deployment.test_utilites import NS1MonitorMock, MockNSONE
+from destroying_server import DestroySequence
+from server_deploy import DeploySequence
+from server_deployment.abstract_sequence import SequenceAbstract
+from server_deployment.test_utilites import NS1MonitorMock, MockNSONE, Objectview, MockedInfraDB
 
 TEST_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "temporary_testing_files/")
 
@@ -815,6 +818,200 @@ class TestNS1Class(TestAbstract):
         except DeploymentError as e:
             raised_exception = True
         self.assertTrue(raised_exception)
+
+
+class TestAbstractSequence(TestAbstract):
+    @patch("settings.CDS_URL", 'http://localhost:8000/api/')
+    @patch("settings.MONGO_DB_NAME", 'test_database')
+    def setUp(self):
+        # mocking mogo db variables for conecting to test  database
+        # settings.MONGO_DB_NAME = 'test_database'
+        settings.MONGO_HOST = 'localhost'
+        settings.MONGO_PORT = 27017
+        self.mongo_cli = pymongo.MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        self.mongo_db = self.mongo_cli[settings.MONGO_DB_NAME]
+        self.log_collection = self.mongo_db['test_host']
+
+        self.cds_url = 'http://localhost:8000/api/'
+        self.server_group_id = 123
+        # settings.INFRADB_URL = self.infra_db_url
+
+        self.logger = mongo_logger.MongoLogger(
+            'test_host', datetime.datetime.now().isoformat()
+        )
+        self.host_name = "test_host"
+        args_dict = {'first_step': "test_first_step"}
+
+        args = Objectview(args_dict)
+        self.testing_class = SequenceAbstract(args)
+        # print name of running test
+        print("RUN_TEST %s" % self._testMethodName)
+
+    def test_get_short_name(self):
+        self.testing_class.host_name = "TEST-LOC.HOST.NAME"
+        short_name = self.testing_class.get_short_name()
+        self.assertEquals(short_name, "TEST-LOC")
+
+    def test_get_short_name_wrong(self):
+        self.testing_class.host_name = "TEST-LOC-HOST-NAME"
+        exception_raised = False
+        try:
+            self.testing_class.get_short_name()
+        except DeploymentError:
+            exception_raised = True
+        self.assertTrue(exception_raised)
+
+    def test_get_zone_name(self):
+        short_name = self.testing_class.get_zone_name("TEST-LOC.HOST.NAME")
+        self.assertEquals(short_name, "HOST.NAME")
+
+    def test_get_zone_name_wrong(self):
+        exception_raised = False
+        try:
+            self.testing_class.get_zone_name("TEST-LOC-HOST-NAME")
+        except DeploymentError:
+            exception_raised = True
+        self.assertTrue(exception_raised)
+
+    def test_get_location_code(self):
+        self.testing_class.host_name = "TEST-LOC.HOST.NAME"
+        short_name = self.testing_class.get_location_code()
+        self.assertEquals(short_name, "TEST")
+
+    def test_get_location_code_wrong(self):
+        self.testing_class.host_name = "TEST.LOC.HOST.NAME"
+        exception_raised = False
+        try:
+            self.testing_class.get_location_code()
+        except DeploymentError:
+            exception_raised = True
+        self.assertTrue(exception_raised)
+
+    def test_run_sequence(self):
+        self.testing_class.host_name = "TEST-LOC.HOST.NAME"
+        short_name = self.testing_class.run_sequence()
+        self.assertEquals(short_name, "TEST")
+
+    def test_run_sequence_wrong_first_step(self):
+        self.testing_class.step_sequence = ['another_step',]
+        exception_raised = False
+        try:
+            self.testing_class.run_sequence()
+        except DeploymentError:
+            exception_raised = True
+        self.assertTrue(exception_raised)
+
+class TestDeploymentSequence(TestAbstract):
+    @patch("settings.CDS_URL", 'http://localhost:8000/api/')
+    @patch("settings.MONGO_DB_NAME", 'test_database')
+    def setUp(self):
+        # mocking mogo db variables for conecting to test  database
+        # settings.MONGO_DB_NAME = 'test_database'
+        settings.MONGO_HOST = 'localhost'
+        settings.MONGO_PORT = 27017
+        self.mongo_cli = pymongo.MongoClient(
+            settings.MONGO_HOST, settings.MONGO_PORT
+        )
+        self.mongo_db = self.mongo_cli[settings.MONGO_DB_NAME]
+        self.log_collection = self.mongo_db['test_host']
+
+        self.cds_url = 'http://localhost:8000/api/'
+        self.server_group_id = 123
+        # settings.INFRADB_URL = self.infra_db_url
+
+        self.logger = mongo_logger.MongoLogger(
+            'test_host', datetime.datetime.now().isoformat()
+        )
+        self.host_name = "test_host"
+        args_dict = {
+            'host_name': self.host_name,
+            'IP': '111.111.111.11',
+            'number_of_steps_to_execute': 1,
+            'server_group': 'test',
+            'dns_balancing_name': 'test',
+            'password': 'password',
+            'record_type': "A",
+            'hosting': "test_hosting",
+            'first_step': "test_first_step",
+        }
+
+        args = Objectview(args_dict)
+        self.testing_class = DeploySequence(args)
+        # print name of running test
+        print("RUN_TEST %s" % self._testMethodName)
+
+    def test_add_to_infradb(self):
+        test_class = MockedInfraDB()
+        self.testing_class.infradb = test_class
+        self.testing_class.add_to_infradb()
+        self.assertEquals(
+            test_class.called_functions,
+            {
+                "get_server": [self.host_name, ],
+                'add_server': [
+                    self.host_name,
+                    '111.111.111.11',
+                    {
+                        "proxy_software_version": 1,
+                        "kernel_version": 1,
+                        "revsw_module_version": 1,
+                    },
+                    "loc",
+                    "test_hosting",
+                ]
+            }
+        )
+
+
+class TestDestroySequence(TestAbstract):
+    @patch("settings.CDS_URL", 'http://localhost:8000/api/')
+    @patch("settings.MONGO_DB_NAME", 'test_database')
+    def setUp(self):
+        # mocking mogo db variables for conecting to test  database
+        # settings.MONGO_DB_NAME = 'test_database'
+        settings.MONGO_HOST = 'localhost'
+        settings.MONGO_PORT = 27017
+        self.mongo_cli = pymongo.MongoClient(
+            settings.MONGO_HOST, settings.MONGO_PORT
+        )
+        self.mongo_db = self.mongo_cli[settings.MONGO_DB_NAME]
+        self.log_collection = self.mongo_db['test_host']
+
+        self.cds_url = 'http://localhost:8000/api/'
+        self.server_group_id = 123
+        # settings.INFRADB_URL = self.infra_db_url
+
+        self.logger = mongo_logger.MongoLogger(
+            'test_host', datetime.datetime.now().isoformat()
+        )
+        self.host_name = "test_host"
+        args_dict = {
+            'host_name': self.host_name,
+            'IP': '111.111.111.11',
+            'number_of_steps_to_execute': 1,
+            'server_group': 'test',
+            'dns_balancing_name': 'test',
+            'password': 'password',
+            'record_type': "A",
+            'hosting': "test_hosting",
+            'first_step': "test_first_step",
+        }
+
+        args = Objectview(args_dict)
+        self.testing_class = DestroySequence(args)
+        # print name of running test
+        print("RUN_TEST %s" % self._testMethodName)
+
+    def test_remove_from_infradb(self):
+        test_class = MockedInfraDB()
+        self.testing_class.infradb = test_class
+        self.testing_class.remove_from_infradb()
+        self.assertEquals(
+            test_class.called_functions,
+            {
+                "delete_server": [self.host_name, ],
+            }
+        )
 
 
 if __name__ == '__main__':

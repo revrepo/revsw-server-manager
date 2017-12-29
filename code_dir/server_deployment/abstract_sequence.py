@@ -42,7 +42,8 @@ class SequenceAbstract(object):
 
     def __init__(self, args):
 
-        # required aruments is host_name, ip, first_step, number_of_steps, login, pasword, disable_infradb_ssl
+        # required aruments is host_name, ip,
+        # first_step, number_of_steps, login, pasword, disable_infradb_ssl
 
         self.steps = {}  # dict for associate name of step and method
         self.step_sequence = []  # list of steps
@@ -61,10 +62,13 @@ class SequenceAbstract(object):
         self.ns1 = Ns1Deploy(self.host_name, self.ip, self.logger)
         self.server_group = args.server_group
         self.dns_balancing_name = args.dns_balancing_name
+        # self.dns_balancing_name = "aaaaa-aaaaa.attested.club"
         if not self.dns_balancing_name:
             cds = CDSAPI(self.server_group, self.host_name, self.logger)
             self.dns_balancing_name = cds.server_group['edge_host']
-        self.balancing_rule_zone = self.ns1.get_zone(self.get_zone_name(self.dns_balancing_name))
+        self.balancing_rule_zone = self.ns1.get_zone(
+            self.get_zone_name(self.dns_balancing_name)
+        )
         self.zone = self.ns1.get_zone(self.zone_name)
         self.infradb = InfraDBAPI(
             self.logger, ssl_disable=args.disable_infradb_ssl
@@ -102,8 +106,8 @@ class SequenceAbstract(object):
 
         logger.info(
             "command sudo puppet cert clean %s was executed with status %s" %
-                    (self.host_name, stdout_fw.channel.recv_exit_status())
-                    )
+                (self.host_name, stdout_fw.channel.recv_exit_status())
+            )
         logger.info("Server %s was deleted from puppet" % self.host_name)
         return stdout_fw.channel.recv_exit_status()
 
@@ -114,12 +118,12 @@ class SequenceAbstract(object):
         end_of_sequence = first_index + self.number_of_steps
         sequence_list = self.step_sequence[first_index:end_of_sequence]
         for step in sequence_list:
-            logger.info("Running step %s" % step)
+            logger.info("=============== BEGIN %s STAGE ==============" % step)
             self.steps[step]()
+            logger.info("=============== END %s STAGE ================" % step)
 
     def get_location_code(self):
         m = re.search('^(.+?)-', self.host_name)
         if m:
             return m.group(1)
         raise DeploymentError("Wrong Host_name")
-

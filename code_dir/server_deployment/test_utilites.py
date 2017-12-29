@@ -1,3 +1,22 @@
+"""
+
+ REV SOFTWARE CONFIDENTIAL
+
+ [2013] - [2016] Rev Software, Inc.
+ All Rights Reserved.
+
+ NOTICE:  All information contained herein is, and remains
+ the property of Rev Software, Inc. and its suppliers,
+ if any.  The intellectual and technical concepts contained
+ herein are proprietary to Rev Software, Inc.
+ and its suppliers and may be covered by U.S. and Foreign Patents,
+ patents in process, and are protected by trade secret or copyright law.
+ Dissemination of this information or reproduction of this material
+ is strictly forbidden unless prior written permission is obtained
+ from Rev Software, Inc.
+
+"""
+
 from nsone.rest.errors import ResourceException
 
 import settings
@@ -19,18 +38,55 @@ class NS1MonitorMock():
     success = True  # flag to force functions work correctly or give exeption
 
     monitor_list = [
-            {'status': {'sjc': {'status': 'down', 'since': 1513890023,
-                                  'fail_set': ['Failure for Rule: output contains this is a test',
-                                                'Connection error/Timeout']},
-                         'global': {'status': 'up', 'since': 1513890023, 'fail_set': ['sjc']}},
-             'notify_list': None, 'notify_repeat': 0, 'notify_failback': True, 'name': 'test-test1.host',
-             'mute': False, 'rules': [{'comparison': 'contains', 'key': 'output', 'value': 'this is a test'}],
-             'notes': None, 'notify_delay': 0, 'job_type': 'tcp', 'notify_regional': False, 'regions': ['sjc'],
-             'active': True, 'v2': True, 'frequency': 60, 'rapid_recheck': False, 'policy': 'quorum',
-             'region_scope': 'fixed',
-             'config': {'response_timeout': 1000, 'host': 'test-test1.host', 'connect_timeout': 2000,
-                         'send': 'GET /test-cache.js HTTP/1.1\nHost: monitor.revsw.net\n\n', 'port': 80},
-             'id': '1234'}
+            {
+                'status': {
+                    'sjc': {
+                        'status': 'down',
+                        'since': 1513890023,
+                        'fail_set': [
+                            'Failure for Rule: output contains this is a test',
+                            'Connection error/Timeout'
+                        ]
+                    },
+                    'global': {
+                        'status': 'up',
+                        'since': 1513890023,
+                        'fail_set': ['sjc']
+                    }
+                },
+                'notify_list': None,
+                'notify_repeat': 0,
+                'notify_failback': True,
+                'name': 'test-test1.host',
+                'mute': False,
+                'rules': [
+                    {
+                        'comparison': 'contains',
+                        'key': 'output',
+                        'value': 'this is a test'
+                    }
+                ],
+                'notes': None,
+                'notify_delay': 0,
+                'job_type': 'tcp',
+                'notify_regional': False,
+                'regions': ['sjc'],
+                'active': True,
+                'v2': True,
+                'frequency': 60,
+                'rapid_recheck': False,
+                'policy': 'quorum',
+                'region_scope': 'fixed',
+                'config': {
+                    'response_timeout': 1000,
+                    'host': 'test-test1.host',
+                    'connect_timeout': 2000,
+                    'send': 'GET /test-cache.js HTTP/1.1\nHost:'
+                            ' monitor.revsw.net\n\n',
+                    'port': 80
+                },
+                'id': '1234'
+            }
         ]
 
     def list(self):
@@ -60,7 +116,8 @@ class NS1MonitorMock():
                 "connect_timeout": 2000,
                 "host": 'test-test2.host',
                 "port": 80,
-                "send": "GET /test-cache.js HTTP/1.1\nHost: monitor.revsw.net\n\n"
+                "send": "GET /test-cache.js HTTP/1.1\nHost: "
+                        "monitor.revsw.net\n\n"
             },
             "name": 'test-test2.host',
             "notify_list": settings.NS1_NOTIFY_LIST_ID
@@ -81,6 +138,7 @@ class NS1MonitorMock():
         if not self.success:
             raise ResourceException("forced error")
         return True
+
 
 class NS1ZoneMock():
 
@@ -103,5 +161,26 @@ class NS1FeedMock():
         return
 
 
+class Objectview(object):
+    def __init__(self, d):
+        self.__dict__ = d
 
 
+class MockedInfraDB():
+
+    called_functions = {}
+
+    def get_server(self, host_name):
+        self.called_functions['get_server'] = [host_name, ]
+
+    def add_server(
+            self, host_name, ip, server_versions,
+            location_code, hosting_name
+                   ):
+        self.called_functions['add_server'] = [
+            host_name, ip, server_versions,
+            location_code, hosting_name
+        ]
+
+    def delete_server(self, host_name):
+        self.called_functions['add_server'] = [host_name]

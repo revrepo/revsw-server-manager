@@ -23,7 +23,8 @@ LOGGING = {
     'version': 1,
     'formatters': {
         'verbose': {
-            'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
+            'format': '%(levelname)s %(asctime)s %(module)s'
+                      ' %(process)d %(thread)d %(message)s'
         },
         'simple': {
             'format': '%(levelname)-5s %(module)-6s %(message)s'
@@ -37,12 +38,12 @@ LOGGING = {
             'level': 'DEBUG',
             'class': 'logging.NullHandler',
         },
-        'console':{
+        'console': {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
             'formatter': 'simple'
         },
-        'console_full':{
+        'console_full': {
             'level': 'DEBUG',
             'class': 'logging.StreamHandler',
             'formatter': 'timing'
@@ -132,6 +133,17 @@ DEFAULT_USERNAME = 'robot'
 DEFAULT_PASSWORD = '12345678'
 
 KEY_PATH = os.path.join(BASE_DIR, 'keys/id_rsa')
+
+REQUIRED_RAM_SIZE = 2048  # in MB
+REQUIRED_FREE_SPACE = 30 * 1024  # in MB
+REQUIRED_SYSTEM_VERSION = '14.04'
+REQUIRED_HW_ARCHITECTURE = "x86_64"
+
+PSSH_SERVER = "IAD02-MANAGER01.REVSW.NET"
+PSSH_SERVER_LOGIN = "sergey"
+PSSH_SERVER_PASSWORD = ""
+PSSH_FILE_PATH = "/home/victor/pssh/all-bp"
+
 
 try:
     from local_settings import *

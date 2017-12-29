@@ -88,7 +88,8 @@ class Ns1Deploy():
                 "connect_timeout": 2000,
                 "host": self.host_name,
                 "port": 80,
-                "send": "GET /test-cache.js HTTP/1.1\nHost: monitor.revsw.net\n\n"
+                "send": "GET /test-cache.js HTTP/1.1\nHost: "
+                        "monitor.revsw.net\n\n"
             },
             "name": self.host_name,
             "notify_list": settings.NS1_NOTIFY_LIST_ID
@@ -185,7 +186,8 @@ class Ns1Deploy():
     def get_a_record(self, zone, domain, record_type):
         try:
             logger.info(
-                    "Checking if record already exist get by zone %s, domain %s, record_type %s" %
+                    "Checking if record already exist "
+                    "get by zone %s, domain %s, record_type %s" %
                     (zone, domain, record_type)
                 )
             record = Record(zone, domain, record_type)
@@ -214,7 +216,8 @@ class Ns1Deploy():
     def add_feed(self, source_id, monitor_id):
         try:
             logger.info(
-                'Adding new data feed to NS1 to monitor %s and data source %s' % (monitor_id, source_id)
+                'Adding new data feed to NS1 to monitor '
+                '%s and data source %s' % (monitor_id, source_id)
             )
             feedAPI = self.ns1.datafeed()
             feed = feedAPI.create(
@@ -251,7 +254,8 @@ class Ns1Deploy():
 
     def find_feed(self, source_id, monitor_id):
         logger.info(
-            "Finding in NS1 data feed  by monitor %s in data source %s" % (monitor_id, source_id)
+            "Finding in NS1 data feed  by monitor %s "
+            "in data source %s" % (monitor_id, source_id)
         )
         try:
             feedAPI = self.ns1.datafeed()
@@ -322,7 +326,10 @@ class Ns1Deploy():
             }, "infraDB")
             raise DeploymentError(log_error)
 
-    def add_answer(self, zone, record_name, record_type, answer_host, region, feed_id):
+    def add_answer(
+            self, zone, record_name, record_type,
+            answer_host, region, feed_id
+    ):
         answer_data = {
             'answer': [answer_host],
             'region': region,

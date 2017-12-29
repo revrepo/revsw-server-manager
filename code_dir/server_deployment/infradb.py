@@ -36,11 +36,17 @@ class InfraDBAPI():
     def __init__(self, logger, ssl_disable=False):
         self.logger = logger
         self.session = requests.Session()
-        self.session.auth = (settings.INFRADB_USERNAME, settings.INFRADB_PASSWORD)
+        self.session.auth = (
+            settings.INFRADB_USERNAME,
+            settings.INFRADB_PASSWORD
+        )
         self.url = settings.INFRADB_URL
         self.ssl_verify = not ssl_disable
 
-    def add_server(self, host_name, ip, server_versions, location_name, hosting_name):
+    def add_server(
+            self, host_name, ip, server_versions,
+            location_name, hosting_name
+    ):
         logger.info("Add server to infradb")
         location = self._get_location(location_name)
         hosting = self._get_hosting(hosting_name)
@@ -53,12 +59,19 @@ class InfraDBAPI():
                 "IP": ip,
             }
         server_data.update(server_versions)
-        response = self.session.post(urljoin(self.url, 'server/'), data=server_data, verify=self.ssl_verify)
+        response = self.session.post(
+            urljoin(self.url, 'server/'),
+            data=server_data,
+            verify=self.ssl_verify
+        )
         if response.status_code != 201:
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"server_add": "fail", "log": log_error}, "infraDB")
+            self.logger.log(
+                {"server_add": "fail", "log": log_error},
+                "infraDB"
+            )
             raise DeploymentError(log_error)
         self.logger.log({"server_add": "ok"}, "infraDB")
         logger.info("Server succesfuly added to INFRADB")
@@ -71,38 +84,54 @@ class InfraDBAPI():
             logger.info("Server not found in infradb")
             return
 
-        response = self.session.delete(urljoin(self.url, 'server/%s' % server_data[0]['id']), verify=self.ssl_verify)
+        response = self.session.delete(
+            urljoin(self.url, 'server/%s' % server_data[0]['id']),
+            verify=self.ssl_verify
+        )
         if response.status_code != 204:
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            # self.logger.log({"server_add": "fail", "log": log_error}, "infraDB")
+            self.logger.log(
+                {"server_add": "fail", "log": log_error},
+                "infraDB"
+            )
             raise DeploymentError(log_error)
         # self.logger.log({"server_add": "ok"}, "infraDB")
         logger.info("Server succesfuly deleted from INFRADB")
 
-
     def _get_location(self, location_name):
         logger.info("Get location from INFRADB")
         response = self.session.get(
-            urljoin(self.url, 'location?code=%s' % location_name), verify=self.ssl_verify
+            urljoin(self.url, 'location?code=%s' % location_name),
+            verify=self.ssl_verify
         )
         if response.status_code != 200:
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"server_add": "fail", "log": log_error}, "infraDB")
+            self.logger.log(
+                {"server_add": "fail", "log": log_error},
+                "infraDB"
+            )
             raise DeploymentError(log_error)
         locations = json.loads(response.content)
         if not locations:
-            log_error = "Server error. Wrong location code. Location not found"
-            self.logger.log({"server_add": "fail", "log": log_error}, "infraDB")
+            log_error = "Server error. Wrong location code. " \
+                        "Location not found"
+            self.logger.log(
+                {"server_add": "fail", "log": log_error},
+                "infraDB"
+            )
             raise DeploymentError(log_error)
         logger.info(locations[0])
         return locations[0]
 
     def get_server(self, server_name):
-        response = self.session.get(urljoin(self.url, 'server?name=%s' % server_name), verify=self.ssl_verify)
+        response = self.session.get(
+            urljoin(self.url, 'server?name=%s' % server_name),
+            verify=self.ssl_verify
+        )
         if response.status_code == 200:
             return response.text
         elif response.status_code == 404:
@@ -115,17 +144,27 @@ class InfraDBAPI():
 
     def _get_hosting(self, provider_name):
         response = self.session.get(
-            urljoin(self.url, 'hosting?name=%s' % provider_name), verify=self.ssl_verify
+            urljoin(self.url, 'hosting?name=%s' % provider_name),
+            verify=self.ssl_verify
         )
         if response.status_code != 200:
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"server_add": "fail", "log": log_error}, "infraDB")
+            self.logger.log(
+                {
+                    "server_add": "fail", "log": log_error
+                 },
+                "infraDB"
+            )
             raise DeploymentError(log_error)
         hostings = json.loads(response.content)
         if not hostings:
-            log_error = "Server error. Wrong hosting provider name. Hosting provider not found"
-            self.logger.log({"server_add": "fail", "log": log_error}, "infraDB")
+            log_error = "Server error. Wrong hosting provider name. " \
+                        "Hosting provider not found"
+            self.logger.log(
+                {"server_add": "fail", "log": log_error},
+                "infraDB"
+            )
             raise DeploymentError(log_error)
         return hostings[0]
