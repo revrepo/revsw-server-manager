@@ -61,7 +61,7 @@ class DestroySequence(SequenceAbstract):
             "remove_ns1_monitor",
             "remove_from_nagios",
             "remove_from_cds",
-            "remove_from_infradb",
+#            "remove_from_infradb",
             "remove_from_puppet",
             "remove_ns1_a_record",
             "remove_from_pssh_file",
