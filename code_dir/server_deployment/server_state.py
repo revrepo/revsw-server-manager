@@ -232,7 +232,7 @@ class ServerState():
 
     def remove_puppet(self):
         logger.info('Removing puppet from server')
-        self.execute_command_with_log("pkill -9 puppet")
+        self.execute_command_with_log("pkill -9 puppet", check_status=False)
         self.execute_command_with_log("sudo rm -r /var/lib/puppet/ssl", check_status=False)
 
     def run_puppet(self):
