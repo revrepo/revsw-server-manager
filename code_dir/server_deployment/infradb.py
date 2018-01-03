@@ -133,7 +133,7 @@ class InfraDBAPI():
             verify=self.ssl_verify
         )
         if response.status_code == 200:
-            if not response.text:
+            if not json.loads(response.text):
                 return None
             return response.text
         elif response.status_code == 404:
