@@ -50,7 +50,10 @@ class CheckingSequence(SequenceAbstract):
         "server_consistency": 'Not checked',
         "check_hostname": 'Not checked',
         "check_ns1_a_record": "Not checked",
-        "check_infradb": "Not checked"
+        "check_infradb": "Not checked",
+        "check_cds": "Not checked",
+        "check_ns1_balancing_rule": "Not checked",
+        "check_pssh_file": "Not checked",
 
     }
 
@@ -62,6 +65,9 @@ class CheckingSequence(SequenceAbstract):
             "check_hostname": self.check_hostname,
             "check_ns1_a_record": self.check_ns1_a_record,
             "check_infradb": self.check_infradb,
+            "check_cds": self.check_cds,
+            "check_ns1_balancing_rule": self.check_ns1_balancing_rule,
+            "check_pssh_file": self.check_pssh_file,
 
         }
         self.step_sequence = [
@@ -69,7 +75,9 @@ class CheckingSequence(SequenceAbstract):
             "check_hostname",
             "check_ns1_a_record",
             "check_infradb",
-
+            "check_cds",
+            "check_ns1_balancing_rule",
+            "check_pssh_file"
         ]
 
         self.record_type = args.record_type
@@ -116,6 +124,53 @@ class CheckingSequence(SequenceAbstract):
             self.check_status["check_infradb"] = "OK"
             return
         self.check_status["check_infradb"] = "Not OK"
+
+    def check_cds(self):
+        cds = CDSAPI(self.server_group, self.host_name, self.logger)
+        server = cds.check_server_exist()
+        if server:
+            self.check_status["check_cds"] = "OK"
+            return
+        self.check_status["check_cds"] = "Not OK"
+
+    def check_ns1_balancing_rule(self):
+        record = self.ns1.get_a_record(
+            self.balancing_rule_zone, self.dns_balancing_name, self.record_type
+        )
+        if not record:
+            logger.info(' A dns balance record not found')
+            return
+
+        answer_exist = False
+        for answer in record.data['answers']:
+            if answer['answer'] == [self.ip]:
+                answer_exist = True
+        if answer_exist:
+            self.check_status["check_ns1_balancing_rule"] = "OK"
+            return
+        self.check_status["check_ns1_balancing_rule"] = "Not OK"
+
+    def check_pssh_file(self):
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(
+            hostname=settings.PSSH_SERVER,
+            username=settings.PSSH_SERVER_LOGIN,
+            password=settings.PSSH_SERVER_PASSWORD,
+            port=22
+        )
+        logger.info("Check if server already added")
+        (stdin, stdout, stderr) = client.exec_command('grep "%s" %s' % (
+            self.short_name, settings.PSSH_FILE_PATH
+        ))
+        founded_lines = []
+        lines = stdout.readlines()
+        for line in lines:
+            founded_lines.append(line)
+        if founded_lines:
+            self.check_status["check_pssh_file"] = "OK"
+            return
+        self.check_status["check_pssh_file"] = "Not OK"
 
 
 if __name__ == "__main__":
@@ -174,6 +229,9 @@ if __name__ == "__main__":
             "check_hostname",
             "check_ns1_a_record",
             "check_infradb",
+            "check_cds",
+            "check_ns1_balancing_rule",
+            "check_pssh_file",
         ]
     )
     parser.add_argument(

@@ -62,7 +62,7 @@ class DeploySequence(SequenceAbstract):
             "add_to_nagios": self.add_to_nagios,
             "add_ns1_monitor": self.add_ns1_monitor,
             "add_ns1_balancing_rule": self.add_ns1_balancing_rule,
-            "add_to_pssh_file": self.add_to_pssh_file()
+            "add_to_pssh_file": self.add_to_pssh_file
 
         }
         self.step_sequence = [

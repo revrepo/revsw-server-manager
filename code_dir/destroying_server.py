@@ -145,12 +145,15 @@ class DestroySequence(SequenceAbstract):
         if not record:
             logger.info(' A dns balance record not found')
             return
+
         answer_exist = False
         for answer in record.data['answers']:
             if answer['answer'] == [self.ip]:
                 answer_exist = True
         if not answer_exist:
             return
+        if self.ns1.check_is_monitor_exist(record) < settings.NS1_MINIMAL_ANSWERS_COUNT:
+            raise DeploymentError("Cant delete answrd from dns balance record,  its lower count")
         new_answers = []
         logger.info("Deleting balance rule for  %s" % self.ip)
         for answer in record.data['answers']:
