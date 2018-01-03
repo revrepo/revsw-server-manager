@@ -139,9 +139,9 @@ class DeploySequence(SequenceAbstract):
             password=settings.INSTALL_SERVER_PASSWORD,
             port=22
         )
-        logger.info("sudo sh /opt/revsw-firewall-manager/update_all.sh")
+        logger.info("sudo bash /opt/revsw-firewall-manager/update_all.sh")
         stdin_fw, stdout_fw, stderr_fw = client.exec_command(
-            "sudo sh /opt/revsw-firewall-manager/update_all.sh"
+            "sudo bash /opt/revsw-firewall-manager/update_all.sh"
         )
         lines = stdout_fw.readlines()
         for line in lines:
