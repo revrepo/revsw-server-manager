@@ -82,7 +82,6 @@ class DeploySequence(SequenceAbstract):
 
         self.record_type = args.record_type
         # self.zone_name = "attested.club"
-        self.hosting_name = args.hosting
         self.server = ServerState(
             self.host_name, args.login, args.password,
             self.logger, ipv4=self.ip,
@@ -208,7 +207,6 @@ class DeploySequence(SequenceAbstract):
             return
         self.infradb.add_server(
             self.host_name, self.ip, server_versions,
-            self.location_code, self.hosting_name
         )
 
     def install_puppet(self):
