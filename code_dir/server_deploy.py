@@ -146,10 +146,10 @@ class DeploySequence(SequenceAbstract):
         lines = stdout_fw.readlines()
         for line in lines:
             logger.info(line)
-        # if stdout_fw.channel.recv_exit_status() != 0:
-        #     log_error = "Problem with FW rules update on INSTALL server"
-        #     self.logger.log({"fw": "fail", "log": log_error}, "puppet")
-        #     raise DeploymentError(log_error)
+        if stdout_fw.channel.recv_exit_status() != 0:
+            log_error = "Problem with FW rules update on INSTALL server"
+            self.logger.log({"fw": "fail", "log": log_error}, "puppet")
+            raise DeploymentError(log_error)
         logger.info("sudo puppet agent -t")
         stdin_pu, stdout_pu, stderr_pu = client.exec_command(
             "sudo puppet agent -t"
@@ -157,10 +157,10 @@ class DeploySequence(SequenceAbstract):
         lines = stdout_pu.readlines()
         for line in lines:
             logger.info(line)
-        if stdout_pu.channel.recv_exit_status() != 0:
-            log_error = "Problem with puppet agent on INSTALL server"
-            self.logger.log({"fw": "fail", "log": log_error}, "puppet")
-            raise DeploymentError(log_error)
+        # if stdout_pu.channel.recv_exit_status() != 0:
+        #     log_error = "Problem with puppet agent on INSTALL server"
+        #     self.logger.log({"fw": "fail", "log": log_error}, "puppet")
+        #     raise DeploymentError(log_error)
         client.close()
 
     def sign_ssl_puppet(self):
