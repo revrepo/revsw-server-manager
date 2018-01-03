@@ -157,10 +157,10 @@ class DeploySequence(SequenceAbstract):
         lines = stdout_pu.readlines()
         for line in lines:
             logger.info(line)
-        if stdout_pu.channel.recv_exit_status() != 0:
-            log_error = "Problem with puppet agent on INSTALL server"
-            self.logger.log({"fw": "fail", "log": log_error}, "puppet")
-            raise DeploymentError(log_error)
+        # if stdout_pu.channel.recv_exit_status() != 0:
+        #     log_error = "Problem with puppet agent on INSTALL server"
+        #     self.logger.log({"fw": "fail", "log": log_error}, "puppet")
+        #     raise DeploymentError(log_error)
         client.close()
 
     def sign_ssl_puppet(self):
@@ -356,7 +356,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--hosting", help="Name of server hosting provider.",
-        default="HE Fremont 2 Facility"
+        default="HE"
     )
     parser.add_argument(
         "--server_group", help="CDS group.",
