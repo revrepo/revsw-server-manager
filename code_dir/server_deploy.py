@@ -62,7 +62,7 @@ class DeploySequence(SequenceAbstract):
             "add_to_nagios": self.add_to_nagios,
             "add_ns1_monitor": self.add_ns1_monitor,
             "add_ns1_balancing_rule": self.add_ns1_balancing_rule,
-            "add_to_pssh_file": self.add_to_pssh_file()
+            "add_to_pssh_file": self.add_to_pssh_file
 
         }
         self.step_sequence = [
@@ -82,7 +82,6 @@ class DeploySequence(SequenceAbstract):
 
         self.record_type = args.record_type
         # self.zone_name = "attested.club"
-        self.hosting_name = args.hosting
         self.server = ServerState(
             self.host_name, args.login, args.password,
             self.logger, ipv4=self.ip,
@@ -208,7 +207,6 @@ class DeploySequence(SequenceAbstract):
             return
         self.infradb.add_server(
             self.host_name, self.ip, server_versions,
-            self.location_code, self.hosting_name
         )
 
     def install_puppet(self):

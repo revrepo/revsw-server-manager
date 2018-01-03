@@ -33,7 +33,7 @@ logger.setLevel(logging.DEBUG)
 
 class InfraDBAPI():
 
-    def __init__(self, logger, ssl_disable=False):
+    def __init__(self, logger, location_name, hosting_name, ssl_disable=False):
         self.logger = logger
         self.session = requests.Session()
         self.session.auth = (
@@ -42,19 +42,19 @@ class InfraDBAPI():
         )
         self.url = settings.INFRADB_URL
         self.ssl_verify = not ssl_disable
+        self.location = self._get_location(location_name)
+        self.hosting = self._get_hosting(hosting_name)
 
     def add_server(
             self, host_name, ip, server_versions,
-            location_name, hosting_name
+
     ):
         logger.info("Add server to infradb")
-        location = self._get_location(location_name)
-        hosting = self._get_hosting(hosting_name)
         server_data = {
                 "name": host_name,
                 "status": 'ONLINE',
-                "location": location['id'],
-                "hostingprovider": hosting['id'],
+                "location": self.location['id'],
+                "hostingprovider": self.hosting['id'],
                 "type": 1,
                 "IP": ip,
             }
@@ -103,7 +103,7 @@ class InfraDBAPI():
     def _get_location(self, location_name):
         logger.info("Get location from INFRADB")
         response = self.session.get(
-            urljoin(self.url, 'location?code=%s' % location_name),
+            urljoin(self.url, 'location/?code=%s' % location_name),
             verify=self.ssl_verify
         )
         if response.status_code != 200:
@@ -129,10 +129,12 @@ class InfraDBAPI():
 
     def get_server(self, server_name):
         response = self.session.get(
-            urljoin(self.url, 'server?name=%s' % server_name),
+            urljoin(self.url, 'server/?name=%s' % server_name),
             verify=self.ssl_verify
         )
         if response.status_code == 200:
+            if not response.text:
+                return None
             return response.text
         elif response.status_code == 404:
             return None
@@ -144,7 +146,7 @@ class InfraDBAPI():
 
     def _get_hosting(self, provider_name):
         response = self.session.get(
-            urljoin(self.url, 'hosting?name=%s' % provider_name),
+            urljoin(self.url, 'hosting/?code=%s' % provider_name),
             verify=self.ssl_verify
         )
         if response.status_code != 200:

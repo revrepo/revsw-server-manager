@@ -376,3 +376,12 @@ class Ns1Deploy():
                 "log": log_error
             }, "infraDB")
             raise DeploymentError(log_error)
+
+    def check_record_answers(self, record):
+        up_answers_count = 0
+        for answer in record.answers:
+            monitor_status = self.check_monitor_status(answer['id'])
+            if monitor_status != 'up':
+                up_answers_count += 1
+
+        return up_answers_count
