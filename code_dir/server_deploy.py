@@ -146,10 +146,10 @@ class DeploySequence(SequenceAbstract):
         lines = stdout_fw.readlines()
         for line in lines:
             logger.info(line)
-        if stdout_fw.channel.recv_exit_status() != 0:
-            log_error = "Problem with FW rules update on INSTALL server"
-            self.logger.log({"fw": "fail", "log": log_error}, "puppet")
-            raise DeploymentError(log_error)
+        # if stdout_fw.channel.recv_exit_status() != 0:
+        #     log_error = "Problem with FW rules update on INSTALL server"
+        #     self.logger.log({"fw": "fail", "log": log_error}, "puppet")
+        #     raise DeploymentError(log_error)
         logger.info("sudo puppet agent -t")
         stdin_pu, stdout_pu, stderr_pu = client.exec_command(
             "sudo puppet agent -t"
@@ -356,7 +356,7 @@ if __name__ == "__main__":
     )
     parser.add_argument(
         "--hosting", help="Name of server hosting provider.",
-        default="HE Fremont 2 Facility"
+        default="HE"
     )
     parser.add_argument(
         "--server_group", help="CDS group.",
