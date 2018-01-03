@@ -79,11 +79,11 @@ class InfraDBAPI():
     def delete_server(self, host_name):
         logger.info("Delete server from infradb")
         server = self.get_server(host_name)
-        server_data = json.loads(server)
-        if not server_data:
+
+        if not server:
             logger.info("Server not found in infradb")
             return
-
+        server_data = json.loads(server)
         response = self.session.delete(
             urljoin(self.url, 'server/%s' % server_data[0]['id']),
             verify=self.ssl_verify
