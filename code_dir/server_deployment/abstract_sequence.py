@@ -74,7 +74,7 @@ class SequenceAbstract(object):
             self.get_zone_name(self.dns_balancing_name)
         )
         # self.balancing_rule_zone = self.ns1.get_zone(
-        #     self.get_zone_name(self.dns_balancing_name)
+        #     self.dns_balancing_name
         # )
         self.zone = self.ns1.get_zone(self.zone_name)
         self.infradb = InfraDBAPI(
