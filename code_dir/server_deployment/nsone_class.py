@@ -86,7 +86,7 @@ class Ns1Deploy():
             "config": {
                 "response_timeout": 1000,
                 "connect_timeout": 2000,
-                "host": self.host,
+                "host": self.host_name,
                 "port": 80,
                 "send": "GET /test-cache.js HTTP/1.1\nHost: "
                         "monitor.revsw.net\n\n"
@@ -292,6 +292,41 @@ class Ns1Deploy():
         logger.info('Feed was not found')
         return None
 
+    def get_feed(self, source_id, feed_id):
+        logger.info(
+            "Finding in NS1 data feed  by  feed id %s "
+            "in data source %s" % (feed_id, source_id)
+        )
+        try:
+            feedAPI = self.ns1.datafeed()
+            feed = feedAPI.retrieve(source_id, feed_id)
+        except ResourceException as e:
+            log_error = e.message
+            self.logger.log({
+                "host_added": 'fail',
+                "monitored": 'yes',
+                "log": log_error
+            }, "infraDB")
+            raise DeploymentError(log_error)
+        except ZoneException as e:
+            log_error = e.message
+            self.logger.log({
+                "host_added": 'fail',
+                "monitored": 'yes',
+                "log": log_error
+            }, "infraDB")
+            raise DeploymentError(log_error)
+        except Exception as e:
+            log_error = e.message
+            self.logger.log({
+                "host_added": 'fail',
+                "monitored": 'yes',
+                "log": log_error
+            }, "infraDB")
+            raise DeploymentError(log_error)
+
+        return feed
+
     def delete_feed(self, source_id, monitor_id):
         logger.info("Deleting data feed")
         try:
@@ -332,7 +367,7 @@ class Ns1Deploy():
     ):
         answer_data = {
             'answer': [answer_host],
-            'region': region,
+            # 'region': region,
             'meta': {
                 "priority": 1,
                 "up": {'feed': feed_id}
@@ -379,13 +414,13 @@ class Ns1Deploy():
 
     def check_record_answers(self, record):
         up_answers_count = 0
-        ips_list = []
         for answer in record.answers:
-            ips_list.append(answer['answers'][0])
+            if answer.get('feeds'):
+                feed = self.get_feed(
+                    answer['feeds'][0]['source'],
+                    answer['feeds'][0]['feed']
+                )
+                if feed['data']['up']:
+                    up_answers_count += 1
 
-        monitors = self.get_monitor_list()
-        for monitor in monitors:
-            if monitor['config']['host'] == self.host and\
-               monitor["status"]["global"]["status"] == 'up':
-                up_answers_count += 1
         return up_answers_count
