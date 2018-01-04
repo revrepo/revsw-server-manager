@@ -68,6 +68,7 @@ Description: nuu:bit Server Manager Service" >> $foldername/DEBIAN/control
 mkdir -p $foldername/opt/$PackageName/
 
 cp -rf  $WORKSPACE/code_dir/*  $foldername/opt/$PackageName/
+chmod a+x $foldername/opt/$PackageName/*.sh
 
 sudo chown -R root:root $foldername
 
