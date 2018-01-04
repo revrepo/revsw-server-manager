@@ -367,7 +367,7 @@ class Ns1Deploy():
     ):
         answer_data = {
             'answer': [answer_host],
-            # 'region': region,
+            'region': region,
             'meta': {
                 "priority": 1,
                 "up": {'feed': feed_id}
