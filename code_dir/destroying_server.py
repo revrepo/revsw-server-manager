@@ -152,8 +152,8 @@ class DestroySequence(SequenceAbstract):
                 answer_exist = True
         if not answer_exist:
             return
-        if self.ns1.check_is_monitor_exist(record) < settings.NS1_MINIMAL_ANSWERS_COUNT:
-            raise DeploymentError("Cant delete answrd from dns balance record,  its lower count")
+        if self.ns1.check_record_answers(record) < settings.NS1_MINIMAL_ANSWERS_COUNT:
+            raise DeploymentError("Cant delete answer from dns balance record,  its lower count")
         new_answers = []
         logger.info("Deleting balance rule for  %s" % self.ip)
         for answer in record.data['answers']:

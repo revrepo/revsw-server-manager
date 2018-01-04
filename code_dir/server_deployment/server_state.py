@@ -344,7 +344,7 @@ class ServerState():
             m = re.search('1000 received, (.+?)% packet loss,', line)
             if m and m.group(1):
                 packet_lose = m.group(1)
-        if  packet_lose != '0':
+        if packet_lose != '0':
             raise DeploymentError('Problem with ping to  8.8.8.8')
 
     def check_free_space(self):
