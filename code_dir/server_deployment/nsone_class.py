@@ -86,7 +86,7 @@ class Ns1Deploy():
             "config": {
                 "response_timeout": 1000,
                 "connect_timeout": 2000,
-                "host": self.host_name,
+                "host": self.host,
                 "port": 80,
                 "send": "GET /test-cache.js HTTP/1.1\nHost: "
                         "monitor.revsw.net\n\n"
@@ -379,9 +379,13 @@ class Ns1Deploy():
 
     def check_record_answers(self, record):
         up_answers_count = 0
+        ips_list = []
         for answer in record.answers:
-            monitor_status = self.check_monitor_status(answer['id'])
-            if monitor_status != 'up':
-                up_answers_count += 1
+            ips_list.append(answer['answers'][0])
 
+        monitors = self.get_monitor_list()
+        for monitor in monitors:
+            if monitor['config']['host'] == self.host and\
+               monitor["status"]["global"]["status"] == 'up':
+                up_answers_count += 1
         return up_answers_count

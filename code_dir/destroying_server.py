@@ -202,7 +202,7 @@ if __name__ == "__main__":
     parser.add_argument("-l", "--login", help="Login of the server.", default="robot")
     parser.add_argument("-p", "--password", help="Password of the server.", default='')
     parser.add_argument(
-        "--hosting", help="Name of server hosting provider.", default="HE Fremont 2 Facility"
+        "--hosting", help="Name of server hosting provider.", default="HE"
     )
     parser.add_argument(
         "--server_group", help="CDS group.", default=settings.SERVER_GROUP
@@ -230,7 +230,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--number_of_steps_to_execute",
         help="Number of steps need to be execute.",
-        default=10,
         type=int,
     )
 
