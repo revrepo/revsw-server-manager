@@ -237,7 +237,6 @@ if __name__ == "__main__":
     parser.add_argument(
         "--number_of_steps_to_execute",
         help="Number of steps need to be execute.",
-        default=10,
         type=int,
     )
 

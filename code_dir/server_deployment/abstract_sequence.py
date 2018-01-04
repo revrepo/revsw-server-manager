@@ -51,7 +51,10 @@ class SequenceAbstract(object):
         self.short_name = self.get_short_name()
         self.ip = args.IP
         self.first_step = args.first_step
-        self.number_of_steps = args.number_of_steps_to_execute
+        if args.number_of_steps_to_execute:
+            self.number_of_steps = args.number_of_steps_to_execute
+        else:
+            self.number_of_steps = None
         self.location_code = self.get_location_code()
         self.zone_name = self.get_zone_name(self.host_name)
         self.hosting_name = args.hosting
@@ -71,7 +74,7 @@ class SequenceAbstract(object):
             self.get_zone_name(self.dns_balancing_name)
         )
         # self.balancing_rule_zone = self.ns1.get_zone(
-        #     self.dns_balancing_name
+        #     self.get_zone_name(self.dns_balancing_name)
         # )
         self.zone = self.ns1.get_zone(self.zone_name)
         self.infradb = InfraDBAPI(
@@ -121,6 +124,8 @@ class SequenceAbstract(object):
         if self.first_step not in self.step_sequence:
             raise DeploymentError("Wrong first step")
         first_index = self.step_sequence.index(self.first_step)
+        if not self.number_of_steps:
+            self.number_of_steps = len(self.step_sequence)
         end_of_sequence = first_index + self.number_of_steps
         sequence_list = self.step_sequence[first_index:end_of_sequence]
         for step in sequence_list:
