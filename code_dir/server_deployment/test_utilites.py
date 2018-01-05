@@ -168,6 +168,8 @@ class Objectview(object):
 
 class MockedInfraDB():
 
+    def __init__(self, *args, **kwargs):
+        pass
     called_functions = {}
 
     def get_server(self, host_name):
@@ -175,12 +177,31 @@ class MockedInfraDB():
 
     def add_server(
             self, host_name, ip, server_versions,
-            location_code, hosting_name
                    ):
         self.called_functions['add_server'] = [
-            host_name, ip, server_versions,
-            location_code, hosting_name
+            host_name, ip, server_versions
         ]
 
     def delete_server(self, host_name):
-        self.called_functions['add_server'] = [host_name]
+        self.called_functions['delete_server'] = [host_name]
+
+
+class MockedServerClass():
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+
+class NS1Record():
+
+    data = {
+        "answers": [
+            {"answer": ['111.111.111.11',], "id": "1213"}
+        ]
+    }
+
+    def update(self, *args, **kwargs):
+        pass
+
+    def delete(self):
+        pass

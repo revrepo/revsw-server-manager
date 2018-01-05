@@ -244,7 +244,7 @@ class DeploySequence(SequenceAbstract):
             self.zone, self.short_name, self.record_type
         )
         if record:
-            if record.data['answers'][0]['answer'][0] != [self.ip]:
+            if record.data['answers'][0]['answer'][0] != [self.ip,]:
                 raise DeploymentError('Record already exist but with other IP')
             logger.info(' A record already exist with id %s' % record['id'])
             return

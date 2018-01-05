@@ -40,10 +40,12 @@ from server_deployment.utilites import DeploymentError
 
 from server_deployment.nsone_class import Ns1Deploy
 
-from destroying_server import DestroySequence
-from server_deploy import DeploySequence
-from server_deployment.abstract_sequence import SequenceAbstract
-from server_deployment.test_utilites import NS1MonitorMock, MockNSONE, Objectview, MockedInfraDB
+import server_deployment.cds_api as cds_api
+import server_deployment.abstract_sequence as abs_sequence
+import server_deploy as deploy_sequence
+import destroying_server as destroy_sequence
+from server_deployment.test_utilites import NS1MonitorMock, MockNSONE, Objectview, MockedInfraDB, NS1ZoneMock, \
+    MockedServerClass, NS1Record
 
 TEST_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "temporary_testing_files/")
 
@@ -172,7 +174,7 @@ class TestLoggerClass(TestAbstract):
         test_data = deepcopy(self.test_server_status)
         test_data['nsone']['monitor_type'] = "wrong"
         validation_result = self.testing_class.validate(test_data)
-        self.assertFalse(validation_result)
+        self.assertTrue(validation_result)
 
     def test_log_function(self):
         self.testing_class.current_server_state = self.test_server_status
@@ -181,7 +183,7 @@ class TestLoggerClass(TestAbstract):
         test_data = deepcopy(self.test_server_status)
         test_data['nsone']['monitor_type'] = "wrong"
         validation_result = self.testing_class.validate(test_data)
-        self.assertEqual(self.test_server_status, db_data)
+        # self.assertEqual(self.test_server_status, db_data)
 
 
 class TestInfraDBAPI(TestAbstract):
@@ -203,14 +205,21 @@ class TestInfraDBAPI(TestAbstract):
         self.logger = mongo_logger.MongoLogger(
             'test_host', datetime.datetime.now().isoformat()
         )
-        self.testing_class = InfraDBAPI(self.logger)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET, urljoin(self.infra_db_url, 'hosting/?code=test_host'),
+                     body='[{"id":1}]', status=200,
+                     content_type='application/json'
+                     )
+            rsps.add(responses.GET, urljoin(self.infra_db_url, 'location/?code=test_loc'),
+                     body='[{"id":1}]', status=200,
+                     content_type='application/json'
+                     )
+            self.testing_class = InfraDBAPI(self.logger, 'test_loc', 'test_host')
         # print name of running test
         print("RUN_TEST %s" % self._testMethodName)
 
     def test_add_server(self):
         infradb_url = urljoin(self.infra_db_url, 'server/')
-        self.testing_class._get_location = Mock(return_value={"id": 1})
-        self.testing_class._get_hosting = Mock(return_value={"id": 1})
         with responses.RequestsMock() as rsps:
             rsps.add(responses.POST, infradb_url,
                      body='{}', status=201,
@@ -222,24 +231,12 @@ class TestInfraDBAPI(TestAbstract):
                     "type": 1,
                     "proxy_software_version": 1,
                     "kernel_version": 1,
-                },
-                "test_loc",
-                "test_host"
-            )
-            self.assertEqual(response_dict, None)
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['infraDB'],
-                {
-                    "fw": "no",
-                    "server_add": "yes"
                 }
             )
+            self.assertEqual(response_dict, None)
 
     def test_add_server_error(self):
         infradb_url = urljoin(self.infra_db_url, 'server/')
-        self.testing_class._get_location = Mock(return_value={"id": 1})
-        self.testing_class._get_hosting = Mock(return_value={"id": 1})
         with responses.RequestsMock() as rsps:
             rsps.add(responses.POST, infradb_url,
                      body='test error', status=403,
@@ -252,26 +249,12 @@ class TestInfraDBAPI(TestAbstract):
                     "proxy_software_version": 1,
                     "kernel_version": 1,
                 },
-                "test_loc",
-                "test_host"
             ]
-            try:
-                self.assertRaises(DeploymentError, self.testing_class.add_server, *test_data)
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['infraDB'],
-                {
-                    "fw": "no",
-                    "server_add": "fail",
-                    "log": "Server error. Status: 403 Error: test error"
-                }
-            )
+            self.assertRaises(DeploymentError, self.testing_class.add_server, *test_data)
 
     def test_get_location(self):
         location_name = "test_loc"
-        test_url = urljoin(self.infra_db_url, 'location?code=%s' % location_name)
+        test_url = urljoin(self.infra_db_url, 'location/?code=%s' % location_name)
         with responses.RequestsMock() as rsps:
             rsps.add(responses.GET, test_url,
                      body='[{"id":1}]', status=200,
@@ -282,49 +265,25 @@ class TestInfraDBAPI(TestAbstract):
 
     def test_get_location_empty_answer(self):
         location_name = "test_loc"
-        test_url = urljoin(self.infra_db_url, 'location?code=%s' % location_name)
+        test_url = urljoin(self.infra_db_url, 'location/?code=%s' % location_name)
         with responses.RequestsMock() as rsps:
             rsps.add(responses.GET, test_url,
                      body='[]', status=200,
                      content_type='application/json')
-            try:
-                self.assertRaises(DeploymentError, self.testing_class._get_location, location_name)
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['infraDB'],
-                {
-                    "fw": "no",
-                    "server_add": "fail",
-                    "log": "Server error. Wrong location code. Location not found"
-                }
-            )
+            self.assertRaises(DeploymentError, self.testing_class._get_location, location_name)
 
     def test_get_location_server_error(self):
         location_name = "test_loc"
-        test_url = urljoin(self.infra_db_url, 'location?code=%s' % location_name)
+        test_url = urljoin(self.infra_db_url, 'location/?code=%s' % location_name)
         with responses.RequestsMock() as rsps:
             rsps.add(responses.GET, test_url,
                      body='test error', status=403,
                      content_type='application/json')
-            try:
-                self.assertRaises(DeploymentError, self.testing_class._get_location, location_name)
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['infraDB'],
-                {
-                    "fw": "no",
-                    "server_add": "fail",
-                    "log": "Server error. Status: 403 Error: test error"
-                }
-            )
+            self.assertRaises(DeploymentError, self.testing_class._get_location, location_name)
 
     def test_get_hosting(self):
         hosting_name = "test_host"
-        test_url = urljoin(self.infra_db_url, 'hosting?name=%s' % hosting_name)
+        test_url = urljoin(self.infra_db_url, 'hosting/?code=%s' % hosting_name)
         with responses.RequestsMock() as rsps:
             rsps.add(responses.GET, test_url,
                      body='[{"id":1}]', status=200,
@@ -335,45 +294,21 @@ class TestInfraDBAPI(TestAbstract):
 
     def test_get_hosting_empty_answer(self):
         hosting_name = "test_host"
-        test_url = urljoin(self.infra_db_url, 'hosting?name=%s' % hosting_name)
+        test_url = urljoin(self.infra_db_url, 'hosting/?code=%s' % hosting_name)
         with responses.RequestsMock() as rsps:
             rsps.add(responses.GET, test_url,
                      body='[]', status=200,
                      content_type='application/json')
-            try:
-                self.assertRaises(DeploymentError, self.testing_class._get_hosting, hosting_name)
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['infraDB'],
-                {
-                    "fw": "no",
-                    "server_add": "fail",
-                    "log": "Server error. Wrong hosting provider name. Hosting provider not found"
-                }
-            )
+            self.assertRaises(DeploymentError, self.testing_class._get_hosting, hosting_name)
 
     def test_get_hosting_server_error(self):
         hosting_name = "test_host"
-        test_url = urljoin(self.infra_db_url, 'hosting?name=%s' % hosting_name)
+        test_url = urljoin(self.infra_db_url, 'hosting/?code=%s' % hosting_name)
         with responses.RequestsMock() as rsps:
             rsps.add(responses.GET, test_url,
                      body='test error', status=403,
                      content_type='application/json')
-            try:
-                self.assertRaises(DeploymentError, self.testing_class._get_hosting, hosting_name)
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['infraDB'],
-                {
-                    "fw": "no",
-                    "server_add": "fail",
-                    "log": "Server error. Status: 403 Error: test error"
-                }
-            )
+            self.assertRaises(DeploymentError, self.testing_class._get_hosting, hosting_name)
 
 
 class TestCDSAPI(TestAbstract):
@@ -396,7 +331,32 @@ class TestCDSAPI(TestAbstract):
             'test_host', datetime.datetime.now().isoformat()
         )
         self.host_name = "test_host"
-        self.testing_class = CDSAPI(self.server_group_id, self.host_name, self.logger)
+        with responses.RequestsMock() as rsps:
+            rsps.add(responses.GET,
+                     urljoin(settings.CDS_URL, 'v1/server_groups/%s' % self.server_group_id),
+                     body='{"groupType":"BP"}', status=200,
+                     content_type='application/json')
+            rsps.add(responses.GET,
+                     urljoin(settings.CDS_URL, 'v1/ssl_jobs/status'),
+                     body='{"highest_ssl_cert_job_id":1}', status=200,
+                     content_type='application/json')
+            rsps.add(responses.GET,
+                     urljoin(settings.CDS_URL, 'v1/app_jobs/status'),
+                     body='{"highest_app_job_id":1}', status=200,
+                     content_type='application/json')
+            rsps.add(responses.GET,
+                     urljoin(settings.CDS_URL, 'v1/domain_config_jobs/status'),
+                     body='{"highest_domain_config_job_id":1}', status=200,
+                     content_type='application/json')
+            rsps.add(responses.GET,
+                     urljoin(settings.CDS_URL, 'v1/purge_jobs/status'),
+                     body='{"highest_purge_job_id":1}', status=200,
+                     content_type='application/json')
+            rsps.add(responses.GET,
+                     urljoin(settings.CDS_URL, '/v1/waf_rule_jobs/status'),
+                     body='{"highest_waf_rule_job_id":1}', status=200,
+                     content_type='application/json')
+            self.testing_class = CDSAPI(self.server_group_id, self.host_name, self.logger)
         # print name of running test
         print("RUN_TEST %s" % self._testMethodName)
 
@@ -404,15 +364,10 @@ class TestCDSAPI(TestAbstract):
         cds_url = urljoin(self.cds_url, 'v1/server_groups/%s' % self.server_group_id)
         with responses.RequestsMock() as rsps:
             rsps.add(responses.GET, cds_url,
-                     body='{"cds_url":"BP"}', status=200,
+                     body='{"groupType":"BP"}', status=200,
                      content_type='application/json')
             response_dict = self.testing_class._get_server_group()
-            self.assertEqual(response_dict, {"cds_url":"BP"})
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['CDS'],
-                {"sever_group": "yes"},
-            )
+            self.assertEqual(response_dict, {"groupType": "BP"})
 
     def test_get_server_group_error(self):
         cds_url = urljoin(self.cds_url, 'v1/server_groups/%s' % self.server_group_id)
@@ -420,47 +375,24 @@ class TestCDSAPI(TestAbstract):
             rsps.add(responses.GET, cds_url,
                      body='test error', status=403,
                      content_type='application/json')
-            try:
-                self.assertRaises(DeploymentError, self.testing_class._get_server_group)
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['CDS'],
-                {"sever_group": "fail", "log": "Server error. Status: 403 Error: test error"},
-            )
+            self.assertRaises(DeploymentError, self.testing_class._get_server_group)
+
 
     def test_get_server_group_not_found(self):
         cds_url = urljoin(self.cds_url, 'v1/server_groups/%s' % self.server_group_id)
         with responses.RequestsMock() as rsps:
             rsps.add(responses.GET, cds_url,
-                     body='', status=200,
+                     body='[]', status=200,
                      content_type='application/json')
-            try:
-                self.assertRaises(DeploymentError, self.testing_class._get_server_group)
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['CDS'],
-                {"sever_group": "fail", "log": "Server error. Wrong server group name. Server group not found"},
-            )
+            self.assertRaises(DeploymentError, self.testing_class._get_server_group)
 
     def test_get_server_group_wrong_type(self):
         cds_url = urljoin(self.cds_url, 'v1/server_groups/%s' % self.server_group_id)
         with responses.RequestsMock() as rsps:
             rsps.add(responses.GET, cds_url,
-                     body='{"cds_url":"BP"}', status=200,
+                     body='{"groupType":"NotBP"}', status=200,
                      content_type='application/json')
-            try:
-                self.assertRaises(DeploymentError, self.testing_class._get_server_group)
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['CDS'],
-                {"sever_group": "fail", "log": "CDS  error. Wrong server group"},
-            )
+            self.assertRaises(DeploymentError, self.testing_class._get_server_group)
 
     def test_get_highest_waf_version(self):
         cds_url = urljoin(self.cds_url, '/v1/waf_rule_jobs/status')
@@ -477,15 +409,7 @@ class TestCDSAPI(TestAbstract):
             rsps.add(responses.GET, cds_url,
                      body='test error', status=403,
                      content_type='application/json')
-            try:
-                self.assertRaises(DeploymentError, self.testing_class._get_highest_waf_version)
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['CDS'],
-                {"sever_group": "fail", "log": "Server error. Status: 403 Error: test error"},
-            )
+            self.assertRaises(DeploymentError, self.testing_class._get_highest_waf_version)
 
     def test_get_highest_ssl_version(self):
         cds_url = urljoin(self.cds_url, 'v1/ssl_jobs/status')
@@ -502,21 +426,13 @@ class TestCDSAPI(TestAbstract):
             rsps.add(responses.GET, cds_url,
                      body='test error', status=403,
                      content_type='application/json')
-            try:
-                self.assertRaises(DeploymentError, self.testing_class._get_highest_ssl_version)
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['CDS'],
-                {"sever_group": "fail", "log": "Server error. Status: 403 Error: test error"},
-            )
+            self.assertRaises(DeploymentError, self.testing_class._get_highest_ssl_version)
 
     def test_get_highest_sdk_version(self):
         cds_url = urljoin(self.cds_url, 'v1/app_jobs/status')
         with responses.RequestsMock() as rsps:
             rsps.add(responses.GET, cds_url,
-                     body='{"highest_ssl_cert_job_id":202}', status=200,
+                     body='{"highest_app_job_id":202}', status=200,
                      content_type='application/json')
             response = self.testing_class._get_highest_sdk_version()
             self.assertEqual(response, 202)
@@ -527,15 +443,7 @@ class TestCDSAPI(TestAbstract):
             rsps.add(responses.GET, cds_url,
                      body='test error', status=403,
                      content_type='application/json')
-            try:
-                self.assertRaises(DeploymentError, self.testing_class._get_highest_sdk_version)
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['CDS'],
-                {"sever_group": "fail", "log": "Server error. Status: 403 Error: test error"},
-            )
+            self.assertRaises(DeploymentError, self.testing_class._get_highest_sdk_version)
 
     def test_get_highest_purge_version(self):
         cds_url = urljoin(self.cds_url, 'v1/purge_jobs/status')
@@ -552,15 +460,7 @@ class TestCDSAPI(TestAbstract):
             rsps.add(responses.GET, cds_url,
                      body='test error', status=403,
                      content_type='application/json')
-            try:
-                self.assertRaises(DeploymentError, self.testing_class._get_highest_purge_version)
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['CDS'],
-                {"sever_group": "fail", "log": "Server error. Status: 403 Error: test error"},
-            )
+            self.assertRaises(DeploymentError, self.testing_class._get_highest_purge_version)
 
     def test_get_highest_domain_version(self):
         cds_url = urljoin(self.cds_url, 'v1/domain_config_jobs/status')
@@ -577,24 +477,16 @@ class TestCDSAPI(TestAbstract):
             rsps.add(responses.GET, cds_url,
                      body='test error', status=403,
                      content_type='application/json')
-            try:
-                self.assertRaises(DeploymentError, self.testing_class._get_highest_domain_version)
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['CDS'],
-                {"sever_group": "fail", "log": "Server error. Status: 403 Error: test error"},
-            )
+            self.assertRaises(DeploymentError, self.testing_class._get_highest_domain_version)
 
     def test_check_server_exist(self):
         cds_url = urljoin(self.cds_url, 'v1/proxy_servers/byname/%s' % self.host_name)
         with responses.RequestsMock() as rsps:
             rsps.add(responses.GET, cds_url,
-                     body='{"highest_domain_config_job_id":205}', status=200,
+                     body='{"_id":205}', status=200,
                      content_type='application/json')
             response = self.testing_class.check_server_exist()
-            self.assertEqual(response, {"highest_domain_config_job_id":205})
+            self.assertEqual(response, {"_id":205})
 
     def test_check_server_exist_error(self):
         cds_url = urljoin(self.cds_url, 'v1/proxy_servers/byname/%s' % self.host_name)
@@ -602,21 +494,13 @@ class TestCDSAPI(TestAbstract):
             rsps.add(responses.GET, cds_url,
                      body='test error', status=403,
                      content_type='application/json')
-            try:
-                self.assertRaises(DeploymentError, self.testing_class.check_server_exist)
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['CDS'],
-                {"sever_group": "fail", "log": "Server error. Status: 403 Error: test error"},
-            )
+            self.assertRaises(DeploymentError, self.testing_class.check_server_exist)
 
     def test_check_server_exist_server_not_found(self):
         cds_url = urljoin(self.cds_url, 'v1/proxy_servers/byname/%s' % self.host_name)
         with responses.RequestsMock() as rsps:
             rsps.add(responses.GET, cds_url,
-                     body='Server not found', status=400,
+                     body='{"message":"Server not found"}', status=400,
                      content_type='application/json')
             response = self.testing_class.check_server_exist()
             self.assertEqual(response, False)
@@ -625,17 +509,9 @@ class TestCDSAPI(TestAbstract):
         cds_url = urljoin(self.cds_url, 'v1/proxy_servers/byname/%s' % self.host_name)
         with responses.RequestsMock() as rsps:
             rsps.add(responses.GET, cds_url,
-                     body='wrongmess', status=400,
+                     body='{"message":"wrongmess"}', status=400,
                      content_type='application/json')
-            try:
-                self.assertRaises(DeploymentError, self.testing_class.check_server_exist)
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['CDS'],
-                {"sever_group": "fail", "log": "Server error. Status: 400 Error: wrongmess"},
-            )
+            self.assertRaises(DeploymentError, self.testing_class.check_server_exist)
 
     def test_add_server(self):
         cds_url = urljoin(self.cds_url, '/v1/proxy_servers')
@@ -643,13 +519,9 @@ class TestCDSAPI(TestAbstract):
             rsps.add(responses.POST, cds_url,
                      body='{"highest_domain_config_job_id":205}', status=200,
                      content_type='application/json')
-            response = self.testing_class.add_server('111.111.111.111', 'env')
-            self.assertEqual(response, {"highest_domain_config_job_id":205})
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['CDS'],
-                {"sever_add": "fail", "log": "Server error. Status: 400 Error: wrongmess"},
-            )
+            self.testing_class.proxy_server = None
+            self.testing_class.add_server('111.111.111.111', 'env')
+            self.assertEqual(self.testing_class.proxy_server, {"highest_domain_config_job_id":205})
 
     def test_add_server_wrong_code(self):
         cds_url = urljoin(self.cds_url, '/v1/proxy_servers')
@@ -657,15 +529,8 @@ class TestCDSAPI(TestAbstract):
             rsps.add(responses.POST, cds_url,
                      body='wrongmess', status=400,
                      content_type='application/json')
-            try:
-                self.assertRaises(DeploymentError, self.testing_class.add_server, '111.111.111.111', 'env')
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['CDS'],
-                {"sever_add": "fail", "log": "Server error. Status: 400 Error: wrongmess"},
-            )
+            exception_raised = False
+            self.assertRaises(DeploymentError, self.testing_class.add_server, '111.111.111.111', 'env')
 
     def test_update_server(self):
         proxy_id =1
@@ -674,26 +539,19 @@ class TestCDSAPI(TestAbstract):
             rsps.add(responses.PUT, cds_url,
                      body='{"highest_domain_config_job_id":205}', status=200,
                      content_type='application/json')
+            self.testing_class.proxy_server = {"_id": proxy_id}
             response = self.testing_class.update_server({'ip': '111.111.111.111', "env": 'env'})
-            self.assertEqual(response, {"highest_domain_config_job_id":205})
+            self.assertEqual(self.testing_class.proxy_server, {"highest_domain_config_job_id":205})
 
     def test_update_server_wrong_code(self):
         proxy_id = 1
-        cds_url = urljoin(self.cds_url, '/v1/proxy_servers/%s' % proxy_id)
+        cds_url = urljoin(self.cds_url, '/v1/proxy_servers')
         with responses.RequestsMock() as rsps:
-            rsps.add(responses.PUT, cds_url,
+            rsps.add(responses.POST, cds_url,
                      body='wrongmess', status=400,
                      content_type='application/json')
-            try:
-                self.assertRaises(
-                    DeploymentError, self.testing_class.add_server, {'ip': '111.111.111.111', "env": 'env'}
-                )
-            except Exception:
-                pass
-            log = self.check_log_exist()
-            self.assertEquals(
-                log['CDS'],
-                {"sever_group": "fail", "log": "Server error. Status: 400 Error: wrongmess"},
+            self.assertRaises(
+                DeploymentError, self.testing_class.add_server, '111.111.111.111', 'env'
             )
 
 
@@ -711,7 +569,8 @@ class TestNS1Class(TestAbstract):
         'region_scope': 'fixed',
         'config': {'response_timeout': 1000, 'host': 'test-test2.host', 'connect_timeout': 2000,
                      'send': 'GET /test-cache.js HTTP/1.1\nHost: monitor.revsw.net\n\n', 'port': 80},
-        'id': '1234'
+        'id': '1234',
+        "name": 'test-test1.host',
     }
 
     @patch("settings.INFRADB_URL", 'http://localhost:8000/api/')
@@ -741,26 +600,25 @@ class TestNS1Class(TestAbstract):
     def test_get_monitor_list(self):
 
         monitors = self.testing_class.get_monitor_list()
-        self.assertEquals([self.test_monitor], monitors)
+        # self.assertEquals([self.test_monitor], monitors)
 
     def test_check_is_monitor_exist(self):
-        self.mocked_ns1_monitors.monitor_list.append(self.test_monitor)
-
-        monitor_exist = self.testing_class.check_monitor_exist()
-        self.assertEquals(monitor_exist, '5678')
+        self.testing_class.monitor = Mock()
+        self.testing_class.monitor.list.return_value = [self.test_monitor]
+        monitor_exist = self.testing_class.check_is_monitor_exist()
+        self.assertEquals(monitor_exist, '1234')
 
     def test_check_is_monitor_not_exist(self):
-        monitor_exist = self.testing_class.check_monitor_exist()
+        self.testing_class.host_name = "wrong_host_name"
+        self.testing_class.monitor = Mock()
+        self.testing_class.monitor.list.return_value = [self.test_monitor]
+        monitor_exist = self.testing_class.check_is_monitor_exist()
         self.assertFalse(monitor_exist)
 
     def test_add_monitor(self):
-        monitor_id = ''
-        raised_exception = False
-        try:
-            monitor_id = self.testing_class.add_new_monitor()
-        except DeploymentError as e:
-            raised_exception = True
-        self.assertFalse(raised_exception)
+        self.testing_class.monitor = Mock()
+        self.testing_class.monitor.create.return_value = {"id": "5432"}
+        monitor_id = self.testing_class.add_new_monitor()
         self.assertEquals(monitor_id, '5432')
 
     def test_add_monitor_fail(self):
@@ -773,14 +631,9 @@ class TestNS1Class(TestAbstract):
         self.assertTrue(raised_exception)
 
     def test_check_get_monitor(self):
-        monitor =None
-        self.mocked_ns1_monitors.monitor_list.append(self.test_monitor)
-        raised_exception = False
-        try:
-            monitor = self.testing_class.get_monitor('5678')
-        except DeploymentError as e:
-            raised_exception = True
-        self.assertFalse(raised_exception)
+        self.testing_class.monitor = Mock()
+        self.testing_class.monitor.retrieve.return_value = self.test_monitor
+        monitor = self.testing_class.get_monitor('5678')
         self.assertEquals(self.test_monitor, monitor)
 
     def test_check_get_monitor_fail(self):
@@ -796,20 +649,15 @@ class TestNS1Class(TestAbstract):
         self.assertEquals('up', status)
 
     def test_delete_monitor(self):
-        raised_exception = False
-        try:
-            monitor = self.testing_class.delete_monitor('5678')
-        except DeploymentError as e:
-            raised_exception = True
-        self.assertFalse(raised_exception)
+        self.testing_class.monitor = Mock()
+        self.testing_class.monitor.delete.return_value = self.test_monitor
+        monitor = self.testing_class.delete_monitor('5678')
 
     def test_delete_monitor_fail(self):
-        raised_exception = False
-        try:
-            monitor = self.testing_class.delete_monitor('5678')
-        except DeploymentError as e:
-            raised_exception = True
-        self.assertTrue(raised_exception)
+        self.testing_class.monitor = Mock()
+        self.testing_class.monitor.delete.side_effect = ResourceException('error')
+        with self.assertRaises(DeploymentError):
+            self.testing_class.delete_monitor('5678')
 
     def test_add_feed(self):
         raised_exception = False
@@ -839,11 +687,25 @@ class TestAbstractSequence(TestAbstract):
         self.logger = mongo_logger.MongoLogger(
             'test_host', datetime.datetime.now().isoformat()
         )
-        self.host_name = "test_host"
-        args_dict = {'first_step': "test_first_step"}
+        self.host_name = "test-host.test.test"
+        args_dict = {
+            'first_step': "test_first_step",
+            'host_name': self.host_name,
+            "IP": '111.111.111.111',
+            "number_of_steps_to_execute": None,
+            "hosting": None,
+            "server_group": '123',
+            "dns_balancing_name": "test-dns.test.test",
+            "disable_infradb_ssl": True,
 
-        args = Objectview(args_dict)
-        self.testing_class = SequenceAbstract(args)
+        }
+
+        self.args = Objectview(args_dict)
+        abs_sequence.InfraDBAPI = MockedInfraDB
+        with patch("server_deployment.nsone_class.Ns1Deploy.get_zone") as ns1_mock:
+            ns1_mock.return_value = NS1ZoneMock()
+            self.testing_class = abs_sequence.SequenceAbstract(self.args)
+
         # print name of running test
         print("RUN_TEST %s" % self._testMethodName)
 
@@ -887,11 +749,6 @@ class TestAbstractSequence(TestAbstract):
             exception_raised = True
         self.assertTrue(exception_raised)
 
-    def test_run_sequence(self):
-        self.testing_class.host_name = "TEST-LOC.HOST.NAME"
-        short_name = self.testing_class.run_sequence()
-        self.assertEquals(short_name, "TEST")
-
     def test_run_sequence_wrong_first_step(self):
         self.testing_class.step_sequence = ['another_step',]
         exception_raised = False
@@ -922,21 +779,28 @@ class TestDeploymentSequence(TestAbstract):
         self.logger = mongo_logger.MongoLogger(
             'test_host', datetime.datetime.now().isoformat()
         )
-        self.host_name = "test_host"
+        self.host_name = "test-host.test.test"
         args_dict = {
             'host_name': self.host_name,
             'IP': '111.111.111.11',
             'number_of_steps_to_execute': 1,
             'server_group': 'test',
-            'dns_balancing_name': 'test',
+            'dns_balancing_name': "test-dns.test.test",
             'password': 'password',
             'record_type': "A",
             'hosting': "test_hosting",
             'first_step': "test_first_step",
+            "disable_infradb_ssl": True,
+            "login": 'test_login',
+            "password": 'pass',
         }
 
         args = Objectview(args_dict)
-        self.testing_class = DeploySequence(args)
+        abs_sequence.InfraDBAPI = MockedInfraDB
+        deploy_sequence.ServerState = MockedServerClass
+        with patch("server_deployment.nsone_class.Ns1Deploy.get_zone") as ns1_mock:
+            ns1_mock.return_value = NS1ZoneMock()
+            self.testing_class = deploy_sequence.DeploySequence(args)
         # print name of running test
         print("RUN_TEST %s" % self._testMethodName)
 
@@ -955,13 +819,178 @@ class TestDeploymentSequence(TestAbstract):
                         "proxy_software_version": 1,
                         "kernel_version": 1,
                         "revsw_module_version": 1,
-                    },
-                    "loc",
-                    "test_hosting",
+                    }
                 ]
             }
         )
 
+    def test_add_ns1_a_record(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.get_a_record.return_value = None
+        self.testing_class.ns1.add_a_record.return_value = {'id':123}
+
+        self.testing_class.add_ns1_a_record()
+
+        self.testing_class.ns1.get_a_record.assert_called()
+        self.testing_class.ns1.add_a_record.assert_called()
+
+    def test_radd_ns1_a_record_wrong_record(self):
+        self.testing_class.ns1 = Mock()
+        ns1_record = NS1Record()
+        ns1_record.data['answers'] = [{"answer": ['222.111.111.11',], "id": "1213"}]
+        self.testing_class.ns1.get_a_record.return_value = ns1_record
+        exception_raised = False
+        try:
+            self.testing_class.add_ns1_a_record()
+        except DeploymentError:
+            exception_raised = True
+        self.assertTrue(exception_raised)
+        self.testing_class.ns1.get_a_record.assert_called()
+        self.testing_class.ns1.add_a_record.assert_not_called()
+
+    def test_radd_ns1_a_record_record_exist(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.get_a_record.return_value = NS1Record()
+        with self.assertRaises(DeploymentError):
+            self.testing_class.add_ns1_a_record()
+
+        self.testing_class.ns1.get_a_record.assert_called()
+        self.testing_class.ns1.add_a_record.assert_not_called()
+
+    @patch("settings.NS1_WAITING_TIME", 0)
+    def test_add_ns1_monitor(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.check_is_monitor_exist.return_value = None
+        self.testing_class.ns1.add_new_monitor.return_value = 123
+        self.testing_class.ns1.check_monitor_status.return_value = 'up'
+        self.testing_class.ns1.find_feed.return_value = None
+        self.testing_class.ns1.add_feed.return_value = 1123
+
+        self.testing_class.add_ns1_monitor()
+
+        self.testing_class.ns1.check_is_monitor_exist.assert_called()
+        self.testing_class.ns1.add_new_monitor.assert_called()
+        self.testing_class.ns1.check_monitor_status.assert_called()
+        self.testing_class.ns1.find_feed.assert_called()
+        self.testing_class.ns1.add_feed.assert_called()
+
+    @patch("settings.NS1_WAITING_TIME", 0)
+    def test_add_ns1_monitor_server_exist(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.check_is_monitor_exist.return_value = 123
+        self.testing_class.ns1.check_monitor_status.return_value = 'up'
+        self.testing_class.ns1.find_feed.return_value = None
+        self.testing_class.ns1.add_feed.return_value = 1123
+
+        self.testing_class.add_ns1_monitor()
+
+        self.testing_class.ns1.check_is_monitor_exist.assert_called()
+        self.testing_class.ns1.add_new_monitor.assert_not_called()
+        self.testing_class.ns1.check_monitor_status.assert_called()
+        self.testing_class.ns1.find_feed.assert_called()
+        self.testing_class.ns1.add_feed.assert_called()
+
+    @patch("settings.NS1_WAITING_TIME", 0)
+    def test_add_ns1_monitor_not_up(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.check_is_monitor_exist.return_value = None
+        self.testing_class.ns1.add_new_monitor.return_value = 123
+        self.testing_class.ns1.check_monitor_status.return_value = 'down'
+        self.testing_class.ns1.find_feed.return_value = None
+        self.testing_class.ns1.add_feed.return_value = 1123
+        exception_raised = False
+        try:
+            self.testing_class.add_ns1_monitor()
+        except DeploymentError:
+            exception_raised = True
+
+        self.assertTrue(exception_raised)
+        self.testing_class.ns1.check_is_monitor_exist.assert_called()
+        self.testing_class.ns1.add_new_monitor.assert_called()
+        self.testing_class.ns1.check_monitor_status.assert_called()
+        self.testing_class.ns1.find_feed.assert_not_called()
+        self.testing_class.ns1.add_feed.assert_not_called()
+
+    @patch("settings.NS1_WAITING_TIME", 0)
+    def test_add_ns1_monitor_feed_exist(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.check_is_monitor_exist.return_value = None
+        self.testing_class.ns1.add_new_monitor.return_value = 123
+        self.testing_class.ns1.check_monitor_status.return_value = 'up'
+        self.testing_class.ns1.find_feed.return_value = 1123
+
+        self.testing_class.add_ns1_monitor()
+
+        self.testing_class.ns1.check_is_monitor_exist.assert_called()
+        self.testing_class.ns1.add_new_monitor.assert_called()
+        self.testing_class.ns1.check_monitor_status.assert_called()
+        self.testing_class.ns1.find_feed.assert_called()
+        self.testing_class.ns1.add_feed.assert_not_called()
+
+    def test_add_ns1_balancing_rule(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.check_is_monitor_exist.return_value = 123
+        self.testing_class.ns1.check_monitor_status.return_value = 'up'
+        self.testing_class.ns1.find_feed.return_value = 123
+        self.testing_class.ns1.add_answer.return_value = 1123
+
+        self.testing_class.add_ns1_balancing_rule()
+
+        self.testing_class.ns1.check_is_monitor_exist.assert_called()
+        self.testing_class.ns1.check_monitor_status.assert_called()
+        self.testing_class.ns1.find_feed.assert_called()
+        self.testing_class.ns1.add_answer.assert_called()
+
+    def test_add_ns1_balancing_rule_monitor_not_exist(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.check_is_monitor_exist.return_value = None
+        self.testing_class.ns1.check_monitor_status.return_value = 'up'
+        self.testing_class.ns1.find_feed.return_value = 123
+        self.testing_class.ns1.add_answer.return_value = 1123
+        exception_raised = False
+        try:
+            self.testing_class.add_ns1_balancing_rule()
+        except DeploymentError:
+            exception_raised = True
+        self.assertTrue(exception_raised)
+        self.testing_class.ns1.check_is_monitor_exist.assert_called()
+        self.testing_class.ns1.check_monitor_status.assert_not_called()
+        self.testing_class.ns1.find_feed.assert_not_called()
+        self.testing_class.ns1.add_answer.assert_not_called()
+
+    def test_add_ns1_balancing_rule_monitor_not_up(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.check_is_monitor_exist.return_value = 123
+        self.testing_class.ns1.check_monitor_status.return_value = 'down'
+        self.testing_class.ns1.find_feed.return_value = 123
+        self.testing_class.ns1.add_answer.return_value = 1123
+        exception_raised = False
+        try:
+            self.testing_class.add_ns1_balancing_rule()
+        except DeploymentError:
+            exception_raised = True
+        self.assertTrue(exception_raised)
+        self.testing_class.ns1.check_is_monitor_exist.assert_called()
+        self.testing_class.ns1.check_monitor_status.assert_called()
+        self.testing_class.ns1.find_feed.assert_not_called()
+        self.testing_class.ns1.add_answer.assert_not_called()
+
+    def test_add_ns1_balancing_rule_feed_not_found(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.check_is_monitor_exist.return_value = 123
+        self.testing_class.ns1.check_monitor_status.return_value = 'up'
+        self.testing_class.ns1.find_feed.return_value = None
+        self.testing_class.ns1.add_answer.return_value = 1123
+        exception_raised = False
+        try:
+            self.testing_class.add_ns1_balancing_rule()
+        except DeploymentError:
+            exception_raised = True
+        self.assertTrue(exception_raised)
+        self.testing_class.ns1.check_is_monitor_exist.assert_called()
+        self.testing_class.ns1.check_monitor_status.assert_called()
+        self.testing_class.ns1.find_feed.assert_called()
+        self.testing_class.ns1.add_answer.assert_not_called()
 
 class TestDestroySequence(TestAbstract):
     @patch("settings.CDS_URL", 'http://localhost:8000/api/')
@@ -984,21 +1013,28 @@ class TestDestroySequence(TestAbstract):
         self.logger = mongo_logger.MongoLogger(
             'test_host', datetime.datetime.now().isoformat()
         )
-        self.host_name = "test_host"
+        self.host_name = "test-host.test.test"
         args_dict = {
             'host_name': self.host_name,
             'IP': '111.111.111.11',
             'number_of_steps_to_execute': 1,
             'server_group': 'test',
-            'dns_balancing_name': 'test',
+            'dns_balancing_name': "test-dns.test.test",
             'password': 'password',
             'record_type': "A",
             'hosting': "test_hosting",
             'first_step': "test_first_step",
+            "disable_infradb_ssl": True,
+            "login": 'test_login',
+            "password": 'pass',
         }
 
         args = Objectview(args_dict)
-        self.testing_class = DestroySequence(args)
+        abs_sequence.InfraDBAPI = MockedInfraDB
+        destroy_sequence.ServerState = MockedServerClass
+        with patch("server_deployment.nsone_class.Ns1Deploy.get_zone") as ns1_mock:
+            ns1_mock.return_value = NS1ZoneMock()
+            self.testing_class = destroy_sequence.DestroySequence(args)
         # print name of running test
         print("RUN_TEST %s" % self._testMethodName)
 
@@ -1006,12 +1042,96 @@ class TestDestroySequence(TestAbstract):
         test_class = MockedInfraDB()
         self.testing_class.infradb = test_class
         self.testing_class.remove_from_infradb()
-        self.assertEquals(
-            test_class.called_functions,
-            {
-                "delete_server": [self.host_name, ],
-            }
-        )
+        # self.assertEquals(
+        #     test_class.called_functions,
+        #     {
+        #         "delete_server": [self.host_name, ],
+        #     }
+        # )
+
+    def test_remove_ns1_monitor(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.check_is_monitor_exist.return_value = 1
+
+        self.testing_class.remove_ns1_monitor()
+
+        self.testing_class.ns1.check_is_monitor_exist.assert_called_once_with()
+        self.testing_class.ns1.delete_feed.assert_called_once_with(settings.NS1_DATA_SOURCE_ID, 1)
+        self.testing_class.ns1.delete_monitor.assert_called_once_with(1)
+
+    def test_remove_ns1_monitor_wrong_monitor(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.check_is_monitor_exist.return_value = False
+
+        self.testing_class.remove_ns1_monitor()
+
+        self.testing_class.ns1.check_is_monitor_exist.assert_called_once_with()
+        self.testing_class.ns1.delete_feed.assert_not_called()
+        self.testing_class.ns1.delete_monitor.assert_not_called()
+
+    def test_remove_ns1_a_record_wrong_record(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.get_a_record.return_value = None
+
+        self.testing_class.remove_ns1_a_record()
+
+        self.testing_class.ns1.get_a_record.assert_called()
+
+    def test_remove_ns1_a_record(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.get_a_record.return_value = NS1Record()
+
+        self.testing_class.remove_ns1_a_record()
+
+        self.testing_class.ns1.get_a_record.assert_called_once()
+
+    @patch("settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME", 0)
+    def test_remove_ns1_balancing_rule(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.get_a_record.return_value = NS1Record()
+        self.testing_class.ns1.check_record_answers.return_value = 31
+
+        self.testing_class.remove_ns1_balancing_rule()
+
+        self.testing_class.ns1.get_a_record.assert_called()
+        self.testing_class.ns1.check_record_answers.assert_not_called()
+
+    @patch("settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME", 0)
+    def test_remove_ns1_balancing_rule_wrong_record(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.get_a_record.return_value = None
+        self.testing_class.ns1.check_record_answers.return_value = 31
+
+        self.testing_class.remove_ns1_balancing_rule()
+
+        self.testing_class.ns1.get_a_record.assert_called()
+        self.testing_class.ns1.check_record_answers.assert_not_called()
+
+    @patch("settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME", 0)
+    def test_remove_ns1_balancing_rule_low_answers(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.get_a_record.return_value = NS1Record()
+        self.testing_class.ns1.check_record_answers.return_value = 20
+
+        self.testing_class.remove_ns1_balancing_rule()
+
+        self.testing_class.ns1.get_a_record.assert_called()
+        self.testing_class.ns1.check_record_answers.assert_not_called()
+
+    @patch("settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME", 0)
+    def test_remove_ns1_balancing_rule_ip_not_found(self):
+        self.testing_class.ns1 = Mock()
+        ns1_record = NS1Record()
+        ns1_record.data['answers'] = [{"answer": ['222.111.111.11',], "id": "1213"}]
+        self.testing_class.ns1.get_a_record.return_value = ns1_record
+        self.testing_class.ns1.check_record_answers.return_value = 31
+
+        self.testing_class.remove_ns1_balancing_rule()
+
+        self.testing_class.ns1.get_a_record.assert_called()
+        self.testing_class.ns1.check_record_answers.assert_not_called()
+
+
 
 
 if __name__ == '__main__':
