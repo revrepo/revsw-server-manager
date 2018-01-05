@@ -2,7 +2,7 @@
 
 status=0
 
-
+. "./.env/bin/activate"
 echo "coverage run -t server_deployment/tests.py"
 coverage run server_deployment/tests.py
 status_1=$?
