@@ -215,7 +215,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--first_step", help="First step which sequence must start.", default='remove_from_nagios',
+        "--first_step", help="First step which sequence must start.", default='remove_ns1_balancing_rule',
         choices=[
             "remove_ns1_a_record",
             "remove_from_nagios",
