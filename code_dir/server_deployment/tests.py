@@ -17,6 +17,9 @@
 
 """
 
+import sys
+from os import path
+sys.path.append( path.dirname( path.dirname( path.abspath(__file__) ) ) )
 
 import unittest
 import os
@@ -36,6 +39,7 @@ from mock import Mock, patch, mock
 import settings
 from server_deployment.cds_api import CDSAPI
 from server_deployment.infradb import InfraDBAPI
+from server_deployment.server_state import ServerState
 from server_deployment.utilites import DeploymentError
 
 from server_deployment.nsone_class import Ns1Deploy
@@ -64,10 +68,10 @@ class TestAbstract(unittest.TestCase):
         # print name of running test
         print("RUN_TEST %s" % self._testMethodName)
 
-    def tearDown(self):
-        self.mongo_cli.drop_database('test_database')
-        # remove all temporary test files
-        os.system("rm -r %s" % TEST_DIR)
+    # def tearDown(self):
+    #     self.mongo_cli.drop_database('test_database')
+    #     # remove all temporary test files
+    #     os.system("rm -r %s" % TEST_DIR)
 
     def check_log_exist(self):
         return self.log_collection.find_one()
@@ -1130,8 +1134,6 @@ class TestDestroySequence(TestAbstract):
 
         self.testing_class.ns1.get_a_record.assert_called()
         self.testing_class.ns1.check_record_answers.assert_not_called()
-
-
 
 
 if __name__ == '__main__':
