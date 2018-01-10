@@ -159,7 +159,7 @@ class ServerState():
 
     # check hostname
     def check_hostname(self):
-        stdin_, stdout_, stderr_ = self.client.exec_command("hostname")
+        (stdin_, stdout_, stderr_) = self.client.exec_command("hostname")
         time.sleep(2)  # sleep some time for complete command
         # status = stdout_.channel.recv_exit_status()
         lines = stdout_.readlines()
@@ -301,7 +301,7 @@ class ServerState():
             logger.info(line)
         m = re.search('^MemTotal:\s*(.+?) kB', lines_list[0])
         ram_size = m.group(1)
-        if int(ram_size) <  (settings.REQUIRED_RAM_SIZE*1024):
+        if int(ram_size) < (settings.REQUIRED_RAM_SIZE*1024):
             raise DeploymentError("Not enough RAM")
 
     def check_hw_architecture(self):

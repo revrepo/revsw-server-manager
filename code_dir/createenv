@@ -18,7 +18,7 @@ pip install python_modules/Jinja2-2.10.tar.gz
 pip install python_modules/jsonschema-2.6.0.tar.gz
 pip install python_modules/nsone-0.9.16.tar.gz
 pip install python_modules/paramiko-2.4.0.tar.gz
-pip install python_modules/pymongo-3.6.0.tar.gz
+pip install python_modules/pymongo-3.3.0.tar.gz
 pip install python_modules/requests-2.18.4.tar.gz
 pip install python_modules/requests-mock-1.4.0.tar.gz
 pip install python_modules/responses-0.8.1.tar.gz
