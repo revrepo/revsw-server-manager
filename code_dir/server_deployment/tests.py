@@ -1376,7 +1376,7 @@ class TestServerState(TestAbstract):
         self.testing_class.client = Mock()
         self.testing_class.client.exec_command.return_value = [
             '1', MockedExecOutput([
-                '1000 packets transmitted, 998 received, 0% packet loss, time 13347ms',
+                '1000 packets transmitted, 1000 received, 0% packet loss, time 13347ms',
             ]), '3'
         ]
         ret_data = self.testing_class.check_ping_8888()
@@ -1388,12 +1388,12 @@ class TestServerState(TestAbstract):
         self.testing_class.client = Mock()
         self.testing_class.client.exec_command.return_value = [
             '1', MockedExecOutput([
-                '1000 packets transmitted, 998 received, 1% packet loss, time 13347ms',
+                '1000 packets transmitted, 1000 received, 1% packet loss, time 13347ms',
             ]), '3'
         ]
         self.assertRaises(
             DeploymentError,
-            self.testing_class.test_check_ping_8888
+            self.testing_class.check_ping_8888
         )
         self.testing_class.client.exec_command.assert_called_with(
             "sudo ping -f -c 1000 8.8.8.8"
