@@ -44,12 +44,12 @@ from server_deployment.utilites import DeploymentError
 
 from server_deployment.nsone_class import Ns1Deploy
 
-import server_deployment.cds_api as cds_api
+import server_deployment.server_state as server_state
 import server_deployment.abstract_sequence as abs_sequence
 import server_deploy as deploy_sequence
 import destroying_server as destroy_sequence
 from server_deployment.test_utilites import NS1MonitorMock, MockNSONE, Objectview, MockedInfraDB, NS1ZoneMock, \
-    MockedServerClass, NS1Record
+    MockedServerClass, NS1Record, MockedExecOutput
 
 TEST_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "temporary_testing_files/")
 
@@ -1135,6 +1135,378 @@ class TestDestroySequence(TestAbstract):
         self.testing_class.ns1.get_a_record.assert_called()
         self.testing_class.ns1.check_record_answers.assert_not_called()
 
+
+class TestServerState(TestAbstract):
+    @patch("settings.INFRADB_URL", 'http://localhost:8000/api/')
+    @patch("settings.MONGO_DB_NAME", 'test_database')
+    def setUp(self):
+        # mocking mogo db variables for conecting to test  database
+        # settings.MONGO_DB_NAME = 'test_database'
+        settings.MONGO_HOST = 'localhost'
+        settings.MONGO_PORT = 27017
+        self.mongo_cli = pymongo.MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        self.mongo_db = self.mongo_cli[settings.MONGO_DB_NAME]
+        self.log_collection = self.mongo_db['test_host']
+
+        self.logger = mongo_logger.MongoLogger(
+            'test_host', datetime.datetime.now().isoformat()
+        )
+        self.mocked_ns1_class = MockNSONE(apikey="1234")
+        self.mocked_ns1_monitors = NS1MonitorMock()
+        self.host_name = 'test-test1.host'
+        self.ip = '111.111.111.111'
+        self.connection = Mock()
+        server_state.paramiko = Mock()
+        # with patch("server_deployment.server_state.paramiko") as self.paramiko:
+
+            # self.paramiko.SSHClient = Mock()
+        server_state.paramiko.SSHClient.connect.return_value = self.connection
+        server_state.paramiko.RSAKey.from_private_key_file.return_value = 'key'
+        self.testing_class = ServerState(self.host_name, 'login', 'password', self.logger)
+
+        # print name of running test
+        print("RUN_TEST %s" % self._testMethodName)
+
+    def test_check_hostname(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput(['test_hostname.test.test',]),'3'
+        ]
+        ret_data = self.testing_class.check_hostname()
+        self.assertEquals(ret_data, 'test_hostname.test.test')
+        self.testing_class.client.exec_command.assert_called_with("hostname")
+
+    def test_check_install_package(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'Package: test_package',
+                'Status: install ok installed\n',
+            ]),'3'
+        ]
+        ret_data = self.testing_class.check_install_package('test_package')
+        self.assertTrue(ret_data)
+        self.testing_class.client.exec_command.assert_called_with("dpkg -s test_package")
+
+    def test_check_install_package_not_installed(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput(['ok','not installed\n',]),'3'
+        ]
+        ret_data = self.testing_class.check_install_package('test_package')
+        self.assertFalse(ret_data)
+        self.testing_class.client.exec_command.assert_called_with("dpkg -s test_package")
+
+    def test_check_system_version(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'DISTRIB_RELEASE=14.04',
+            ]),'3'
+        ]
+        ret_data = self.testing_class.check_system_version()
+        self.assertEqual(ret_data, '14.04')
+        self.testing_class.client.exec_command.assert_called_with(
+            "cat /etc/lsb-release | grep DISTRIB_RELEASE"
+        )
+
+    def test_check_system_version_not14_04(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'DISTRIB_RELEASE=16.05',
+            ]),'3'
+        ]
+        ret_data = self.testing_class.check_system_version()
+        self.assertEqual(ret_data, '16.05')
+        self.testing_class.client.exec_command.assert_called_with(
+            "cat /etc/lsb-release | grep DISTRIB_RELEASE"
+        )
+
+    def test_check_system_version_wrong_answer(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'wrong_str',
+            ]),'3'
+        ]
+        ret_data = self.testing_class.check_system_version()
+        self.assertEqual(ret_data, '14.04')
+        self.testing_class.client.exec_command.assert_called_with(
+            "cat /etc/lsb-release | grep DISTRIB_RELEASE"
+        )
+
+    def test_execute_command_with_log(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'wrong_str',
+            ]),'3'
+        ]
+        ret_data = self.testing_class.execute_command_with_log('command')
+        self.assertEqual(ret_data, 0)
+        self.testing_class.client.exec_command.assert_called_with(
+            'command'
+        )
+
+    def test_execute_command_with_log_wrong_status(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'wrong_str',
+            ], return_status=1),'3'
+        ]
+        self.assertRaises(
+            DeploymentError, self.testing_class.execute_command_with_log, 'command'
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            'command'
+        )
+
+    def test_execute_command_with_log_wrong_status_without_check(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'wrong_str',
+            ], return_status=1),'3'
+        ]
+        ret_data = self.testing_class.execute_command_with_log('command', check_status=False)
+        self.assertEqual(ret_data, 1)
+        self.testing_class.client.exec_command.assert_called_with(
+            'command'
+        )
+
+    def test_check_ram_size(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'MemTotal: %s kB' % (30*1024*1024),
+            ]), '3'
+        ]
+        ret_data = self.testing_class.check_ram_size()
+        self.testing_class.client.exec_command.assert_called_with(
+            "grep 'MemTotal:'  /proc/meminfo"
+        )
+
+    def test_check_ram_size_not_enouph(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'MemTotal: %s kB' % (30*1024),
+            ]), '3'
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.check_ram_size
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            "grep 'MemTotal:'  /proc/meminfo"
+        )
+
+    def test_check_hw_architecture(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'x86_64',
+            ]), '3'
+        ]
+        ret_data = self.testing_class.check_hw_architecture()
+        self.testing_class.client.exec_command.assert_called_with(
+            "arch"
+        )
+
+    def test_check_hw_architecture_wrong_arch(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'wrog arch',
+            ]), '3'
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.check_hw_architecture
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            "arch"
+        )
+
+    def test_check_os_version(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'DISTRIB_RELEASE=14.04',
+            ]), '3'
+        ]
+        ret_data = self.testing_class.check_os_version()
+        self.testing_class.client.exec_command.assert_called_with(
+            "cat /etc/lsb-release | grep DISTRIB_RELEASE"
+        )
+
+    def test_check_os_version_wrong_os_version(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'DISTRIB_RELEASE=16.06',
+            ]), '3'
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.check_os_version
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            "cat /etc/lsb-release | grep DISTRIB_RELEASE"
+        )
+
+    def test_check_os_version_wrong_resp(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'wrong',
+            ]), '3'
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.check_os_version
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            "cat /etc/lsb-release | grep DISTRIB_RELEASE"
+        )
+
+    def test_check_ping_8888(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                '1000 packets transmitted, 1000 received, 0% packet loss, time 13347ms',
+            ]), '3'
+        ]
+        ret_data = self.testing_class.check_ping_8888()
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo ping -f -c 1000 8.8.8.8"
+        )
+
+    def test_check_ping_8888_packet_loss(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                '1000 packets transmitted, 1000 received, 1% packet loss, time 13347ms',
+            ]), '3'
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.check_ping_8888
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo ping -f -c 1000 8.8.8.8"
+        )
+
+    def test_check_free_space(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'Filesystem     1K-blocks     Used Available Use% Mounted on',
+                'udev             1848560        0   1848560   0% /dev',
+                '/dev/sda5      181354808 17830480 154288976  11% /',
+            ]), '3'
+        ]
+        ret_data = self.testing_class.check_free_space()
+        self.testing_class.client.exec_command.assert_called_with(
+            "df"
+        )
+
+    def testcheck_free_space_not_enouph(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'Filesystem     1K-blocks     Used Available Use% Mounted on',
+                'udev             1848560        0   1848560   0% /dev',
+                '/dev/sda5      181354808 17830480 1006  11% /',
+            ]), '3'
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.check_free_space
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            "df"
+        )
+
+    def test_run_puppet(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+            ]), '3'
+        ]
+        ret_data = self.testing_class.run_puppet()
+        self.assertEquals(ret_data, 0)
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo puppet agent -t --server=TESTSJC20-INSTALL01.REVSW.NET"
+        )
+
+    def test_run_puppet_wrong_status_install_ok(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'Exiting; no certificate found and waitforcert is disabled',
+            ], return_status=1), '3'
+        ]
+        ret_data = self.testing_class.run_puppet()
+        self.assertEquals(ret_data, 0)
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo puppet agent -t --server=TESTSJC20-INSTALL01.REVSW.NET"
+        )
+
+    def test_run_puppet_wrong_status_install_not_ok(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'wrong',
+            ], return_status=1), '3'
+        ]
+        ret_data = self.testing_class.run_puppet()
+        self.assertEquals(ret_data, 1)
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo puppet agent -t --server=TESTSJC20-INSTALL01.REVSW.NET"
+        )
+
+    def test_remove_puppet(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput(['test']), '3'
+        ]
+        ret_data = self.testing_class.remove_puppet()
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo rm -r /var/lib/puppet/ssl"
+        )
+
+    def test_remove_puppet_wrong_answer(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput(['test'], return_status=1), '3'
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.remove_puppet
+        )
+
+    def test_configure_puppet(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput(['test']), '3'
+        ]
+        ret_data = self.testing_class.configure_puppet()
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo puppet agent -t --server=TESTSJC20-INSTALL01.REVSW.NET"
+        )
+
+    def test_configure_puppet_wrong_answer(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput(['test'], return_status=1), '3'
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.configure_puppet
+        )
 
 if __name__ == '__main__':
     unittest.main()

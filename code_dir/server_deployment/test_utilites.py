@@ -205,3 +205,23 @@ class NS1Record():
 
     def delete(self):
         pass
+
+
+class MockedExecOutput():
+
+
+    def __init__(self, output_list, return_status=0):
+        self.output_list = output_list
+        self.channel = MockedChannel(return_status)
+
+    def readlines(self):
+        return self.output_list
+
+
+class MockedChannel():
+
+    def __init__(self, return_status):
+        self.return_status = return_status
+
+    def recv_exit_status(self):
+        return self.return_status
