@@ -129,6 +129,7 @@ class DeploySequence(SequenceAbstract):
         self.group = cds.server_group
         logger.info("Reboot server to apply  changes")
         self.server.reboot()
+        time.sleep(settings.CDS_WAITING_TIME)
 
     def update_fw_rules(self):
         client = paramiko.SSHClient()

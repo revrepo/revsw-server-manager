@@ -21,6 +21,7 @@ import logging
 
 import os
 import paramiko
+import time
 from copy import deepcopy
 
 from jinja2 import Environment
@@ -170,7 +171,7 @@ class NagiosServer():
 
     def check_services_status(self):
         self.nagios_api.forced_schedule_check(self.short_name)
-
+        time.sleep(settings.NAGIOS_FORCING_CHECK_SERVICES_WAIT_TIME)
         host = self.nagios_api.get_services_by_host(self.short_name)
         if not host or not host['success']:
             raise DeploymentError('Nagios api response not success')
