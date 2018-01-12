@@ -30,7 +30,7 @@ import re
 
 import settings
 from server_deployment.abstract_sequence import SequenceAbstract
-from server_deployment.nagios import Nagios
+from server_deployment.nagios_class import NagiosServer
 from server_deployment.cds_api import CDSAPI
 from server_deployment.infradb import InfraDBAPI
 
@@ -225,17 +225,16 @@ class DeploySequence(SequenceAbstract):
     def add_to_nagios(self):
         # NAGIOS configurate
         logger.info("Configure nagios")
-        nagios = Nagios(self.host_name, self.logger, self.short_name)
         nagios_data = {
             'host_name': self.short_name,
             "ip": self.ip,
             "location_code": self.location_code
         }
-        nagios.create_config_file(nagios_data)
-        nagios.send_config_to_server()
-        if nagios.check_nagios_config() != 0:
+        self.nagios.create_config_file(nagios_data)
+        self.nagios.send_config_to_server()
+        if self.nagios.check_nagios_config() != 0:
             raise DeploymentError('nagios config is not ok')
-        nagios.reload_nagios()
+        self.nagios.reload_nagios()
 
     def add_ns1_a_record(self):
         logger.info("Add NS1 A record")
@@ -274,6 +273,12 @@ class DeploySequence(SequenceAbstract):
             self.ns1.add_feed(settings.NS1_DATA_SOURCE_ID, monitor_id)
 
     def add_ns1_balancing_rule(self):
+        logger.info("Checking nagios services")
+        self.nagios.check_services_status()
+
+
+
+
         monitor_id = self.ns1.check_is_monitor_exist()
         if not monitor_id:
             raise DeploymentError("Monitor not exist")

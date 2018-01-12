@@ -29,7 +29,7 @@ import re
 
 import settings
 from server_deployment.abstract_sequence import SequenceAbstract
-from server_deployment.nagios import Nagios
+from server_deployment.nagios_class import NagiosServer
 from server_deployment.cds_api import CDSAPI
 from server_deployment.infradb import InfraDBAPI
 
