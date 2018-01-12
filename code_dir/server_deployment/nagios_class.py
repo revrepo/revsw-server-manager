@@ -180,7 +180,7 @@ class NagiosServer():
             if service_name in settings.IGNORE_NAGIOS_SERVICES:
                 continue
 
-            if service_data['problem_has_been_acknowledged'] != "0":
+            if service_data['last_hard_state'] != "0":
                 raise DeploymentError("Service %s is not UP" % service_name)
 
 

@@ -276,9 +276,6 @@ class DeploySequence(SequenceAbstract):
         logger.info("Checking nagios services")
         self.nagios.check_services_status()
 
-
-
-
         monitor_id = self.ns1.check_is_monitor_exist()
         if not monitor_id:
             raise DeploymentError("Monitor not exist")
