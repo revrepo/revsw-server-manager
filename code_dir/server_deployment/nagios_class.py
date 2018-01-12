@@ -21,12 +21,14 @@ import logging
 
 import os
 import paramiko
+import time
 from copy import deepcopy
 
 from jinja2 import Environment
 from jinja2.loaders import FileSystemLoader
 
 import settings
+from nagios import Nagios
 from server_deployment.utilites import DeploymentError
 
 
@@ -34,7 +36,7 @@ logger = logging.getLogger('ServerDeploy')
 logger.setLevel(logging.DEBUG)
 
 
-class Nagios():
+class NagiosServer():
     """
     Class which contact with server and save state its deploy
     """
@@ -54,10 +56,11 @@ class Nagios():
         }
 
         self.steps = {
-         "nagios_config": False
+            "nagios_config": False
         }
 
         self.re_connect()
+        self.nagios_api = Nagios()
 
     def log_changes(self, log=None):
         log_dict = deepcopy(self.steps)
@@ -165,3 +168,20 @@ class Nagios():
                 command, stdout.channel.recv_exit_status()
             ))
         return stdout.channel.recv_exit_status()
+
+    def check_services_status(self):
+        self.nagios_api.forced_schedule_check(self.short_name)
+        time.sleep(settings.NAGIOS_FORCING_CHECK_SERVICES_WAIT_TIME)
+        host = self.nagios_api.get_services_by_host(self.short_name)
+        if not host or not host['success']:
+            raise DeploymentError('Nagios api response not success')
+
+        services = host['content']
+        for service_name, service_data in services.iteritems():
+            if service_name in settings.IGNORE_NAGIOS_SERVICES:
+                continue
+
+            if service_data['last_hard_state'] != "0":
+                raise DeploymentError("Service %s is not UP" % service_name)
+
+

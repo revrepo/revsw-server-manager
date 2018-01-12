@@ -48,8 +48,9 @@ import server_deployment.server_state as server_state
 import server_deployment.abstract_sequence as abs_sequence
 import server_deploy as deploy_sequence
 import destroying_server as destroy_sequence
+import server_deployment.nagios_class as nagios_deploy
 from server_deployment.test_utilites import NS1MonitorMock, MockNSONE, Objectview, MockedInfraDB, NS1ZoneMock, \
-    MockedServerClass, NS1Record, MockedExecOutput
+    MockedServerClass, NS1Record, MockedExecOutput, MockedNagiosClass
 
 TEST_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "temporary_testing_files/")
 
@@ -706,6 +707,7 @@ class TestAbstractSequence(TestAbstract):
 
         self.args = Objectview(args_dict)
         abs_sequence.InfraDBAPI = MockedInfraDB
+        abs_sequence.NagiosServer = MockedNagiosClass
         with patch("server_deployment.nsone_class.Ns1Deploy.get_zone") as ns1_mock:
             ns1_mock.return_value = NS1ZoneMock()
             self.testing_class = abs_sequence.SequenceAbstract(self.args)
@@ -1157,11 +1159,9 @@ class TestServerState(TestAbstract):
         self.ip = '111.111.111.111'
         self.connection = Mock()
         server_state.paramiko = Mock()
-        # with patch("server_deployment.server_state.paramiko") as self.paramiko:
-
-            # self.paramiko.SSHClient = Mock()
         server_state.paramiko.SSHClient.connect.return_value = self.connection
         server_state.paramiko.RSAKey.from_private_key_file.return_value = 'key'
+
         self.testing_class = ServerState(self.host_name, 'login', 'password', self.logger)
 
         # print name of running test
@@ -1507,6 +1507,142 @@ class TestServerState(TestAbstract):
             DeploymentError,
             self.testing_class.configure_puppet
         )
+
+
+
+class TestNagiosServer(TestAbstract):
+    @patch("settings.INFRADB_URL", 'http://localhost:8000/api/')
+    @patch("settings.MONGO_DB_NAME", 'test_database')
+    def setUp(self):
+        # mocking mogo db variables for conecting to test  database
+        # settings.MONGO_DB_NAME = 'test_database'
+        settings.MONGO_HOST = 'localhost'
+        settings.MONGO_PORT = 27017
+        self.mongo_cli = pymongo.MongoClient(settings.MONGO_HOST, settings.MONGO_PORT)
+        self.mongo_db = self.mongo_cli[settings.MONGO_DB_NAME]
+        self.log_collection = self.mongo_db['test_host']
+
+        self.logger = mongo_logger.MongoLogger(
+            'test_host', datetime.datetime.now().isoformat()
+        )
+        self.host_name = 'test-test1.host'
+        self.short_host = 'test-test1'
+        self.connection = Mock()
+        self.nagios_mock = Mock()
+        nagios_deploy.paramiko = Mock()
+        nagios_deploy.paramiko.SSHClient.connect.return_value = self.connection
+        nagios_deploy.paramiko.RSAKey.from_private_key_file.return_value = 'key'
+        nagios_deploy.Nagios = self.nagios_mock
+
+        self.testing_class = nagios_deploy.NagiosServer(self.host_name, self.logger, self.short_host)
+
+        # print name of running test
+        print("RUN_TEST %s" % self._testMethodName)
+
+    @patch("settings.IGNORE_NAGIOS_SERVICES", ["ignore_service",])
+    def test_check_services_status(self):
+        self.testing_class.nagios_api = Mock()
+        self.testing_class.nagios_api.get_services_by_host.return_value = {
+            "content": {
+                'test_service1': {
+                    "problem_has_been_acknowledged": "0",
+                },
+                "ignore_service": {
+                    "problem_has_been_acknowledged": "0",
+                },
+            },
+            "success": 1
+        }
+        self.testing_class.check_services_status()
+        self.testing_class.client.exec_command.get_services_by_host(self.short_host)
+
+    @patch("settings.IGNORE_NAGIOS_SERVICES", ["ignore_service",])
+    def test_check_services_status_not_success_result(self):
+        self.testing_class.nagios_api = Mock()
+        self.testing_class.nagios_api.get_services_by_host.return_value = {
+            "success": 0
+        }
+        self.assertRaises(
+            DeploymentError, self.testing_class.check_services_status
+        )
+        self.testing_class.client.exec_command.get_services_by_host(self.short_host)
+
+    @patch("settings.IGNORE_NAGIOS_SERVICES", ["ignore_service",])
+    def test_check_services_status_not_up_service(self):
+        self.testing_class.nagios_api = Mock()
+        self.testing_class.nagios_api.get_services_by_host.return_value = {
+            "content": {
+                'test_service1': {
+                    "problem_has_been_acknowledged": "1",
+                },
+                "ignore_service": {
+                    "problem_has_been_acknowledged": "0",
+                },
+            },
+            "success": 0
+        }
+        self.assertRaises(
+            DeploymentError, self.testing_class.check_services_status
+        )
+        self.testing_class.client.exec_command.get_services_by_host(self.short_host)
+
+    @patch("settings.IGNORE_NAGIOS_SERVICES", ["ignore_service",])
+    def test_check_services_status_ignoring_service_not_up(self):
+        self.testing_class.nagios_api = Mock()
+        self.testing_class.nagios_api.get_services_by_host.return_value = {
+            "content": {
+                'test_service1': {
+                    "problem_has_been_acknowledged": "0",
+                },
+                "ignore_service": {
+                    "problem_has_been_acknowledged": "1",
+                },
+            },
+            "success": 1
+        }
+        self.testing_class.check_services_status()
+        self.testing_class.client.exec_command.get_services_by_host(self.short_host)
+
+    def test_execute_command_with_log(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'wrong_str',
+            ]), '3'
+        ]
+        ret_data = self.testing_class.execute_command_with_log('command')
+        self.assertEqual(ret_data, 0)
+        self.testing_class.client.exec_command.assert_called_with(
+            'command'
+        )
+
+    def test_execute_command_with_log_wrong_status(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'wrong_str',
+            ], return_status=1), '3'
+        ]
+        self.assertRaises(
+            DeploymentError, self.testing_class.execute_command_with_log, 'command'
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            'command'
+        )
+
+    def test_execute_command_with_log_wrong_status_without_check(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            '1', MockedExecOutput([
+                'wrong_str',
+            ], return_status=1), '3'
+        ]
+        ret_data = self.testing_class.execute_command_with_log('command', check_status=False)
+        self.assertEqual(ret_data, 1)
+        self.testing_class.client.exec_command.assert_called_with(
+            'command'
+        )
+
 
 if __name__ == '__main__':
     unittest.main()

@@ -83,6 +83,23 @@ class Nagios():
             'host': server,
         }
         self._post_api_call("cancel_downtime", data)
+
+    def get_host(self, server):
+        return self._get_api_call("host", server)
+
+    def get_services_by_host(self, server):
+        return self._get_api_call("service", server)
+
+    def forced_schedule_check(self, server):
+        logger.info("forcing checking services on server %s" % server)
+        data = {
+            'host': server,
+            'forced': 1,
+            'all_services': 1,
+        }
+
+        self._post_api_call("schedule_check", data)
+
         
 #     def get_monitoring_jobs(self):
 #          return self._get_api_call("/v1/monitoring/jobs")

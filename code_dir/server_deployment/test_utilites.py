@@ -191,6 +191,14 @@ class MockedServerClass():
     def __init__(self, *args, **kwargs):
         pass
 
+class MockedNagiosClass():
+
+    def __init__(self, *args, **kwargs):
+        pass
+
+    def check_services_status(self):
+        pass
+
 
 class NS1Record():
 

@@ -31,7 +31,7 @@ import re
 
 import settings
 from server_deployment.abstract_sequence import SequenceAbstract
-from server_deployment.nagios import Nagios
+from server_deployment.nagios_class import NagiosServer
 from server_deployment.cds_api import CDSAPI
 
 from server_deployment.utilites import DeploymentError
@@ -69,7 +69,7 @@ class DestroySequence(SequenceAbstract):
         self.record_type = args.record_type
 
     def remove_from_nagios(self):
-        nagios = Nagios(self.host_name, self.logger, self.short_name)
+        nagios = NagiosServer(self.host_name, self.logger, self.short_name)
         nagios.delete_config_file()
         nagios.reload_nagios()
 

@@ -27,6 +27,7 @@ import re
 import settings
 from server_deployment.infradb import InfraDBAPI
 from server_deployment.mongo_logger import MongoLogger
+from server_deployment.nagios_class import NagiosServer
 from server_deployment.nsone_class import Ns1Deploy
 from server_deployment.server_state import ServerState
 
@@ -82,6 +83,7 @@ class SequenceAbstract(object):
             self.location_code, self.hosting_name,
             ssl_disable=args.disable_infradb_ssl
         )
+        self.nagios = NagiosServer(self.host_name, self.logger, self.short_name)
 
     def get_short_name(self):
         m = re.search('^(.+?)\.', self.host_name)
