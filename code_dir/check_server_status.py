@@ -52,6 +52,7 @@ class CheckingSequence(SequenceAbstract):
         "check_ns1_a_record": "Not checked",
         "check_infradb": "Not checked",
         "check_cds": "Not checked",
+        "check_nagios": "Not checked",
         "check_ns1_balancing_rule": "Not checked",
         "check_pssh_file": "Not checked",
 
@@ -66,6 +67,7 @@ class CheckingSequence(SequenceAbstract):
             "check_ns1_a_record": self.check_ns1_a_record,
             "check_infradb": self.check_infradb,
             "check_cds": self.check_cds,
+            "check_nagios": self.check_nagios,
             "check_ns1_balancing_rule": self.check_ns1_balancing_rule,
             "check_pssh_file": self.check_pssh_file,
 
@@ -76,6 +78,7 @@ class CheckingSequence(SequenceAbstract):
             "check_ns1_a_record",
             "check_infradb",
             "check_cds",
+            "check_nagios",
             "check_ns1_balancing_rule",
             "check_pssh_file"
         ]
@@ -171,6 +174,21 @@ class CheckingSequence(SequenceAbstract):
             self.check_status["check_pssh_file"] = "OK"
             return
         self.check_status["check_pssh_file"] = "Not OK"
+
+    def check_nagios(self):
+        logger.info("Check if server added to nagios")
+        host = self.nagios.get_host()
+        if not host:
+            logger.info("Host not founded in Nagios")
+            self.check_status["check_nagios"] = "Not OK"
+        logger.info("Checking nagios services")
+        try:
+            self.nagios.check_services_status()
+        except DeploymentError as e:
+            logger.info(e.message)
+            self.check_status["check_nagios"] = "Not OK"
+            return
+        self.check_status["check_nagios"] = "OK"
 
 
 if __name__ == "__main__":

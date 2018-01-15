@@ -38,11 +38,38 @@ class MongoLogger():
                     "hostname": {"type": "string"},
                     "ipv4": {
                         "type": "string",
-                        "pattern": "(([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])\.){3}([0-9]|[1-9][0-9]|1[0-9]{2}|2[0-4][0-9]|25[0-5])"
+                        "pattern": "(([0-9]|[1-9][0-9]|1[0-9]"
+                                   "{2}|2[0-4][0-9]|25[0-5])\.)"
+                                   "{3}([0-9]|[1-9][0-9]|1[0-9]"
+                                   "{2}|2[0-4][0-9]|25[0-5])"
                     },
                     "ipv6": {
                         "type": "string",
-                        "pattern": "(([0-9a-fA-F]{1,4}:){7,7}[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,7}:|([0-9a-fA-F]{1,4}:){1,6}:[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}(:[0-9a-fA-F]{1,4}){1,2}|([0-9a-fA-F]{1,4}:){1,4}(:[0-9a-fA-F]{1,4}){1,3}|([0-9a-fA-F]{1,4}:){1,3}(:[0-9a-fA-F]{1,4}){1,4}|([0-9a-fA-F]{1,4}:){1,2}(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:((:[0-9a-fA-F]{1,4}){1,6})|:((:[0-9a-fA-F]{1,4}){1,7}|:)|fe80:(:[0-9a-fA-F]{0,4}){0,4}%[0-9a-zA-Z]{1,}|::(ffff(:0{1,4}){0,1}:){0,1}((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|([0-9a-fA-F]{1,4}:){1,4}:((25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9])\.){3,3}(25[0-5]|(2[0-4]|1{0,1}[0-9]){0,1}[0-9]))"},
+                        "pattern": "(([0-9a-fA-F]{1,4}:)"
+                                   "{7,7}[0-9a-fA-F]{1,4}|"
+                                   "([0-9a-fA-F]{1,4}:){1,7}:|"
+                                   "([0-9a-fA-F]{1,4}:){1,6}"
+                                   ":[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}"
+                                   "(:[0-9a-fA-F]{1,4}){1,2}|"
+                                   "([0-9a-fA-F]{1,4}:){1,4}"
+                                   "(:[0-9a-fA-F]{1,4})"
+                                   "{1,3}|([0-9a-fA-F]{1,4}:){1,3}"
+                                   "(:[0-9a-fA-F]{1,4}){1,4}|"
+                                   "([0-9a-fA-F]{1,4}:){1,2}"
+                                   "(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:"
+                                   "((:[0-9a-fA-F]{1,4}){1,6})|:"
+                                   "((:[0-9a-fA-F]{1,4}){1,7}|:)|"
+                                   "fe80:(:[0-9a-fA-F]{0,4}){0,4}"
+                                   "%[0-9a-zA-Z]{1,}|::"
+                                   "(ffff(:0{1,4}){0,1}:){0,1}"
+                                   "((25[0-5]|(2[0-4]|1{0,1}[0-9])"
+                                   "{0,1}[0-9])\.){3,3}(25[0-5]|"
+                                   "(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|"
+                                   "([0-9a-fA-F]{1,4}:){1,4}:"
+                                   "((25[0-5]|(2[0-4]|1{0,1}[0-9])"
+                                   "{0,1}[0-9])\.)"
+                                   "{3,3}(25[0-5]|(2[0-4]|1{0,1}"
+                                   "[0-9]){0,1}[0-9]))"},
                     "login": {"type": "string"},
                     "password": {"type": "string"},
                     "cert": {"type": "string"},
@@ -58,14 +85,14 @@ class MongoLogger():
                             "type": "string",
                             "pattern": '^([0-9]{1,4})$'
                         }
-                    }, # comma/space separated list or range x-xxxxx
+                    },  # comma/space separated list or range x-xxxxx
                     "tcp_port_list": {
                         "type": "array",
                         "items": {
                             "type": "string",
                             "pattern": '^([0-9]{1,4})$'
                         }
-                    }, # comma/space separated list or range x-xxxxx
+                    },  # comma/space separated list or range x-xxxxx
                     "puppet_installed": {
                         "type": "string", "pattern": "yes|no|fail"
                     },
@@ -90,7 +117,7 @@ class MongoLogger():
                     "upgrade": {
                         "type": "string", "pattern": "yes|no|fail"
                     },
-                    "log": {"type": "string"} # [|if returned code !=0]
+                    "log": {"type": "string"}  # [|if returned code !=0]
                 },
             },
             "hoster": {
@@ -99,22 +126,22 @@ class MongoLogger():
                     "api": {
                         "type": "string", "pattern": "yes|no|fail"
                     },
-                    "fw": {"type": "string"}, # [off|proper_set]
+                    "fw": {"type": "string"},  # [off|proper_set]
                     "udp_port_list": {
                         "type": "array",
                         "items": {
                             "type": "string",
                             "pattern": '^([0-9]{1,4})$'
                         }
-                    }, # comma/space separated list or range x-xxxxx
+                    },  # comma/space separated list or range x-xxxxx
                     "tcp_port_list": {
                         "type": "array",
                         "items": {
                             "type": "string",
                             "pattern": '^([0-9]{1,4})$'
                         }
-                    }, # comma/space separated list or range x-xxxxx
-                    "log": {"type": "string"} # [|if some fail]
+                    },  # comma/space separated list or range x-xxxxx
+                    "log": {"type": "string"}  # [|if some fail]
                 }
             },
             "ns1": {
@@ -122,9 +149,11 @@ class MongoLogger():
                 "properties": {
                     "host_added": {"type": "string", "pattern": "yes|no|fail"},
                     "monitored": {"type": "string", "pattern": "yes|no|fail"},
-                    "monitor_type": {"type": "string", "pattern": "tcp|dns|ping|http"},
-                    "port": {"type": "string",}, # for tcp
-                    "log": {"type": "string"} # [|if some fail]
+                    "monitor_type": {
+                        "type": "string", "pattern": "tcp|dns|ping|http"
+                    },
+                    "port": {"type": "string"},  # for tcp
+                    "log": {"type": "string"}  # [|if some fail]
                 }
             },
             "infraDB": {
@@ -132,7 +161,7 @@ class MongoLogger():
                 "properties": {
                     "server_add":  {"type": "string", "pattern": "ok|no|fail"},
                     "fw":  {"type": "string", "pattern": "ok|no|fail"},
-                    "log": {"type": "string"} # [|if some fail]
+                    "log": {"type": "string"}  # [|if some fail]
                 }
 
             },
@@ -143,8 +172,8 @@ class MongoLogger():
                         "type": "string",
                         "pattern": "yes|no|fail"
                     },
-                    "log": {"type": "string"} # [|if some fail]
-               }
+                    "log": {"type": "string"}  # [|if some fail]
+                }
             },
             "nagios": {
                 "type": "object",
@@ -157,8 +186,8 @@ class MongoLogger():
                         "type": "string",
                         "pattern": "yes|no|fail"
                     },
-                    "log": {"type": "string"} # [|if some fail]
-               }
+                    "log": {"type": "string"}  # [|if some fail]
+                }
             }
         },
         "required": [

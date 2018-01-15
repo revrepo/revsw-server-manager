@@ -233,7 +233,9 @@ class ServerState():
     def remove_puppet(self):
         logger.info('Removing puppet from server')
         self.execute_command_with_log("pkill -9 puppet")
-        self.execute_command_with_log("sudo rm -r /var/lib/puppet/ssl", check_status=False)
+        self.execute_command_with_log(
+            "sudo rm -r /var/lib/puppet/ssl", check_status=False
+        )
 
     def run_puppet(self):
         logger.info(
@@ -293,7 +295,9 @@ class ServerState():
 
     def check_ram_size(self):
         logger.info('Checking RAM size')
-        (stdin, stdout, stderr) = self.client.exec_command("grep 'MemTotal:'  /proc/meminfo")
+        (stdin, stdout, stderr) = self.client.exec_command(
+            "grep 'MemTotal:'  /proc/meminfo"
+        )
         lines = stdout.readlines()
         lines_list = []
         for line in lines:
@@ -359,9 +363,10 @@ class ServerState():
             if m and m.group(1):
                 free_space = m.group(1)
         if int(free_space) < settings.REQUIRED_FREE_SPACE * 1024:
-            raise DeploymentError('Not enough free space. Need %s Mb '
-                                  'and available only %s Mb'% (
-                settings.REQUIRED_FREE_SPACE,
-                int(free_space)/1024
-            ))
-
+            raise DeploymentError(
+                'Not enough free space. Need %s '
+                'Mb and available only %s Mb' % (
+                    settings.REQUIRED_FREE_SPACE,
+                    int(free_space)/1024
+                )
+            )

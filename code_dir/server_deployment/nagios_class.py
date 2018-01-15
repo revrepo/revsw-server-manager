@@ -184,4 +184,5 @@ class NagiosServer():
             if service_data['last_hard_state'] != "0":
                 raise DeploymentError("Service %s is not UP" % service_name)
 
-
+    def get_host(self):
+        return self.nagios_api.get_host(self.short_name)

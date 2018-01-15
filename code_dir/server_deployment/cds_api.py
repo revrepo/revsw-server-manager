@@ -328,8 +328,9 @@ class CDSAPI():
             )
             if response.status_code == 200:
                 proxy = json.loads(response.text)
-                logger.info("domain_config version %s of %s "
-                            "purge_version version %s of %s" % (
+                logger.info(
+                    "domain_config version %s of %s "
+                    "purge_version version %s of %s" % (
                         proxy["domain_config_version"],
                         self.highest_versions['domain'],
                         proxy["purge_version"],
