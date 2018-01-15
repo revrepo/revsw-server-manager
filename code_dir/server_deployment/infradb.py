@@ -55,7 +55,7 @@ class InfraDBAPI():
                 "status": 'ONLINE',
                 "location": self.location['id'],
                 "hostingprovider": self.hosting['id'],
-                "type": 1,
+                "type": 7,   # BP Edge proxy
                 "IP": ip,
             }
         server_data.update(server_versions)

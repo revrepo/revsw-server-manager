@@ -155,13 +155,13 @@ class DestroySequence(SequenceAbstract):
         if self.ns1.check_record_answers(record) < settings.NS1_MINIMAL_ANSWERS_COUNT:
             raise DeploymentError("Cant delete answer from dns balance record,  its lower count")
         new_answers = []
-        logger.info("Deleting balance rule for  %s" % self.ip)
+        logger.info("Deleting balance rule for %s" % self.ip)
         for answer in record.data['answers']:
             if answer['answer'] != [self.ip]:
                 new_answers.append(answer)
         record.update(answers=new_answers)
         logger.info("DNS balancing rules succesfuly changed")
-        logger.info("Waiting for %s seconds to get enough time for end users to stop using the proxy servers")
+        logger.info("Waiting for %s seconds to get enough time for end users to stop using the proxy servers" % settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME)
         time.sleep(settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME)
         logger.info("Continue work")
 
@@ -215,7 +215,7 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--first_step", help="First step which sequence must start.", default='remove_from_nagios',
+        "--first_step", help="First step which sequence must start.", default='remove_ns1_balancing_rule',
         choices=[
             "remove_ns1_a_record",
             "remove_from_nagios",
