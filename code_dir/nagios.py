@@ -26,6 +26,7 @@ import json
 logger = logging.getLogger('Nagios')
 logger.setLevel(logging.DEBUG)
 
+
 class Nagios():
     BASE_URL = settings.NAGIOS_URL
 
@@ -39,12 +40,12 @@ class Nagios():
             if data is  None: 
                 response = requests.get(url, headers=headers)
             else:
-                response =  requests.get(url, data=json.dumps(data), headers=headers)
+                response = requests.get(url, data=json.dumps(data), headers=headers)
         elif method == "POST":
-            if data is  None: 
+            if data is None:
                 response = requests.post(url, headers=headers)
             else:
-                response =  requests.post(url, data=json.dumps(data), headers=headers)
+                response = requests.post(url, data=json.dumps(data), headers=headers)
         else:
             raise Exception("Unknown method type")
         
@@ -85,7 +86,8 @@ class Nagios():
         self._post_api_call("cancel_downtime", data)
 
     def get_host(self, server):
-        return self._get_api_call("host", server)
+        url = 'host?host=%s' % server
+        return self._get_api_call("host")
 
     def get_services_by_host(self, server):
         return self._get_api_call("service", server)
@@ -97,7 +99,6 @@ class Nagios():
             'forced': 1,
             'all_services': 1,
         }
-
         self._post_api_call("schedule_check", data)
 
         
