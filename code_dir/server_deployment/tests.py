@@ -861,6 +861,8 @@ class TestAbstractSequence(TestAbstract):
             "server_group": '123',
             "dns_balancing_name": "test-dns.test.test",
             "disable_infradb_ssl": True,
+            "login": "login",
+            "password": "password"
 
         }
 
@@ -1962,7 +1964,7 @@ class TestCheckSequence(TestAbstract):
         ]
         self.assertRaises(
             DeploymentError,
-            self.testing_class.check_fw_rules()
+            self.testing_class.check_fw_rules
         )
 
         connection.exec_command.assert_called_with(
