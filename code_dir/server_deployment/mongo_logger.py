@@ -16,13 +16,13 @@
  from Rev Software, Inc.
 
 """
-
+import datetime
 import pymongo
+import settings
 
 from jsonschema import validate
 from jsonschema.exceptions import ValidationError
-
-import settings
+from server_deployment.utilites import DeploymentError
 
 
 class MongoLogger():
@@ -32,204 +32,225 @@ class MongoLogger():
         "properties": {
             "time": {"type": "string"},
             "start_time": {"type": "string"},
-            "host": {
+            "initial_data": {
                 "type": "object",
                 "properties": {
                     "hostname": {"type": "string"},
-                    "ipv4": {
+                    "ip": {
                         "type": "string",
                         "pattern": "(([0-9]|[1-9][0-9]|1[0-9]"
                                    "{2}|2[0-4][0-9]|25[0-5])\.)"
                                    "{3}([0-9]|[1-9][0-9]|1[0-9]"
                                    "{2}|2[0-4][0-9]|25[0-5])"
                     },
-                    "ipv6": {
-                        "type": "string",
-                        "pattern": "(([0-9a-fA-F]{1,4}:)"
-                                   "{7,7}[0-9a-fA-F]{1,4}|"
-                                   "([0-9a-fA-F]{1,4}:){1,7}:|"
-                                   "([0-9a-fA-F]{1,4}:){1,6}"
-                                   ":[0-9a-fA-F]{1,4}|([0-9a-fA-F]{1,4}:){1,5}"
-                                   "(:[0-9a-fA-F]{1,4}){1,2}|"
-                                   "([0-9a-fA-F]{1,4}:){1,4}"
-                                   "(:[0-9a-fA-F]{1,4})"
-                                   "{1,3}|([0-9a-fA-F]{1,4}:){1,3}"
-                                   "(:[0-9a-fA-F]{1,4}){1,4}|"
-                                   "([0-9a-fA-F]{1,4}:){1,2}"
-                                   "(:[0-9a-fA-F]{1,4}){1,5}|[0-9a-fA-F]{1,4}:"
-                                   "((:[0-9a-fA-F]{1,4}){1,6})|:"
-                                   "((:[0-9a-fA-F]{1,4}){1,7}|:)|"
-                                   "fe80:(:[0-9a-fA-F]{0,4}){0,4}"
-                                   "%[0-9a-zA-Z]{1,}|::"
-                                   "(ffff(:0{1,4}){0,1}:){0,1}"
-                                   "((25[0-5]|(2[0-4]|1{0,1}[0-9])"
-                                   "{0,1}[0-9])\.){3,3}(25[0-5]|"
-                                   "(2[0-4]|1{0,1}[0-9]){0,1}[0-9])|"
-                                   "([0-9a-fA-F]{1,4}:){1,4}:"
-                                   "((25[0-5]|(2[0-4]|1{0,1}[0-9])"
-                                   "{0,1}[0-9])\.)"
-                                   "{3,3}(25[0-5]|(2[0-4]|1{0,1}"
-                                   "[0-9]){0,1}[0-9]))"},
                     "login": {"type": "string"},
                     "password": {"type": "string"},
-                    "cert": {"type": "string"},
-                    "reboot": {
-                        "type": "string", "pattern": "yes|no|fail"
-                    },
-                    "ping": {
-                        "type": "string", "pattern": "yes|no|fail"
-                    },
-                    "udp_port_list": {
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "pattern": '^([0-9]{1,4})$'
-                        }
-                    },  # comma/space separated list or range x-xxxxx
-                    "tcp_port_list": {
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "pattern": '^([0-9]{1,4})$'
-                        }
-                    },  # comma/space separated list or range x-xxxxx
-                    "puppet_installed": {
-                        "type": "string", "pattern": "yes|no|fail"
-                    },
-                    "puppet_configured": {
-                        "type": "string", "pattern": "yes|no|fail"
-                    },
-                    "nagios_installed": {
-                        "type": "string", "pattern": "yes|no|fail"
-                    },
-                    "nagios_configured": {
-                        "type": "string", "pattern": "yes|no|fail"
-                    },
-                    "cacti_installed": {
-                        "type": "string", "pattern": "yes|no|fail"
-                    },
-                    "cacti_configured": {
-                        "type": "string", "pattern": "yes|no|fail"
-                    },
-                    "update": {
-                        "type": "string", "pattern": "yes|no|fail"
-                    },
-                    "upgrade": {
-                        "type": "string", "pattern": "yes|no|fail"
-                    },
-                    "log": {"type": "string"}  # [|if returned code !=0]
+
+                }
+            },
+            "check_server_consistency": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_ram_size": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_free_space": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_hw_architecture": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_os_version": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_ping_8888": {"type": "string", "pattern": "yes|no|fail"},
+                    "hostname": {"type": "string"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}  # [|if returned code !=0]
                 },
             },
-            "hoster": {
+            "check_hostname": {
                 "type": "object",
                 "properties": {
-                    "api": {
-                        "type": "string", "pattern": "yes|no|fail"
-                    },
-                    "fw": {"type": "string"},  # [off|proper_set]
-                    "udp_port_list": {
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "pattern": '^([0-9]{1,4})$'
-                        }
-                    },  # comma/space separated list or range x-xxxxx
-                    "tcp_port_list": {
-                        "type": "array",
-                        "items": {
-                            "type": "string",
-                            "pattern": '^([0-9]{1,4})$'
-                        }
-                    },  # comma/space separated list or range x-xxxxx
-                    "log": {"type": "string"}  # [|if some fail]
-                }
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    'hostname_checked': {"type": "string", "pattern": "yes|no|fail"},
+                    "server_rebooted": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}  # [|if returned code !=0]
+                },
             },
-            "ns1": {
+            "add_ns1_a_record": {
                 "type": "object",
                 "properties": {
-                    "host_added": {"type": "string", "pattern": "yes|no|fail"},
-                    "monitored": {"type": "string", "pattern": "yes|no|fail"},
-                    "monitor_type": {
-                        "type": "string", "pattern": "tcp|dns|ping|http"
-                    },
-                    "port": {"type": "string"},  # for tcp
-                    "log": {"type": "string"}  # [|if some fail]
-                }
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "adding_record": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}  # [|if returned code !=0]
+                },
             },
-            "infraDB": {
+            "add_to_infradb": {
                 "type": "object",
                 "properties": {
-                    "server_add":  {"type": "string", "pattern": "ok|no|fail"},
-                    "fw":  {"type": "string", "pattern": "ok|no|fail"},
-                    "log": {"type": "string"}  # [|if some fail]
-                }
-
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "server_added": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}  # [|if returned code !=0]
+                },
             },
-            "revsw": {
+            "update_fw_rules": {
                 "type": "object",
                 "properties": {
-                    "revws_repo": {
-                        "type": "string",
-                        "pattern": "yes|no|fail"
-                    },
-                    "log": {"type": "string"}  # [|if some fail]
-                }
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}  # [|if returned code !=0]
+                },
             },
-            "nagios": {
+            "install_puppet": {
                 "type": "object",
                 "properties": {
-                    "nagios_conf": {
-                            "type": "string",
-                            "pattern": "yes|no|fail"
-                        },
-                    "nagios_reload": {
-                        "type": "string",
-                        "pattern": "yes|no|fail"
-                    },
-                    "log": {"type": "string"}  # [|if some fail]
-                }
-            }
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "puppet_installed": {"type": "string", "pattern": "yes|no|fail"},
+                    "puppet_configured": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}  # [|if returned code !=0]
+                },
+            },
+            "run_puppet": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "puppet_runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}  # [|if returned code !=0]
+                },
+            },
+            "add_to_cds": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "server_group": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_server_exist": {"type": "string", "pattern": "yes|no|fail"},
+                    "server_add": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_packages": {"type": "string", "pattern": "yes|no|fail"},
+                    "install_ssl_configuration": {"type": "string", "pattern": "yes|no|fail"},
+                    "install_waf_and_sdk_configuration": {"type": "string", "pattern": "yes|no|fail"},
+                    "install_purge_and_domain_configuration": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}  # [|if returned code !=0]
+                },
+            },
+            "add_to_nagios": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "file_created": {"type": "string", "pattern": "yes|no|fail"},
+                    "file_loaded": {"type": "string", "pattern": "yes|no|fail"},
+                    "nagios_reloaded": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}  # [|if returned code !=0]
+                },
+            },
+            "add_ns1_monitor": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "monitor_added": {"type": "string", "pattern": "yes|no|fail"},
+                    "monitor_up": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}  # [|if returned code !=0]
+                },
+            },
+            "add_ns1_balancing_rule": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "answer_added": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}  # [|if returned code !=0]
+                },
+            },
+            "add_to_pssh_file": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "server_added": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}  # [|if returned code !=0]
+                },
+            },
         },
         "required": [
-            "time", "start_time", "host", "hoster", "revsw", "infraDB", "nsone"
+            "time",
+            "start_time",
+            "initial_data",
+            "check_server_consistency",
+            "check_hostname",
+            "add_ns1_a_record",
+            "add_to_infradb",
+            "update_fw_rules",
+            "install_puppet",
+            "run_puppet",
+            "add_to_cds",
+            "add_to_nagios",
+            "add_ns1_monitor",
+            "add_ns1_balancing_rule",
+            "add_to_pssh_file",
         ]
     }
 
-    def __init__(self, host_name, start_time):
+    def __init__(self, host_name, start_time, initial_data):
         self.mongo_cli = pymongo.MongoClient(
             settings.MONGO_HOST, settings.MONGO_PORT
         )
         self.mongo_db = self.mongo_cli[settings.MONGO_DB_NAME]
+
         self.log_collection = self.mongo_db[host_name]
+        self.log_collection.ensure_index('notification',sparse=True)
         self.current_server_state = {
             "start_time": start_time,
             "time": None,
-            "host": {},
-            "hoster": {
-                "api": 'no',
-                "fw": 'off',
+            "initial_data": initial_data,
+            "check_server_consistency": {
+                "runned": "no",
             },
-            "ns1": {
-                "host_added": 'no',
-                "monitored": 'no',
+            "check_hostname": {
+                "runned": "no",
             },
-            "infraDB": {
-                "fw": 'no',
+            "add_ns1_a_record": {
+                "runned": "no",
             },
-            "revsw": {
-                "revws_repo":   'no',
-            }
+            "add_to_infradb": {
+                "runned": "no",
+            },
+            "update_fw_rules": {
+                "runned": "no",
+            },
+            "install_puppet": {
+                "runned": "no",
+            },
+            "run_puppet": {
+                "runned": "no",
+            },
+            "add_to_cds": {
+                "runned": "no",
+            },
+            "add_to_nagios": {
+                "runned": "no",
+            },
+            "add_ns1_monitor": {
+                "runned": "no",
+            },
+            "add_ns1_balancing_rule": {
+                "runned": "no",
+            },
+            "add_to_pssh_file": {
+                "runned": "no",
+            },
         }
+        self.log_collection.insert_one(self.current_server_state)
 
     def log(self, log_dict, step):
-        pass
-        # if step not in self.current_server_state.keys():
-        #     raise DeploymentError("Wrong logging keys.")
-        # self.current_server_state['time'] = datetime.datetime.now().isoformat()
-        # self.current_server_state[step] = log_dict
-        # if not self.validate(self.current_server_state):
-        #     raise DeploymentError("Log data not validate.")
-        # self.log_collection.insert_one(self.current_server_state)
+        if step not in self.current_server_state.keys():
+            raise DeploymentError("Wrong logging keys.")
+        self.current_server_state['time'] = datetime.datetime.now().isoformat()
+        for key in log_dict.keys():
+            self.current_server_state[step][key] = log_dict[key]
+        if not self.validate(self.current_server_state):
+            raise DeploymentError("Log data not validate.")
+        self.log_collection.insert_one({}, self.current_server_state)
 
     def validate(self, data):
         try:

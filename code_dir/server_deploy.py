@@ -90,6 +90,8 @@ class DeploySequence(SequenceAbstract):
 
     def deploy_cds(self):
         # checking installed packages
+        self.logger.log({'runned': "yes"}, "add_to_cds")
+
         cds = CDSAPI(self.server_group, self.host_name, self.logger)
         cds.check_installed_packages(self.server)
 
@@ -132,6 +134,7 @@ class DeploySequence(SequenceAbstract):
         time.sleep(settings.CDS_WAITING_TIME)
 
     def update_fw_rules(self):
+        self.logger.log({'runned': "yes"}, "update_fw_rules")
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(
@@ -189,14 +192,18 @@ class DeploySequence(SequenceAbstract):
 
     def check_hostname_step(self):
         # Start deploing of server
+        self.logger.log({'runned': "yes"}, "check_hostname")
         hostname = self.server.check_hostname()
         if hostname.rstrip() != self.host_name:
             self.server.update_hostname(self.host_name)
             # Reboot server to update hostname
             logger.info("Reboot new server")
+            self.logger.log({'server_rebooted': "yes"}, "check_hostname")
             self.server.reboot()
+        self.logger.log({'hostname_checked': "yes"}, "check_hostname")
 
     def add_to_infradb(self):
+        self.logger.log({'runned': "yes"}, "add_to_infradb")
         server_versions = {
             "proxy_software_version": 1,
             "kernel_version": 1,
@@ -205,56 +212,72 @@ class DeploySequence(SequenceAbstract):
         server = self.infradb.get_server(self.host_name)
         if server:
             logger.info("Server already added to infradb")
+            self.logger.log({'server_added': "yes"}, "add_to_infradb")
             return
         self.infradb.add_server(
             self.host_name, self.ip, server_versions,
         )
+        self.logger.log({'server_added': "yes"}, "add_to_infradb")
 
     def install_puppet(self):
+        self.logger.log({'runned': "yes"}, "install_puppet")
         self.server.remove_puppet()
         self.remove_from_puppet()
         self.server.install_puppet()
+        self.logger.log({'puppet_installed': "yes"}, "install_puppet")
         self.server.configure_puppet()
+        self.logger.log({'puppet_configured': "yes"}, "install_puppet")
 
     def run_puppet(self):
         logger.info("Run puppet")
+        self.logger.log({'runned': "yes"}, "run_puppet")
         first_run = self.server.run_puppet()
         if first_run != 0:
             self.sign_ssl_puppet()
             self.server.run_puppet()
+        self.logger.log({"puppet_runned": "yes"},"run_puppet")
 
     def add_to_nagios(self):
         # NAGIOS configurate
         logger.info("Configure nagios")
+        self.logger.log({'runned': "yes"}, "add_to_nagios")
         nagios_data = {
             'host_name': self.short_name,
             "ip": self.ip,
             "location_code": self.location_code
         }
         self.nagios.create_config_file(nagios_data)
+        self.logger.log({'file_created': "yes"}, "add_to_nagios")
         self.nagios.send_config_to_server()
         if self.nagios.check_nagios_config() != 0:
+            self.logger.log({'file_loaded': "fail"}, "add_to_nagios")
             raise DeploymentError('nagios config is not ok')
+        self.logger.log({'file_loaded': "yes"}, "add_to_nagios")
         self.nagios.reload_nagios()
+        self.logger.log({'nagios_reloaded': "yes"}, "add_to_nagios")
 
     def add_ns1_a_record(self):
         logger.info("Add NS1 A record")
-
+        self.logger.log({'runned': "yes"}, "add_ns1_a_record")
         record = self.ns1.get_a_record(
             self.zone, self.short_name, self.record_type
         )
         if record:
             if record.data['answers'][0]['answer'][0] != [self.ip,]:
+                self.logger.log({'adding_record': "fail"}, "add_ns1_a_record")
                 raise DeploymentError('Record already exist but with other IP')
             logger.info(' A record already exist with id %s' % record['id'])
+            self.logger.log({'adding_record': "yes"}, "add_ns1_a_record")
             return
         record = self.ns1.add_a_record(self.zone, self.short_name)
+        self.logger.log({'adding_record': "fail"}, "add_ns1_a_record")
         logger.info("A NS1 record id %s" % record['id'])
 
     def add_ns1_monitor(self):
         # Add server to NS1
         logger.info("Start server adding to NS1")
         logger.info('Cheking  monitors list if server already have monitor')
+        self.logger.log({'runned': "yes"}, "add_ns1_monitor")
         monitor_id = self.ns1.check_is_monitor_exist()
         if not monitor_id:
             monitor_id = self.ns1.add_new_monitor()
@@ -265,9 +288,12 @@ class DeploySequence(SequenceAbstract):
             time.sleep(settings.NS1_WAITING_TIME)
         else:
             logger.info("monitor already exist with id %s" % monitor_id)
+        self.logger.log({'monitor_added': "yes"}, "add_ns1_monitor")
         monitor_status = self.ns1.check_monitor_status(monitor_id)
         if monitor_status != 'up':
+            self.logger.log({'monitor_up': "fail"}, "add_ns1_monitor")
             raise DeploymentError("New monitor not in UP status")
+        self.logger.log({'monitor_up': "yes"}, "add_ns1_monitor")
         logger.info("New monitor is UP")
         feed_id = self.ns1.find_feed(settings.NS1_DATA_SOURCE_ID, monitor_id)
         if not feed_id:
@@ -275,6 +301,7 @@ class DeploySequence(SequenceAbstract):
 
     def add_ns1_balancing_rule(self):
         logger.info("Checking nagios services")
+        self.logger.log({'runned': "yes"}, "add_ns1_balancing_rule")
         self.nagios.check_services_status()
 
         monitor_id = self.ns1.check_is_monitor_exist()
@@ -293,15 +320,23 @@ class DeploySequence(SequenceAbstract):
             self.balancing_rule_zone, self.dns_balancing_name, self.record_type,
             self.ip, self.location_code, feed_id
         )
+        self.logger.log({'answer_added': "yes"}, "add_ns1_balancing_rule")
 
     def check_server_consistency(self):
+        self.logger.log({'runned': "yes"}, "check_server_consistency")
         self.server.check_ram_size()
+        self.logger.log({'check_ram_size': "yes"}, "check_server_consistency")
         self.server.check_free_space()
+        self.logger.log({'check_free_space': "yes"}, "check_server_consistency")
         self.server.check_hw_architecture()
+        self.logger.log({'check_hw_architecture': "yes"}, "check_server_consistency")
         self.server.check_os_version()
+        self.logger.log({'check_os_version': "yes"}, "check_server_consistency")
         self.server.check_ping_8888()
+        self.logger.log({'check_ping_8888': "yes"}, "check_server_consistency")
 
     def add_to_pssh_file(self):
+        self.logger.log({'runned': "yes"}, "add_to_pssh_file")
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(
@@ -320,11 +355,13 @@ class DeploySequence(SequenceAbstract):
             founded_lines.append(line)
         if founded_lines:
             logger.info("Server already added")
+            self.logger.log({'server_added': "yes"}, "add_to_pssh_file")
             return
         logger.info("adding server to %s" % settings.PSSH_FILE_PATH)
         client.exec_command("sudo echo %s >> %s" % (
             self.short_name, settings.PSSH_FILE_PATH
         ))
+        self.logger.log({'server_added': "yes"}, "add_to_pssh_file")
 
 
 if __name__ == "__main__":

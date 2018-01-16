@@ -27,7 +27,7 @@ import datetime
 import responses
 from copy import deepcopy
 from urlparse import urljoin
-
+import check_server_status
 import pymongo
 from nsone.rest.errors import ResourceException
 
@@ -88,49 +88,59 @@ class TestAbstract(unittest.TestCase):
 
 class TestLoggerClass(TestAbstract):
     testing_class = mongo_logger.MongoLogger(
-        'test_host', datetime.datetime.now().isoformat()
+        'test_host', datetime.datetime.now().isoformat(),
+        {
+            "hostname": 'hostname',
+            "ip": '111.111.111.111',
+            "login": 'login',
+            "password": 'passw',
+        }
     )
 
     test_server_status = {
         "time": datetime.datetime.now().isoformat(),
         "start_time": datetime.datetime.now().isoformat(),
-        "host": {
-                "hostname": 'test_host',
-                "ipv4": '127.0.0.1',
-                "ipv6": '2001:db8:3:4::192.0.2.33',
-                "login": "test_login",
-                "password": "test_password",
-                "cert": "test_cert",
-                "reboot": "no",
-                "ping": "no",
-                "udp_port_list": ['8', '8000'],
-                "tcp_port_list": ['8', '8000'],
-                "puppet_installed": 'no',
-                "puppet_configured": 'no',
-                "nagios_installed": 'no',
-                "nagios_configured": 'no',
-                "cacti_installed": 'no',
-                "cacti_configured": 'no',
-                "update": 'no',
-                "upgrade": 'no'
+        "initial_data": {
+            "hostname": 'test_host',
+            "ip": '127.0.0.1',
+            "login": "test_login",
+            "password": "test_password",
         },
-        "hoster": {
-                "api": 'no',
-                "fw": 'off',  # [off|proper_set]
-                "udp_port_list": ['8', '8000'],
-                "tcp_port_list": ['8', '8000'],
+        "check_server_consistency": {
+            "runned": "no",
         },
-        "nsone": {
-                "host_added": 'no',
-                "monitored": 'no',
-                "monitor_type": 'dns',
-                "port": 'no',
+        "check_hostname": {
+            "runned": "no",
         },
-        "infraDB": {
-                "fw":  'no',
+        "add_ns1_a_record": {
+            "runned": "no",
         },
-        "revsw": {
-                "revws_repo": 'no',
+        "add_to_infradb": {
+            "runned": "no",
+        },
+        "update_fw_rules": {
+            "runned": "no",
+        },
+        "install_puppet": {
+            "runned": "no",
+        },
+        "run_puppet": {
+            "runned": "no",
+        },
+        "add_to_cds": {
+            "runned": "no",
+        },
+        "add_to_nagios": {
+            "runned": "no",
+        },
+        "add_ns1_monitor": {
+            "runned": "no",
+        },
+        "add_ns1_balancing_rule": {
+            "runned": "no",
+        },
+        "add_to_pssh_file": {
+            "runned": "no",
         },
     }
 
@@ -154,48 +164,24 @@ class TestLoggerClass(TestAbstract):
 
     def test_validation_no_field_host(self):
         test_data = deepcopy(self.test_server_status)
-        test_data.pop('host')
+        test_data.pop('initial_data')
         validation_result = self.testing_class.validate(test_data)
         self.assertFalse(validation_result)
 
     def test_validation_wrong_ipv4_in_host(self):
         test_data = deepcopy(self.test_server_status)
-        test_data['host']['ipv4'] = 'wron.gi.p.wro'
+        test_data['initial_data']['ip'] = 'wron.gi.p.wro'
         validation_result = self.testing_class.validate(test_data)
         self.assertFalse(validation_result)
 
-    def test_validation_wrong_ipv6_in_host(self):
-        test_data = deepcopy(self.test_server_status)
-        test_data['host']['ipv6'] = 'wron.gi.p.wro'
-        validation_result = self.testing_class.validate(test_data)
-        self.assertFalse(validation_result)
-
-    def test_validation_wrong_udp_port_list_in_host(self):
-        test_data = deepcopy(self.test_server_status)
-        test_data['host']['udp_port_list'] = ['333344533333', '1']
-        validation_result = self.testing_class.validate(test_data)
-        self.assertFalse(validation_result)
-
-    def test_validation_wrong_tcp_port_list_in_host(self):
-        test_data = deepcopy(self.test_server_status)
-        test_data['host']['tcp_port_list'] = ['333344533333', '1']
-        validation_result = self.testing_class.validate(test_data)
-        self.assertFalse(validation_result)
-
-    def test_validation_nsone_wrong_monitor_type(self):
-        test_data = deepcopy(self.test_server_status)
-        test_data['nsone']['monitor_type'] = "wrong"
-        validation_result = self.testing_class.validate(test_data)
-        self.assertTrue(validation_result)
-
-    def test_log_function(self):
-        self.testing_class.current_server_state = self.test_server_status
-        self.testing_class.log(self.test_server_status['host'], 'host')
-        self.log_collection.find_one()
-        test_data = deepcopy(self.test_server_status)
-        test_data['nsone']['monitor_type'] = "wrong"
-        validation_result = self.testing_class.validate(test_data)
-        # self.assertEqual(self.test_server_status, db_data)
+    # def test_log_function(self):
+    #     self.testing_class.current_server_state = self.test_server_status
+    #     self.testing_class.log({"runned": "yes"}, 'check_server_consistency')
+    #     self.log_collection.find_one()
+    #     test_data = deepcopy(self.test_server_status)
+    #     test_data['nsone']['monitor_type'] = "wrong"
+    #     validation_result = self.testing_class.validate(test_data)
+    #     # self.assertEqual(self.test_server_status, db_data)
 
 
 class TestInfraDBAPI(TestAbstract):
@@ -217,7 +203,13 @@ class TestInfraDBAPI(TestAbstract):
         # settings.INFRADB_URL = self.infra_db_url
 
         self.logger = mongo_logger.MongoLogger(
-            'test_host', datetime.datetime.now().isoformat()
+            'test_host', datetime.datetime.now().isoformat(),
+            {
+                "hostname": 'hostname',
+                "ip": '111.111.111.111',
+                "login": 'login',
+                "password": 'passw',
+            }
         )
         with responses.RequestsMock() as rsps:
             rsps.add(
@@ -384,7 +376,13 @@ class TestCDSAPI(TestAbstract):
         # settings.INFRADB_URL = self.infra_db_url
 
         self.logger = mongo_logger.MongoLogger(
-            'test_host', datetime.datetime.now().isoformat()
+            'test_host', datetime.datetime.now().isoformat(),
+            {
+                "hostname": 'hostname',
+                "ip": '111.111.111.111',
+                "login": 'login',
+                "password": 'passw',
+            }
         )
         self.host_name = "test_host"
         with responses.RequestsMock() as rsps:
@@ -735,7 +733,13 @@ class TestNS1Class(TestAbstract):
         self.log_collection = self.mongo_db['test_host']
 
         self.logger = mongo_logger.MongoLogger(
-            'test_host', datetime.datetime.now().isoformat()
+            'test_host', datetime.datetime.now().isoformat(),
+            {
+                "hostname": 'hostname',
+                "ip": '111.111.111.111',
+                "login": 'login',
+                "password": 'passw',
+            }
         )
         self.mocked_ns1_class = MockNSONE(apikey="1234")
         self.mocked_ns1_monitors = NS1MonitorMock()
@@ -839,7 +843,13 @@ class TestAbstractSequence(TestAbstract):
         # settings.INFRADB_URL = self.infra_db_url
 
         self.logger = mongo_logger.MongoLogger(
-            'test_host', datetime.datetime.now().isoformat()
+            'test_host', datetime.datetime.now().isoformat(),
+            {
+                "hostname": 'hostname',
+                "ip": '111.111.111.111',
+                "login": 'login',
+                "password": 'passw',
+            }
         )
         self.host_name = "test-host.test.test"
         args_dict = {
@@ -934,7 +944,14 @@ class TestDeploymentSequence(TestAbstract):
         # settings.INFRADB_URL = self.infra_db_url
 
         self.logger = mongo_logger.MongoLogger(
-            'test_host', datetime.datetime.now().isoformat()
+            'test_host', datetime.datetime.now().isoformat(),
+            {
+                "hostname": 'hostname',
+                "ip": '111.111.111.111',
+                "login": 'login',
+                "password": 'passw',
+            }
+
         )
         self.host_name = "test-host.test.test"
         args_dict = {
@@ -1172,7 +1189,13 @@ class TestDestroySequence(TestAbstract):
         # settings.INFRADB_URL = self.infra_db_url
 
         self.logger = mongo_logger.MongoLogger(
-            'test_host', datetime.datetime.now().isoformat()
+            'test_host', datetime.datetime.now().isoformat(),
+            {
+                "hostname": 'hostname',
+                "ip": '111.111.111.111',
+                "login": 'login',
+                "password": 'passw',
+            }
         )
         self.host_name = "test-host.test.test"
         args_dict = {
@@ -1313,7 +1336,13 @@ class TestServerState(TestAbstract):
         self.log_collection = self.mongo_db['test_host']
 
         self.logger = mongo_logger.MongoLogger(
-            'test_host', datetime.datetime.now().isoformat()
+            'test_host', datetime.datetime.now().isoformat(),
+            {
+                "hostname": 'hostname',
+                "ip": '111.111.111.111',
+                "login": 'login',
+                "password": 'passw',
+            }
         )
         self.mocked_ns1_class = MockNSONE(apikey="1234")
         self.mocked_ns1_monitors = NS1MonitorMock()
@@ -1698,7 +1727,13 @@ class TestNagiosServer(TestAbstract):
         self.log_collection = self.mongo_db['test_host']
 
         self.logger = mongo_logger.MongoLogger(
-            'test_host', datetime.datetime.now().isoformat()
+            'test_host', datetime.datetime.now().isoformat(),
+            {
+                "hostname": 'hostname',
+                "ip": '111.111.111.111',
+                "login": 'login',
+                "password": 'passw',
+            }
         )
         self.host_name = 'test-test1.host'
         self.short_host = 'test-test1'
@@ -1834,6 +1869,104 @@ class TestNagiosServer(TestAbstract):
         self.assertEqual(ret_data, 1)
         self.testing_class.client.exec_command.assert_called_with(
             'command'
+        )
+
+
+class TestCheckSequence(TestAbstract):
+    @patch("settings.CDS_URL", 'http://localhost:8000/api/')
+    @patch("settings.MONGO_DB_NAME", 'test_database')
+    def setUp(self):
+        # mocking mogo db variables for conecting to test  database
+        # settings.MONGO_DB_NAME = 'test_database'
+        settings.MONGO_HOST = 'localhost'
+        settings.MONGO_PORT = 27017
+        self.mongo_cli = pymongo.MongoClient(
+            settings.MONGO_HOST, settings.MONGO_PORT
+        )
+        self.mongo_db = self.mongo_cli[settings.MONGO_DB_NAME]
+        self.log_collection = self.mongo_db['test_host']
+
+        self.cds_url = 'http://localhost:8000/api/'
+        self.server_group_id = 123
+        # settings.INFRADB_URL = self.infra_db_url
+
+        self.logger = mongo_logger.MongoLogger(
+            'test_host', datetime.datetime.now().isoformat(),
+            {
+                "hostname": 'hostname',
+                "ip": '111.111.111.111',
+                "login": 'login',
+                "password": 'passw',
+            }
+
+        )
+        self.host_name = "test-host.test.test"
+        args_dict = {
+            'host_name': self.host_name,
+            'IP': '111.111.111.11',
+            'number_of_steps_to_execute': 1,
+            'server_group': 'test',
+            'dns_balancing_name': "test-dns.test.test",
+            'password': 'password',
+            'record_type': "A",
+            'hosting': "test_hosting",
+            'first_step': "test_first_step",
+            "disable_infradb_ssl": True,
+            "login": 'test_login',
+            "password": 'pass',
+        }
+
+        args = Objectview(args_dict)
+        abs_sequence.InfraDBAPI = MockedInfraDB
+        check_server_status.ServerState = MockedServerClass
+        with patch("server_deployment.nsone_class.Ns1Deploy.get_zone") \
+                as ns1_mock:
+            ns1_mock.return_value = NS1ZoneMock()
+            self.testing_class = check_server_status.CheckingSequence(args)
+        # print name of running test
+        print("RUN_TEST %s" % self._testMethodName)
+
+    @patch('check_server_status.CheckingSequence.connect_to_serv')
+    def test_check_fw_rules(self, conn):
+        connection = Mock()
+        conn.return_value = connection
+        connection.exec_command.return_value = [
+            '1', MockedExecOutput([
+                '22/tcp                     ALLOW       111.111.111.11',
+            ], return_status=1), '3'
+        ]
+        self.testing_class.check_fw_rules()
+
+    @patch('check_server_status.CheckingSequence.connect_to_serv')
+    def test_check_fw_rules(self, conn):
+        connection = Mock()
+        conn.return_value = connection
+        connection.exec_command.return_value = [
+            '1', MockedExecOutput([
+                '22/tcp                     ALLOW       111.111.111.11',
+            ], return_status=0), '3'
+        ]
+        self.testing_class.check_fw_rules()
+        connection.exec_command.assert_called_with(
+            'sudo ufw status|grep 111.111.111.11'
+        )
+
+    @patch('check_server_status.CheckingSequence.connect_to_serv')
+    def test_check_fw_rules_not_found(self, conn):
+        connection = Mock()
+        conn.return_value = connection
+        connection.exec_command.return_value = [
+            '1', MockedExecOutput([
+                '',
+            ], return_status=0), '3'
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.check_fw_rules()
+        )
+
+        connection.exec_command.assert_called_with(
+            'sudo ufw status|grep 111.111.111.11'
         )
 
 

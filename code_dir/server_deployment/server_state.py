@@ -87,11 +87,12 @@ class ServerState():
         self.re_connect(using_key=use_key)
 
     def log_changes(self, log=None):
-        log_dict = deepcopy(self.steps)
-        log_dict.update(self.server_constants)
-        if log:
-            log_dict['log'] = log
-        self.mongo_log.log(log_dict, step='host')
+        pass
+        # log_dict = deepcopy(self.steps)
+        # log_dict.update(self.server_constants)
+        # if log:
+        #     log_dict['log'] = log
+        # self.mongo_log.log(log_dict, step='host')
 
     def change_step_status(self, step, result, log=None):
         if step in self.server_constants.keys():
@@ -220,7 +221,7 @@ class ServerState():
         )
         if puppet_installed != 0:
             log_error = "Server error. Status: %s Error: %s"
-            self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
+            self.mongo_log.log({"error_log": log_error}, "install_puppet")
             raise DeploymentError(log_error)
 
     def configure_puppet(self):
@@ -284,7 +285,7 @@ class ServerState():
             logger.info(line)
         if check_status and stdout.channel.recv_exit_status() != 0:
             log_error = "wrong status code after %s " % command
-            self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
+            self.mongo_log.log({ "log": log_error}, "install_puppet")
             raise DeploymentError(log_error)
         logger.info(
             "%s was finished with code %s" % (
