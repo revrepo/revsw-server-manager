@@ -67,7 +67,6 @@ class NagiosServer():
         log_dict.update(self.server_constants)
         if log:
             log_dict['log'] = log
-        self.mongo_log.log(log_dict, step='host')
 
     def change_step_status(self, step, result, log=None):
         if step in self.server_constants.keys():
@@ -123,7 +122,6 @@ class NagiosServer():
             os.path.join(
                 settings.NAGIOS_CFG_PATH, '%s.cfg' % self.short_name))
                                       )
-        self.mongo_log.log({"nagios_conf": "yes"}, "nagios")
 
     def delete_config_file(self):
         logger.info("Delete nagios conf file")
@@ -141,11 +139,10 @@ class NagiosServer():
         if chan != 0:
             log_error = "Nagios reload error"
             self.mongo_log.log(
-                {"nagios_reload": "fail", "log": log_error},
-                "nagios"
+                {"nagios_reloaded": "fail", "error_log": log_error},
+                "add_to_nagios"
             )
             raise DeploymentError(log_error)
-        self.mongo_log.log({"nagios_reload": "yes"}, "nagios")
 
     def check_nagios_config(self):
 
@@ -161,7 +158,6 @@ class NagiosServer():
             logger.info(line)
         if check_status and stdout.channel.recv_exit_status() != 0:
             log_error = "wrong status code after %s " % command
-            self.mongo_log.log({"fw": "fail", "log": log_error}, "nagios")
             raise DeploymentError(log_error)
         logger.info(
             "%s was finished with code %s" % (
@@ -184,4 +180,5 @@ class NagiosServer():
             if service_data['last_hard_state'] != "0":
                 raise DeploymentError("Service %s is not UP" % service_name)
 
-
+    def get_host(self):
+        return self.nagios_api.get_host(self.short_name)

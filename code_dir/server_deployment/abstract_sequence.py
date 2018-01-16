@@ -29,7 +29,6 @@ from server_deployment.infradb import InfraDBAPI
 from server_deployment.mongo_logger import MongoLogger
 from server_deployment.nagios_class import NagiosServer
 from server_deployment.nsone_class import Ns1Deploy
-from server_deployment.server_state import ServerState
 
 from server_deployment.cds_api import CDSAPI
 from server_deployment.utilites import DeploymentError
@@ -61,7 +60,13 @@ class SequenceAbstract(object):
         self.hosting_name = args.hosting
         # self.zone_name = "attested.club"
         self.logger = MongoLogger(
-            self.host_name, datetime.datetime.now().isoformat()
+            self.host_name, datetime.datetime.now().isoformat(),
+            {
+                "hostname": self.host_name,
+                "ip": self.ip,
+                "login": args.login,
+                "password": args.password,
+            }
         )
 
         self.ns1 = Ns1Deploy(self.host_name, self.ip, self.logger)
@@ -83,7 +88,9 @@ class SequenceAbstract(object):
             self.location_code, self.hosting_name,
             ssl_disable=args.disable_infradb_ssl
         )
-        self.nagios = NagiosServer(self.host_name, self.logger, self.short_name)
+        self.nagios = NagiosServer(
+            self.host_name, self.logger, self.short_name
+        )
 
     def get_short_name(self):
         m = re.search('^(.+?)\.', self.host_name)
@@ -116,8 +123,10 @@ class SequenceAbstract(object):
             logger.info(line)
 
         logger.info(
-            "command sudo puppet cert clean %s was executed with status %s" %
-                (self.host_name, stdout_fw.channel.recv_exit_status())
+            "command sudo puppet cert clean %s"
+            " was executed with status %s" % (
+                self.host_name, stdout_fw.channel.recv_exit_status()
+            )
             )
         logger.info("Server %s was deleted from puppet" % self.host_name)
         return stdout_fw.channel.recv_exit_status()
@@ -143,3 +152,14 @@ class SequenceAbstract(object):
             return m.group(1)
         raise DeploymentError("Wrong Host_name")
 
+    def connect_to_serv(self, hostname, login, password):
+
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+        client.connect(
+            hostname=hostname,
+            username=login,
+            password=password,
+            port=22
+        )
+        return client

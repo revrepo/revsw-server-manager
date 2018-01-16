@@ -52,8 +52,11 @@ class CheckingSequence(SequenceAbstract):
         "check_ns1_a_record": "Not checked",
         "check_infradb": "Not checked",
         "check_cds": "Not checked",
+        "check_nagios": "Not checked",
+        "check_puppet": "Not checked",
         "check_ns1_balancing_rule": "Not checked",
         "check_pssh_file": "Not checked",
+        "check_fw_rules": "Not checked",
 
     }
 
@@ -66,8 +69,11 @@ class CheckingSequence(SequenceAbstract):
             "check_ns1_a_record": self.check_ns1_a_record,
             "check_infradb": self.check_infradb,
             "check_cds": self.check_cds,
+            "check_nagios": self.check_nagios,
+            "check_puppet": self.check_puppet,
             "check_ns1_balancing_rule": self.check_ns1_balancing_rule,
             "check_pssh_file": self.check_pssh_file,
+            "check_fw_rules": self.check_fw_rules,
 
         }
         self.step_sequence = [
@@ -76,8 +82,11 @@ class CheckingSequence(SequenceAbstract):
             "check_ns1_a_record",
             "check_infradb",
             "check_cds",
+            "check_nagios",
+            "check_puppet",
             "check_ns1_balancing_rule",
-            "check_pssh_file"
+            "check_pssh_file",
+            "check_fw_rules",
         ]
 
         self.record_type = args.record_type
@@ -172,6 +181,52 @@ class CheckingSequence(SequenceAbstract):
             return
         self.check_status["check_pssh_file"] = "Not OK"
 
+    def check_nagios(self):
+        logger.info("Check if server added to nagios")
+        host = self.nagios.get_host()
+        if not host:
+            logger.info("Host not founded in Nagios")
+            self.check_status["check_nagios"] = "Not OK"
+        logger.info("Checking nagios services")
+        try:
+            self.nagios.check_services_status()
+        except DeploymentError as e:
+            logger.info(e.message)
+            self.check_status["check_nagios"] = "Not OK"
+            return
+        self.check_status["check_nagios"] = "OK"
+
+    def check_puppet(self):
+        try:
+            cds = CDSAPI(self.server_group, self.host_name, self.logger)
+            cds.check_installed_packages(self.server)
+        except DeploymentError:
+            self.check_status["check_puppet"] = "Not OK"
+            return
+        self.check_status["check_puppet"] = "OK"
+
+    def check_fw_rules(self):
+
+        client = self.connect_to_serv(
+            settings.INSTALL_SERVER_HOST,
+            settings.INSTALL_SERVER_LOGIN,
+            settings.INSTALL_SERVER_PASSWORD
+        )
+        logger.info('sudo ufw status|grep %s' % self.ip)
+        stdin_fw, stdout_fw, stderr_fw = client.exec_command(
+            'sudo ufw status|grep %s' % self.ip
+        )
+        lines = stdout_fw.readlines()
+        ip_founded = False
+        for line in lines:
+            m = re.search('ALLOW\s*(.+?)$', line)
+            if m and m.group(1) == self.ip:
+                ip_founded = True
+            logger.info(line)
+        if not ip_founded:
+            raise DeploymentError("IP not founded in Fire wall rules")
+
+
 
 if __name__ == "__main__":
 
@@ -230,8 +285,11 @@ if __name__ == "__main__":
             "check_ns1_a_record",
             "check_infradb",
             "check_cds",
+            "check_nagios",
+            "check_puppet",
             "check_ns1_balancing_rule",
             "check_pssh_file",
+            "check_fw_rules",
         ]
     )
     parser.add_argument(

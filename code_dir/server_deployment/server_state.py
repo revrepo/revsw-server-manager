@@ -87,11 +87,12 @@ class ServerState():
         self.re_connect(using_key=use_key)
 
     def log_changes(self, log=None):
-        log_dict = deepcopy(self.steps)
-        log_dict.update(self.server_constants)
-        if log:
-            log_dict['log'] = log
-        self.mongo_log.log(log_dict, step='host')
+        pass
+        # log_dict = deepcopy(self.steps)
+        # log_dict.update(self.server_constants)
+        # if log:
+        #     log_dict['log'] = log
+        # self.mongo_log.log(log_dict, step='host')
 
     def change_step_status(self, step, result, log=None):
         if step in self.server_constants.keys():
@@ -220,7 +221,7 @@ class ServerState():
         )
         if puppet_installed != 0:
             log_error = "Server error. Status: %s Error: %s"
-            self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
+            self.mongo_log.log({"error_log": log_error}, "install_puppet")
             raise DeploymentError(log_error)
 
     def configure_puppet(self):
@@ -232,8 +233,10 @@ class ServerState():
 
     def remove_puppet(self):
         logger.info('Removing puppet from server')
-        self.execute_command_with_log("pkill -9 puppet", check_status=False)
-        self.execute_command_with_log("sudo rm -r /var/lib/puppet/ssl", check_status=False)
+        self.execute_command_with_log("pkill -9 puppet")
+        self.execute_command_with_log(
+            "sudo rm -r /var/lib/puppet/ssl", check_status=False
+        )
 
     def run_puppet(self):
         logger.info(
@@ -282,7 +285,7 @@ class ServerState():
             logger.info(line)
         if check_status and stdout.channel.recv_exit_status() != 0:
             log_error = "wrong status code after %s " % command
-            self.mongo_log.log({"fw": "fail", "log": log_error}, "puppet")
+            self.mongo_log.log({ "log": log_error}, "install_puppet")
             raise DeploymentError(log_error)
         logger.info(
             "%s was finished with code %s" % (
@@ -293,7 +296,9 @@ class ServerState():
 
     def check_ram_size(self):
         logger.info('Checking RAM size')
-        (stdin, stdout, stderr) = self.client.exec_command("grep 'MemTotal:'  /proc/meminfo")
+        (stdin, stdout, stderr) = self.client.exec_command(
+            "grep 'MemTotal:'  /proc/meminfo"
+        )
         lines = stdout.readlines()
         lines_list = []
         for line in lines:
@@ -359,9 +364,10 @@ class ServerState():
             if m and m.group(1):
                 free_space = m.group(1)
         if int(free_space) < settings.REQUIRED_FREE_SPACE * 1024:
-            raise DeploymentError('Not enough free space. Need %s Mb '
-                                  'and available only %s Mb'% (
-                settings.REQUIRED_FREE_SPACE,
-                int(free_space)/1024
-            ))
-
+            raise DeploymentError(
+                'Not enough free space. Need %s '
+                'Mb and available only %s Mb' % (
+                    settings.REQUIRED_FREE_SPACE,
+                    int(free_space)/1024
+                )
+            )

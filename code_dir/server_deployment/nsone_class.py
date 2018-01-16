@@ -48,10 +48,8 @@ class Ns1Deploy():
         except ResourceException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'no',
-                "monitored": 'fail',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         return monitors
 
@@ -100,16 +98,9 @@ class Ns1Deploy():
         except ResourceException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'no',
-                "monitored": 'fail',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
-
-        self.logger.log({
-                "host_added": 'no',
-                "monitored": 'yes',
-            }, "ns1")
         return monitor['id']
 
     def check_monitor_status(self, monitor_id):
@@ -122,10 +113,8 @@ class Ns1Deploy():
         except ResourceException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'no',
-                "monitored": 'fail',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         return monitor
 
@@ -145,18 +134,14 @@ class Ns1Deploy():
         except ResourceException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         except ZoneException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         logger.info("Zone id %s" % zone['id'])
         return zone
@@ -167,18 +152,14 @@ class Ns1Deploy():
         except ResourceException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         except ZoneException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
 
         return record
@@ -197,18 +178,14 @@ class Ns1Deploy():
                 return
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         except ZoneException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
 
         return record
@@ -228,26 +205,20 @@ class Ns1Deploy():
         except ResourceException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         except ZoneException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         except Exception as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         logger.info('New feed succesfully added  feed id %s' % feed['id'])
         return feed
@@ -268,26 +239,20 @@ class Ns1Deploy():
         except ResourceException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         except ZoneException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         except Exception as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         logger.info('Feed was not found')
         return None
@@ -303,26 +268,20 @@ class Ns1Deploy():
         except ResourceException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         except ZoneException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         except Exception as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
 
         return feed
@@ -339,26 +298,20 @@ class Ns1Deploy():
         except ResourceException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         except ZoneException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         except Exception as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
 
     def add_answer(
@@ -390,26 +343,20 @@ class Ns1Deploy():
         except ResourceException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         except ZoneException as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         except Exception as e:
             log_error = e.message
             self.logger.log({
-                "host_added": 'fail',
-                "monitored": 'yes',
-                "log": log_error
-            }, "infraDB")
+                "error_log": log_error
+            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
 
     def check_record_answers(self, record):

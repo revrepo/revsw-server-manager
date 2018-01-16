@@ -191,6 +191,7 @@ class MockedServerClass():
     def __init__(self, *args, **kwargs):
         pass
 
+
 class MockedNagiosClass():
 
     def __init__(self, *args, **kwargs):
@@ -204,7 +205,10 @@ class NS1Record():
 
     data = {
         "answers": [
-            {"answer": ['111.111.111.11',], "id": "1213"}
+            {
+                "answer": ['111.111.111.11', ],
+                "id": "1213"
+            }
         ]
     }
 
@@ -216,7 +220,6 @@ class NS1Record():
 
 
 class MockedExecOutput():
-
 
     def __init__(self, output_list, return_status=0):
         self.output_list = output_list

@@ -73,7 +73,7 @@ class InfraDBAPI():
                 "infraDB"
             )
             raise DeploymentError(log_error)
-        self.logger.log({"server_add": "ok"}, "infraDB")
+        self.logger.log({"server_add": "yes"}, "add_to_infradb")
         logger.info("Server succesfuly added to INFRADB")
 
     def delete_server(self, host_name):

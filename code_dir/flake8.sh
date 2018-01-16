@@ -3,7 +3,7 @@
 status=0
 
 echo "run flake8"
-flake8
+flake8 --exclude .env
 
 status_1=$?
 if [ $status_1 -ne 0 ]
