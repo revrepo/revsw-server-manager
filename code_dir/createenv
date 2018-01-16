@@ -1,7 +1,7 @@
 #!/bin/bash
 
-sudo apt-get install libpq-dev
-sudo apt-get install python-pip python-virtualenv
+sudo apt-get install libpq-dev -y
+sudo apt-get install python-pip python-virtualenv -y
 
 if [ ! -d ".env" ]; then
     virtualenv .env
