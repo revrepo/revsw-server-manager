@@ -86,11 +86,12 @@ class Nagios():
         self._post_api_call("cancel_downtime", data)
 
     def get_host(self, server):
-        url = 'host?host=%s' % server
-        return self._get_api_call("host")
+        url = 'host/%s' % server
+        return self._get_api_call(url)
 
     def get_services_by_host(self, server):
-        return self._get_api_call("service", server)
+        url = 'service/%s' % server
+        return self._get_api_call(url)
 
     def forced_schedule_check(self, server):
         logger.info("forcing checking services on server %s" % server)
