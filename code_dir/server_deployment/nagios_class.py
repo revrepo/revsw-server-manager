@@ -168,11 +168,7 @@ class NagiosServer():
     def check_services_status(self):
         self.nagios_api.forced_schedule_check(self.short_name)
         time.sleep(settings.NAGIOS_FORCING_CHECK_SERVICES_WAIT_TIME)
-        host = self.nagios_api.get_services_by_host(self.short_name)
-        if not host or not host['success']:
-            raise DeploymentError('Nagios api response not success')
-
-        services = host['content']
+        services = self.nagios_api.get_services_by_host(self.short_name)
         for service_name, service_data in services.iteritems():
             if service_name in settings.IGNORE_NAGIOS_SERVICES:
                 continue
