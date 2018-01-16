@@ -1758,31 +1758,14 @@ class TestNagiosServer(TestAbstract):
     def test_check_services_status(self):
         self.testing_class.nagios_api = Mock()
         self.testing_class.nagios_api.get_services_by_host.return_value = {
-            "content": {
-                'test_service1': {
-                    "last_hard_state": "0",
-                },
-                "ignore_service": {
-                    "last_hard_state": "0",
-                },
+            'test_service1': {
+                "last_hard_state": "0",
             },
-            "success": 1
+            "ignore_service": {
+                "last_hard_state": "0",
+            },
         }
         self.testing_class.check_services_status()
-        self.testing_class.client.exec_command.get_services_by_host(
-            self.short_host
-        )
-
-    @patch("settings.NAGIOS_FORCING_CHECK_SERVICES_WAIT_TIME", 0)
-    @patch("settings.IGNORE_NAGIOS_SERVICES", ["ignore_service", ])
-    def test_check_services_status_not_success_result(self):
-        self.testing_class.nagios_api = Mock()
-        self.testing_class.nagios_api.get_services_by_host.return_value = {
-            "success": 0
-        }
-        self.assertRaises(
-            DeploymentError, self.testing_class.check_services_status
-        )
         self.testing_class.client.exec_command.get_services_by_host(
             self.short_host
         )
@@ -1792,15 +1775,12 @@ class TestNagiosServer(TestAbstract):
     def test_check_services_status_not_up_service(self):
         self.testing_class.nagios_api = Mock()
         self.testing_class.nagios_api.get_services_by_host.return_value = {
-            "content": {
-                'test_service1': {
-                    "last_hard_state": "1",
-                },
-                "ignore_service": {
-                    "last_hard_state": "0",
-                },
+            'test_service1': {
+                "last_hard_state": "1",
             },
-            "success": 0
+            "ignore_service": {
+                "last_hard_state": "0",
+            },
         }
         self.assertRaises(
             DeploymentError, self.testing_class.check_services_status
@@ -1814,15 +1794,12 @@ class TestNagiosServer(TestAbstract):
     def test_check_services_status_ignoring_service_not_up(self):
         self.testing_class.nagios_api = Mock()
         self.testing_class.nagios_api.get_services_by_host.return_value = {
-            "content": {
-                'test_service1': {
-                    "last_hard_state": "0",
-                },
-                "ignore_service": {
-                    "last_hard_state": "1",
-                },
+            'test_service1': {
+                "last_hard_state": "0",
             },
-            "success": 1
+            "ignore_service": {
+                "last_hard_state": "1",
+            },
         }
         self.testing_class.check_services_status()
         self.testing_class.client.exec_command.get_services_by_host(
