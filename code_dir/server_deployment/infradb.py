@@ -69,11 +69,10 @@ class InfraDBAPI():
                 response.status_code, response.text
             )
             self.logger.log(
-                {"server_added": "fail", "error_log": log_error},
-                "add_to_infradb"
+                {"server_added": "fail", "error_log": log_error}
             )
             raise DeploymentError(log_error)
-        self.logger.log({"server_add": "yes"}, "add_to_infradb")
+        self.logger.log({"server_add": "yes"})
         logger.info("Server succesfuly added to INFRADB")
 
     def delete_server(self, host_name):
@@ -93,8 +92,7 @@ class InfraDBAPI():
                 response.status_code, response.text
             )
             self.logger.log(
-                {"server_added": "fail", "error_log": log_error},
-                "add_to_infradb"
+                {"server_added": "fail", "error_log": log_error}
             )
             raise DeploymentError(log_error)
         # self.logger.log({"server_add": "ok"}, "infraDB")
@@ -111,8 +109,7 @@ class InfraDBAPI():
                 response.status_code, response.text
             )
             self.logger.log(
-                {"server_add": "fail", "error_log": log_error},
-                "infraDB"
+                {"server_add": "fail", "error_log": log_error}
             )
             raise DeploymentError(log_error)
         locations = json.loads(response.content)
@@ -120,8 +117,7 @@ class InfraDBAPI():
             log_error = "Server error. Wrong location code. " \
                         "Location not found"
             self.logger.log(
-                {"server_added": "fail", "error_log": log_error},
-                "add_to_infradb"
+                {"server_added": "fail", "error_log": log_error}
             )
             raise DeploymentError(log_error)
         logger.info(locations[0])
@@ -156,8 +152,7 @@ class InfraDBAPI():
             self.logger.log(
                 {
                     "server_added": "fail", "error_log": log_error
-                 },
-                "add_to_infradb"
+                 }
             )
             raise DeploymentError(log_error)
         hostings = json.loads(response.content)
@@ -165,8 +160,7 @@ class InfraDBAPI():
             log_error = "Server error. Wrong hosting provider name. " \
                         "Hosting provider not found"
             self.logger.log(
-                {"server_added": "fail", "error_log": log_error},
-                "add_to_infradb"
+                {"server_added": "fail", "error_log": log_error}
             )
             raise DeploymentError(log_error)
         return hostings[0]

@@ -49,7 +49,7 @@ class Ns1Deploy():
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         return monitors
 
@@ -99,7 +99,7 @@ class Ns1Deploy():
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         return monitor['id']
 
@@ -114,7 +114,7 @@ class Ns1Deploy():
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         return monitor
 
@@ -133,15 +133,9 @@ class Ns1Deploy():
             zone = self.ns1.loadZone(zone_name)
         except ResourceException as e:
             log_error = e.message
-            self.logger.log({
-                "error_log": log_error
-            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         except ZoneException as e:
             log_error = e.message
-            self.logger.log({
-                "error_log": log_error
-            }, "add_ns1_a_record")
             raise DeploymentError(log_error)
         logger.info("Zone id %s" % zone['id'])
         return zone
@@ -153,13 +147,13 @@ class Ns1Deploy():
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         except ZoneException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
 
         return record
@@ -179,13 +173,13 @@ class Ns1Deploy():
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         except ZoneException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
 
         return record
@@ -206,19 +200,19 @@ class Ns1Deploy():
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         except ZoneException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         except Exception as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         logger.info('New feed succesfully added  feed id %s' % feed['id'])
         return feed
@@ -240,19 +234,19 @@ class Ns1Deploy():
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         except ZoneException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         except Exception as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         logger.info('Feed was not found')
         return None
@@ -269,19 +263,19 @@ class Ns1Deploy():
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         except ZoneException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         except Exception as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
 
         return feed
@@ -299,19 +293,19 @@ class Ns1Deploy():
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         except ZoneException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         except Exception as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
 
     def add_answer(
@@ -344,19 +338,19 @@ class Ns1Deploy():
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         except ZoneException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
         except Exception as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
-            }, "add_ns1_a_record")
+            })
             raise DeploymentError(log_error)
 
     def check_record_answers(self, record):

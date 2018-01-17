@@ -58,20 +58,16 @@ class CDSAPI():
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"sever_group": "fail", "log_error": log_error}, "add_to_cds")
             raise DeploymentError(log_error)
         server_group = json.loads(response.content)
         if not server_group:
             log_error = "Server error. Wrong server group name." \
                         " Server group not found"
-            self.logger.log({"sever_group": "fail", "log": log_error}, "add_to_cds")
             raise DeploymentError(log_error)
 
         if server_group["groupType"] != "BP":
             log_error = "CDS  error. Wrong server group"
-            self.logger.log({"sever_group": "fail", "log": log_error}, "add_to_cds")
             raise DeploymentError(log_error)
-        self.logger.log({"sever_group": "yes"}, "add_to_cds")
         return server_group
 
     def _get_highest_waf_version(self):
@@ -83,7 +79,7 @@ class CDSAPI():
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"sever_group": "fail", "log": log_error}, "add_to_cds")
+            self.logger.log({"sever_group": "fail", "log": log_error})
             raise DeploymentError(log_error)
         resp = json.loads(response.content)
 
@@ -98,7 +94,7 @@ class CDSAPI():
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"sever_group": "fail", "log": log_error}, "add_to_cds")
+            self.logger.log({"sever_group": "fail", "log": log_error})
             raise DeploymentError(log_error)
         resp = json.loads(response.content)
 
@@ -113,7 +109,7 @@ class CDSAPI():
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"sever_group": "fail", "log": log_error}, "add_to_cds")
+            self.logger.log({"sever_group": "fail", "log": log_error})
             raise DeploymentError(log_error)
         resp = json.loads(response.content)
 
@@ -128,7 +124,7 @@ class CDSAPI():
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"sever_group": "fail", "log": log_error}, "add_to_cds")
+            self.logger.log({"sever_group": "fail", "log": log_error})
             raise DeploymentError(log_error)
         resp = json.loads(response.content)
 
@@ -143,7 +139,7 @@ class CDSAPI():
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"sever_group": "fail", "log": log_error}, "add_to_cds")
+            self.logger.log({"sever_group": "fail", "log": log_error})
             raise DeploymentError(log_error)
         resp = json.loads(response.content)
 
@@ -159,7 +155,7 @@ class CDSAPI():
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"check_server_exist": "fail", "log": log_error}, "add_to_cds")
+            self.logger.log({"check_server_exist": "fail", "log": log_error})
             raise DeploymentError(log_error)
         resp = json.loads(response.content)
         if response.status_code == 400:
@@ -168,7 +164,7 @@ class CDSAPI():
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"check_server_exist": "fail", "log": log_error}, "add_to_cds")
+            self.logger.log({"check_server_exist": "fail", "log": log_error})
             raise DeploymentError(log_error)
         logger.info('Server found with id %s' % resp["_id"])
         self.proxy_server = resp
@@ -198,10 +194,10 @@ class CDSAPI():
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"sever_add": "fail", "error_log": log_error}, "add_to_cds")
+            self.logger.log({"sever_add": "fail", "error_log": log_error})
             raise DeploymentError(log_error)
         self.proxy_server = json.loads(response.text)
-        self.logger.log({"sever_add": "yes"}, "add_to_cds")
+        self.logger.log({"sever_add": "yes"})
         # TODO fix this log
         logger.info("new server id ")
 
@@ -218,7 +214,7 @@ class CDSAPI():
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"sever_add": "fail", "error_log": log_error}, "add_to_cds")
+            self.logger.log({"sever_add": "fail", "error_log": log_error})
             raise DeploymentError(log_error)
         self.proxy_server = json.loads(response.text)
 
@@ -233,10 +229,10 @@ class CDSAPI():
         for pack in packages:
             if not server.check_install_package(pack):
                 log_error = "%s not installed" % pack
-                self.logger.log({"check_packages": "fail", "error_log": log_error}, "add_to_cds")
+                self.logger.log({"check_packages": "fail", "error_log": log_error})
                 raise DeploymentError(log_error)
             logger.info("%s installed." % pack)
-        self.logger.log({"check_packages": "yes"}, "add_to_cds")
+        self.logger.log({"check_packages": "yes"})
 
     def monitor_ssl_configuration(self):
         start_time = datetime.now()
@@ -264,8 +260,7 @@ class CDSAPI():
                         " configuration %s" % finish_time.isoformat()
                     )
                     self.logger.log(
-                        {"install_ssl_configuration": "yes"},
-                        "add_to_cds"
+                        {"install_ssl_configuration": "yes"}
                     )
                     return {
                         'start_time': start_time,
@@ -275,8 +270,7 @@ class CDSAPI():
             iteration += iteration
             time.sleep(10)
         self.logger.log(
-            {"install_ssl_configuration": "fail", "error_log": "To long installing"},
-            "add_to_cds"
+            {"install_ssl_configuration": "fail", "error_log": "To long installing"}
         )
         raise DeploymentError("To long installing")
 
@@ -311,8 +305,7 @@ class CDSAPI():
                         "configuration %s" % finish_time.isoformat()
                     )
                     self.logger.log(
-                        {"install_waf_and_sdk_configuration": "yes"},
-                        "add_to_cds"
+                        {"install_waf_and_sdk_configuration": "yes"}
                     )
                     return {
                         'start_time': start_time,
@@ -322,8 +315,10 @@ class CDSAPI():
             iteration += iteration
             time.sleep(10)
         self.logger.log(
-            {"install_waf_and_sdk_configuration": "fail", "error_log": "To long installing"},
-            "add_to_cds"
+            {
+                "install_waf_and_sdk_configuration": "fail",
+                "error_log": "To long installing"
+            }
         )
         raise DeploymentError("To long installing")
 
@@ -363,8 +358,7 @@ class CDSAPI():
                         "end monitoring to update purge and domain "
                         "configuration %s" % finish_time.isoformat())
                     self.logger.log(
-                        {"install_purge_and_domain_configuration": "fail"},
-                        "add_to_cds"
+                        {"install_purge_and_domain_configuration": "fail"}
                     )
                     return {
                         'start_time': start_time,
@@ -373,8 +367,10 @@ class CDSAPI():
             iteration += iteration
             time.sleep(10)
         self.logger.log(
-            {"install_purge_and_domain_configuration": "fail", "error_log": "To long installing"},
-            "add_to_cds"
+            {
+                "install_purge_and_domain_configuration": "fail",
+                "error_log": "To long installing"
+            }
         )
         raise DeploymentError("To long installing")
 
@@ -395,7 +391,7 @@ class CDSAPI():
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"sever_add": "fail", "log": log_error}, "add_to_cds")
+            self.logger.log({"sever_add": "fail", "log": log_error})
             raise DeploymentError(log_error)
         logger.info("server succesful added to group")
         self.server_group = json.loads(response.text)
@@ -414,7 +410,7 @@ class CDSAPI():
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"sever_add": "fail", "log": log_error}, "add_to_cds")
+            self.logger.log({"sever_add": "fail", "log": log_error})
             raise DeploymentError(log_error)
 
     def get_all_group_with_this_server(self):
@@ -427,13 +423,13 @@ class CDSAPI():
             log_error = "Server error. Status: %s Error: %s" % (
                 response.status_code, response.text
             )
-            self.logger.log({"sever_group": "fail", "log": log_error}, "add_to_cds")
+            self.logger.log({"sever_group": "fail", "log": log_error})
             raise DeploymentError(log_error)
         server_groups = json.loads(response.content)
         if not server_groups:
             log_error = "Server error. Wrong hosting provider name." \
                         " Hosting provider not found"
-            self.logger.log({"sever_group": "fail", "log": log_error}, "add_to_cds")
+            self.logger.log({"sever_group": "fail", "log": log_error})
             raise DeploymentError(log_error)
         group_with_server = []
         for group in server_groups:
@@ -456,7 +452,7 @@ class CDSAPI():
                 log_error = "Server error. Status: %s Error: %s" % (
                     response.status_code, response.text
                 )
-                self.logger.log({"sever_add": "fail", "log": log_error}, "add_to_cds")
+                self.logger.log({"sever_add": "fail", "log": log_error})
                 raise DeploymentError(log_error)
 
     def check_server_in_group(self):

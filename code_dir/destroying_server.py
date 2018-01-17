@@ -42,6 +42,158 @@ logger.setLevel(logging.DEBUG)
 
 
 class DestroySequence(SequenceAbstract):
+    check_status = {}
+    logger_schema = {
+        "type": "object",
+        "properties": {
+            "time": {"type": "string"},
+            "start_time": {"type": "string"},
+            "initial_data": {
+                "type": "object",
+                "properties": {
+                    "hostname": {"type": "string"},
+                    "ip": {
+                        "type": "string",
+                        "pattern": "(([0-9]|[1-9][0-9]|1[0-9]"
+                                   "{2}|2[0-4][0-9]|25[0-5])\.)"
+                                   "{3}([0-9]|[1-9][0-9]|1[0-9]"
+                                   "{2}|2[0-4][0-9]|25[0-5])"
+                    },
+                    "login": {"type": "string"},
+                    "password": {"type": "string"},
+
+                }
+            },
+            "init_step": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                }
+            },
+
+            "remove_ns1_balancing_rule": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+            "remove_ns1_monitor": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+            "remove_from_nagios": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+            "remove_from_cds": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+            "remove_from_infradb": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+            "remove_from_puppet": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+            "remove_ns1_a_record": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+            "remove_from_pssh_file": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+        },
+        "required": [
+            "time",
+            "start_time",
+            "initial_data",
+            "init_step",
+            "remove_ns1_balancing_rule",
+            "remove_ns1_monitor",
+            "remove_from_nagios",
+            "remove_from_cds",
+            "remove_from_infradb",
+            "remove_from_puppet",
+            "remove_ns1_a_record",
+            "remove_from_pssh_file",
+        ]
+    }
+    logger_steps = [
+        "init_step",
+        "remove_ns1_balancing_rule",
+        "remove_ns1_monitor",
+        "remove_from_nagios",
+        "remove_from_cds",
+        "remove_from_infradb",
+        "remove_from_puppet",
+        "remove_ns1_a_record",
+        "remove_from_pssh_file",
+    ]
+    current_server_state = {
+        "time": None,
+        "init_step": {
+            "runned": "no",
+        },
+        "remove_ns1_balancing_rule": {
+            "runned": "no",
+        },
+        "remove_ns1_monitor": {
+            "runned": "no",
+        },
+        "remove_from_nagios": {
+            "runned": "no",
+        },
+        "remove_from_cds": {
+            "runned": "no",
+        },
+        "remove_from_infradb": {
+            "runned": "no",
+        },
+        "remove_from_puppet": {
+            "runned": "no",
+        },
+        "remove_ns1_a_record": {
+            "runned": "no",
+        },
+        "remove_from_pssh_file": {
+            "runned": "no",
+        },
+    }
 
     def __init__(self, args):
         super(DestroySequence, self).__init__(args)
@@ -69,11 +221,13 @@ class DestroySequence(SequenceAbstract):
         self.record_type = args.record_type
 
     def remove_from_nagios(self):
+        self.logger.init_new_step("remove_from_nagios")
         nagios = NagiosServer(self.host_name, self.logger, self.short_name)
         nagios.delete_config_file()
         nagios.reload_nagios()
 
     def remove_from_cds(self):
+        self.logger.init_new_step("remove_from_cds")
         cds = CDSAPI(self.server_group, self.host_name, self.logger)
         server = cds.check_server_exist()
         if not server:
@@ -87,6 +241,7 @@ class DestroySequence(SequenceAbstract):
         cds.delete_server()
 
     def remove_ns1_monitor(self):
+        self.logger.init_new_step("remove_ns1_monitor")
         monitor_id = self.ns1.check_is_monitor_exist()
         if not monitor_id:
             logger.info("NS1 monitor not exist")
@@ -95,10 +250,11 @@ class DestroySequence(SequenceAbstract):
         self.ns1.delete_monitor(monitor_id)
 
     def remove_from_infradb(self):
+        self.logger.init_new_step("remove_from_infradb")
         self.infradb.delete_server(self.host_name)
 
     def remove_ns1_a_record(self):
-
+        self.logger.init_new_step("remove_ns1_a_record")
         record = self.ns1.get_a_record(
             self.zone, self.short_name, self.record_type
         )
@@ -110,6 +266,7 @@ class DestroySequence(SequenceAbstract):
         logger.info("Record succesfully deleted")
 
     def remove_from_puppet(self):
+        self.logger.init_new_step("remove_from_puppet")
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(
@@ -136,6 +293,7 @@ class DestroySequence(SequenceAbstract):
         logger.info("Server %s was deleted from puppet" % self.host_name)
 
     def remove_ns1_balancing_rule(self):
+        self.logger.init_new_step("remove_ns1_balancing_rule")
         logger.info("Getting dns balance name from CDS")
         logger.info("DNS balancing name is %s" % self.dns_balancing_name)
         logger.info("Getting DNS balance record")
@@ -166,6 +324,7 @@ class DestroySequence(SequenceAbstract):
         logger.info("Continue work")
 
     def remove_from_pssh_file(self):
+        self.logger.init_new_step("remove_from_pssh_file")
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(

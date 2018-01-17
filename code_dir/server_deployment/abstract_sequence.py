@@ -31,7 +31,7 @@ from server_deployment.nagios_class import NagiosServer
 from server_deployment.nsone_class import Ns1Deploy
 
 from server_deployment.cds_api import CDSAPI
-from server_deployment.utilites import DeploymentError
+from server_deployment.utilites import DeploymentError, MongoDBHandler
 
 # logging.config.dictConfig(settings.LOGGING)
 logger = logging.getLogger('ServerDeploy')
@@ -39,6 +39,48 @@ logger.setLevel(logging.DEBUG)
 
 
 class SequenceAbstract(object):
+    check_status = {}
+    logger_schema = {
+        "type": "object",
+        "properties": {
+            "time": {"type": "string"},
+            "start_time": {"type": "string"},
+            "initial_data": {
+                "type": "object",
+                "properties": {
+                    "hostname": {"type": "string"},
+                    "ip": {
+                        "type": "string",
+                        "pattern": "(([0-9]|[1-9][0-9]|1[0-9]"
+                                   "{2}|2[0-4][0-9]|25[0-5])\.)"
+                                   "{3}([0-9]|[1-9][0-9]|1[0-9]"
+                                   "{2}|2[0-4][0-9]|25[0-5])"
+                    },
+                    "login": {"type": "string"},
+                    "password": {"type": "string"},
+
+                }
+            },
+            "init_step": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                }
+            },
+        },
+        "required": ['time', "start_time", "initial_data", 'init_step']
+    }
+    current_server_state = {
+        "time": None,
+        "init_step": {
+            "runned": "no",
+        },
+    }
+    logger_steps = [
+        "init_step",
+    ]
 
     def __init__(self, args):
 
@@ -55,10 +97,7 @@ class SequenceAbstract(object):
             self.number_of_steps = args.number_of_steps_to_execute
         else:
             self.number_of_steps = None
-        self.location_code = self.get_location_code()
-        self.zone_name = self.get_zone_name(self.host_name)
-        self.hosting_name = args.hosting
-        # self.zone_name = "attested.club"
+
         self.logger = MongoLogger(
             self.host_name, datetime.datetime.now().isoformat(),
             {
@@ -66,8 +105,20 @@ class SequenceAbstract(object):
                 "ip": self.ip,
                 "login": args.login,
                 "password": args.password,
-            }
+            },
+            self.logger_schema,
+            self.current_server_state,
+            self.logger_steps
         )
+        # adding MongoDb logger to logger handler
+        for handler in logger.handlers:
+            if isinstance(handler, MongoDBHandler):
+                handler.add_mongo_logger(self.logger)
+        self.logger.init_new_step('init_step')
+        self.location_code = self.get_location_code()
+        self.zone_name = self.get_zone_name(self.host_name)
+        self.hosting_name = args.hosting
+        # self.zone_name = "attested.club"
 
         self.ns1 = Ns1Deploy(self.host_name, self.ip, self.logger)
         self.server_group = args.server_group
@@ -145,6 +196,7 @@ class SequenceAbstract(object):
             logger.info("=============== BEGIN %s STAGE ==============" % step)
             self.steps[step]()
             logger.info("=============== END %s STAGE ================" % step)
+        logger.info(self.check_status)
 
     def get_location_code(self):
         m = re.search('^(.+?)-', self.host_name)

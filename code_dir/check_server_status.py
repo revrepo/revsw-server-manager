@@ -45,6 +45,189 @@ logger.setLevel(logging.DEBUG)
 
 
 class CheckingSequence(SequenceAbstract):
+    logger_schema = {
+        "type": "object",
+        "properties": {
+            "time": {"type": "string"},
+            "start_time": {"type": "string"},
+            "initial_data": {
+                "type": "object",
+                "properties": {
+                    "hostname": {"type": "string"},
+                    "ip": {
+                        "type": "string",
+                        "pattern": "(([0-9]|[1-9][0-9]|1[0-9]"
+                                   "{2}|2[0-4][0-9]|25[0-5])\.)"
+                                   "{3}([0-9]|[1-9][0-9]|1[0-9]"
+                                   "{2}|2[0-4][0-9]|25[0-5])"
+                    },
+                    "login": {"type": "string"},
+                    "password": {"type": "string"},
+
+                }
+            },
+            "init_step": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                }
+            },
+
+            "check_server_consistency": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_ram_size": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_free_space": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_hw_architecture": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_os_version": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_ping_8888": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+            "check_hostname": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_hostname": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+            "check_ns1_a_record": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+            "check_infradb": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+            "check_cds": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+            "check_nagios": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+            "check_puppet": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+            "check_ns1_balancing_rule": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+            "check_pssh_file": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+            "check_fw_rules": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
+        },
+        "required": [
+            "time",
+            "start_time",
+            "initial_data",
+            "init_step",
+            "check_server_consistency",
+            "check_hostname",
+            "check_ns1_a_record",
+            "check_infradb",
+            "check_cds",
+            "check_nagios",
+            "check_puppet",
+            "check_ns1_balancing_rule",
+            "check_pssh_file",
+            "check_fw_rules",
+        ]
+    }
+    logger_steps = [
+        "init_step",
+        "check_server_consistency",
+        "check_hostname",
+        "check_ns1_a_record",
+        "check_infradb",
+        "check_cds",
+        "check_nagios",
+        "check_puppet",
+        "check_ns1_balancing_rule",
+        "check_pssh_file",
+        "check_fw_rules",
+    ]
+    current_server_state = {
+        "time": None,
+        "init_step": {
+            "runned": "no",
+        },
+        "check_server_consistency": {
+            "runned": "no",
+        },
+        "check_hostname": {
+            "runned": "no",
+        },
+        "check_ns1_a_record": {
+            "runned": "no",
+        },
+        "check_infradb": {
+            "runned": "no",
+        },
+        "check_cds": {
+            "runned": "no",
+        },
+        "check_nagios": {
+            "runned": "no",
+        },
+        "check_puppet": {
+            "runned": "no",
+        },
+        "check_ns1_balancing_rule": {
+            "runned": "no",
+        },
+        "check_pssh_file": {
+            "runned": "no",
+        },
+        "check_fw_rules": {
+            "runned": "no",
+        },
+    }
 
     check_status = {
         "server_consistency": 'Not checked',
@@ -99,26 +282,40 @@ class CheckingSequence(SequenceAbstract):
         )
 
     def check_server_consistency(self):
-        try:
-            self.server.check_ram_size()
-            self.server.check_free_space()
-            self.server.check_hw_architecture()
-            self.server.check_os_version()
-            self.server.check_ping_8888()
-        except DeploymentError as e:
-            logger.info(e.message)
+        self.logger.init_new_step("check_server_consistency")
+        checking = True
+        checking_dict = {
+            "check_ram_size": self.server.check_ram_size,
+            "check_free_space": self.server.check_free_space,
+            "check_hw_architecture": self.server.check_hw_architecture,
+            "check_os_version": self.server.check_os_version,
+            "check_ping_8888": self.server.check_ping_8888,
+        }
+        for check_name, check_func in checking_dict.iteritems():
+            try:
+                check_func()
+                self.logger.log({check_name: "yes"})
+            except DeploymentError as e:
+                checking = False
+                self.logger.log({check_name: "fail"})
+                logger.info(e.message)
+        if not checking:
             self.check_status["server_consistency"] = "Not OK"
-            return
-        self.check_status["server_consistency"] = "OK"
+        else:
+            self.check_status["server_consistency"] = "OK"
 
     def check_hostname(self):
+        self.logger.init_new_step("check_hostname")
         hostname = self.server.check_hostname()
         if hostname.rstrip() != self.host_name:
+            self.logger.log({"check_hostname": "fail"})
             self.check_status["check_hostname"] = "Not OK"
             return
+        self.logger.log({"check_hostname": "yes"})
         self.check_status["check_hostname"] = "OK"
 
     def check_ns1_a_record(self):
+        self.logger.init_new_step("check_ns1_a_record")
         record = self.ns1.get_a_record(
             self.zone, self.short_name, self.record_type
         )
@@ -128,6 +325,7 @@ class CheckingSequence(SequenceAbstract):
         self.check_status["check_ns1_a_record"] = "Not OK"
 
     def check_infradb(self):
+        self.logger.init_new_step("check_infradb")
         server = self.infradb.get_server(self.host_name)
         if server:
             self.check_status["check_infradb"] = "OK"
@@ -135,6 +333,7 @@ class CheckingSequence(SequenceAbstract):
         self.check_status["check_infradb"] = "Not OK"
 
     def check_cds(self):
+        self.logger.init_new_step("check_cds")
         cds = CDSAPI(self.server_group, self.host_name, self.logger)
         server = cds.check_server_exist()
         if server:
@@ -143,6 +342,7 @@ class CheckingSequence(SequenceAbstract):
         self.check_status["check_cds"] = "Not OK"
 
     def check_ns1_balancing_rule(self):
+        self.logger.init_new_step("check_ns1_balancing_rule")
         record = self.ns1.get_a_record(
             self.balancing_rule_zone, self.dns_balancing_name, self.record_type
         )
@@ -160,6 +360,7 @@ class CheckingSequence(SequenceAbstract):
         self.check_status["check_ns1_balancing_rule"] = "Not OK"
 
     def check_pssh_file(self):
+        self.logger.init_new_step("check_pssh_file")
         client = paramiko.SSHClient()
         client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
         client.connect(
@@ -182,6 +383,7 @@ class CheckingSequence(SequenceAbstract):
         self.check_status["check_pssh_file"] = "Not OK"
 
     def check_nagios(self):
+        self.logger.init_new_step("check_nagios")
         logger.info("Check if server added to nagios")
         host = self.nagios.get_host()
         if not host:
@@ -197,6 +399,7 @@ class CheckingSequence(SequenceAbstract):
         self.check_status["check_nagios"] = "OK"
 
     def check_puppet(self):
+        self.logger.init_new_step("check_puppet")
         try:
             cds = CDSAPI(self.server_group, self.host_name, self.logger)
             cds.check_installed_packages(self.server)
@@ -206,7 +409,7 @@ class CheckingSequence(SequenceAbstract):
         self.check_status["check_puppet"] = "OK"
 
     def check_fw_rules(self):
-
+        self.logger.init_new_step("check_fw_rules")
         client = self.connect_to_serv(
             settings.INSTALL_SERVER_HOST,
             settings.INSTALL_SERVER_LOGIN,

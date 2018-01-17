@@ -123,7 +123,7 @@ class ServerState():
             'authentification with  default credetials '
             'fail. trying to auth with key'
         )
-        connect = self.connection('robot', using_key=True)
+        connect = self.connection('sergey', using_key=True)
         if connect:
             return
         raise DeploymentError("Problem with auth to server")
@@ -221,7 +221,7 @@ class ServerState():
         )
         if puppet_installed != 0:
             log_error = "Server error. Status: %s Error: %s"
-            self.mongo_log.log({"error_log": log_error}, "install_puppet")
+            self.mongo_log.log({"error_log": log_error})
             raise DeploymentError(log_error)
 
     def configure_puppet(self):
@@ -233,7 +233,9 @@ class ServerState():
 
     def remove_puppet(self):
         logger.info('Removing puppet from server')
-        self.execute_command_with_log("pkill -9 puppet")
+        self.execute_command_with_log(
+            "pkill -9 puppet", check_status=False
+        )
         self.execute_command_with_log(
             "sudo rm -r /var/lib/puppet/ssl", check_status=False
         )
@@ -285,7 +287,7 @@ class ServerState():
             logger.info(line)
         if check_status and stdout.channel.recv_exit_status() != 0:
             log_error = "wrong status code after %s " % command
-            self.mongo_log.log({ "log": log_error}, "install_puppet")
+            self.mongo_log.log({"log": log_error})
             raise DeploymentError(log_error)
         logger.info(
             "%s was finished with code %s" % (

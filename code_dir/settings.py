@@ -48,6 +48,11 @@ LOGGING = {
             'class': 'logging.StreamHandler',
             'formatter': 'timing'
         },
+        "mongodb_handler": {
+            'level': 'DEBUG',
+            'class': 'server_deployment.utilites.MongoDBHandler',
+            'formatter': 'timing'
+        }
     },
     'loggers': {
         'RS': {
@@ -75,7 +80,7 @@ LOGGING = {
             'level': 'DEBUG',
         },
         'ServerDeploy': {
-            'handlers': ['console_full'],
+            'handlers': ['console_full', "mongodb_handler"],
             'level': 'DEBUG',
         },
     }
