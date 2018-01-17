@@ -139,8 +139,7 @@ class NagiosServer():
         if chan != 0:
             log_error = "Nagios reload error"
             self.mongo_log.log(
-                {"nagios_reloaded": "fail", "error_log": log_error},
-                "add_to_nagios"
+                {"nagios_reloaded": "fail", "error_log": log_error}
             )
             raise DeploymentError(log_error)
 
@@ -172,9 +171,11 @@ class NagiosServer():
         for service_name, service_data in services.iteritems():
             if service_name in settings.IGNORE_NAGIOS_SERVICES:
                 continue
-
+            logger.info("Checking service %s" % service_name)
             if service_data['last_hard_state'] != "0":
+                logger.info("Service %s is not UP" % service_name)
                 raise DeploymentError("Service %s is not UP" % service_name)
+            logger.info("Service %s is UP" % service_name)
 
     def get_host(self):
         return self.nagios_api.get_host(self.short_name)

@@ -39,7 +39,7 @@ import settings
 from server_deployment.cds_api import CDSAPI
 from server_deployment.infradb import InfraDBAPI
 from server_deployment.server_state import ServerState
-from server_deployment.utilites import DeploymentError
+from server_deployment.utilites import DeploymentError, MongoDBHandler
 from server_deployment.nsone_class import Ns1Deploy
 from server_deployment.test_utilites import NS1MonitorMock, MockNSONE, Objectview,\
     MockedInfraDB, NS1ZoneMock, \
@@ -50,6 +50,7 @@ import server_deployment.abstract_sequence as abs_sequence
 import server_deploy as deploy_sequence
 import destroying_server as destroy_sequence
 import server_deployment.nagios_class as nagios_deploy
+import server_deployment.cds_api as cds_deploy
 
 
 TEST_DIR = os.path.join(
@@ -62,6 +63,59 @@ TEST_DIR = os.path.join(
 
 class TestAbstract(unittest.TestCase):
     testing_class = None
+    logger_steps = [
+        "check_server_consistency",
+    ]
+    current_server_state = {
+        "time": None,
+        "check_server_consistency": {
+            "runned": "no",
+        },
+    }
+    logger_schema = {
+        "type": "object",
+        "properties": {
+            "time": {"type": "string"},
+            "start_time": {"type": "string"},
+            "initial_data": {
+                "type": "object",
+                "properties": {
+                    "hostname": {"type": "string"},
+                    "ip": {
+                        "type": "string",
+                        "pattern": "(([0-9]|[1-9][0-9]|1[0-9]"
+                                   "{2}|2[0-4][0-9]|25[0-5])\.)"
+                                   "{3}([0-9]|[1-9][0-9]|1[0-9]"
+                                   "{2}|2[0-4][0-9]|25[0-5])"
+                    },
+                    "login": {"type": "string"},
+                    "password": {"type": "string"},
+
+                }
+            },
+            "check_server_consistency": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_ram_size": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_free_space": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_hw_architecture": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_os_version": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_ping_8888": {"type": "string", "pattern": "yes|no|fail"},
+                    "hostname": {"type": "string"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}  # [|if returned code !=0]
+                },
+            },
+        },
+        "required": [
+            "time",
+            "start_time",
+            "initial_data",
+            "check_server_consistency",
+
+        ]
+    }
 
     def setUp(self):
         # mocking mogo db variables for conecting to test  database
@@ -76,10 +130,10 @@ class TestAbstract(unittest.TestCase):
         # print name of running test
         print("RUN_TEST %s" % self._testMethodName)
 
-    # def tearDown(self):
-    #     self.mongo_cli.drop_database('test_database')
-    #     # remove all temporary test files
-    #     os.system("rm -r %s" % TEST_DIR)
+    def tearDown(self):
+        self.mongo_cli.drop_database('test_database')
+        # remove all temporary test files
+        # os.system("rm -r %s" % TEST_DIR)
 
     def check_log_exist(self):
         return self.log_collection.find_one()
@@ -87,6 +141,59 @@ class TestAbstract(unittest.TestCase):
 
 
 class TestLoggerClass(TestAbstract):
+    logger_steps = [
+        "check_server_consistency",
+    ]
+    current_server_state = {
+        "time": None,
+        "check_server_consistency": {
+            "runned": "no",
+        },
+    }
+    logger_schema = {
+        "type": "object",
+        "properties": {
+            "time": {"type": "string"},
+            "start_time": {"type": "string"},
+            "initial_data": {
+                "type": "object",
+                "properties": {
+                    "hostname": {"type": "string"},
+                    "ip": {
+                        "type": "string",
+                        "pattern": "(([0-9]|[1-9][0-9]|1[0-9]"
+                                   "{2}|2[0-4][0-9]|25[0-5])\.)"
+                                   "{3}([0-9]|[1-9][0-9]|1[0-9]"
+                                   "{2}|2[0-4][0-9]|25[0-5])"
+                    },
+                    "login": {"type": "string"},
+                    "password": {"type": "string"},
+
+                }
+            },
+            "check_server_consistency": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_ram_size": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_free_space": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_hw_architecture": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_os_version": {"type": "string", "pattern": "yes|no|fail"},
+                    "check_ping_8888": {"type": "string", "pattern": "yes|no|fail"},
+                    "hostname": {"type": "string"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}  # [|if returned code !=0]
+                },
+            },
+        },
+        "required": [
+            "time",
+            "start_time",
+            "initial_data",
+            "check_server_consistency",
+
+        ]
+    }
     testing_class = mongo_logger.MongoLogger(
         'test_host', datetime.datetime.now().isoformat(),
         {
@@ -94,7 +201,11 @@ class TestLoggerClass(TestAbstract):
             "ip": '111.111.111.111',
             "login": 'login',
             "password": 'passw',
-        }
+        },
+        logger_schema,
+        current_server_state,
+        logger_steps
+
     )
 
     test_server_status = {
@@ -202,15 +313,7 @@ class TestInfraDBAPI(TestAbstract):
         self.infra_db_url = 'http://localhost:8000/api/'
         # settings.INFRADB_URL = self.infra_db_url
 
-        self.logger = mongo_logger.MongoLogger(
-            'test_host', datetime.datetime.now().isoformat(),
-            {
-                "hostname": 'hostname',
-                "ip": '111.111.111.111',
-                "login": 'login',
-                "password": 'passw',
-            }
-        )
+        self.logger = Mock()
         with responses.RequestsMock() as rsps:
             rsps.add(
                 responses.GET,
@@ -375,15 +478,11 @@ class TestCDSAPI(TestAbstract):
         self.server_group_id = 123
         # settings.INFRADB_URL = self.infra_db_url
 
-        self.logger = mongo_logger.MongoLogger(
-            'test_host', datetime.datetime.now().isoformat(),
-            {
-                "hostname": 'hostname',
-                "ip": '111.111.111.111',
-                "login": 'login',
-                "password": 'passw',
-            }
-        )
+        self.logger = Mock()
+        # adding MongoDb logger to logger handler
+        for handler in cds_deploy.logger.handlers:
+            if isinstance(handler, MongoDBHandler):
+                handler.add_mongo_logger(self.logger)
         self.host_name = "test_host"
         with responses.RequestsMock() as rsps:
             rsps.add(responses.GET,
@@ -739,7 +838,10 @@ class TestNS1Class(TestAbstract):
                 "ip": '111.111.111.111',
                 "login": 'login',
                 "password": 'passw',
-            }
+            },
+            self.logger_schema,
+            self.current_server_state,
+            self.logger_steps
         )
         self.mocked_ns1_class = MockNSONE(apikey="1234")
         self.mocked_ns1_monitors = NS1MonitorMock()
@@ -849,7 +951,10 @@ class TestAbstractSequence(TestAbstract):
                 "ip": '111.111.111.111',
                 "login": 'login',
                 "password": 'passw',
-            }
+            },
+            self.logger_schema,
+            self.current_server_state,
+            self.logger_steps
         )
         self.host_name = "test-host.test.test"
         args_dict = {
@@ -945,16 +1050,7 @@ class TestDeploymentSequence(TestAbstract):
         self.server_group_id = 123
         # settings.INFRADB_URL = self.infra_db_url
 
-        self.logger = mongo_logger.MongoLogger(
-            'test_host', datetime.datetime.now().isoformat(),
-            {
-                "hostname": 'hostname',
-                "ip": '111.111.111.111',
-                "login": 'login',
-                "password": 'passw',
-            }
-
-        )
+        self.logger = Mock()
         self.host_name = "test-host.test.test"
         args_dict = {
             'host_name': self.host_name,
@@ -1197,7 +1293,10 @@ class TestDestroySequence(TestAbstract):
                 "ip": '111.111.111.111',
                 "login": 'login',
                 "password": 'passw',
-            }
+            },
+            self.logger_schema,
+            self.current_server_state,
+            self.logger_steps
         )
         self.host_name = "test-host.test.test"
         args_dict = {
@@ -1344,7 +1443,10 @@ class TestServerState(TestAbstract):
                 "ip": '111.111.111.111',
                 "login": 'login',
                 "password": 'passw',
-            }
+            },
+            self.logger_schema,
+            self.current_server_state,
+            self.logger_steps
         )
         self.mocked_ns1_class = MockNSONE(apikey="1234")
         self.mocked_ns1_monitors = NS1MonitorMock()
@@ -1688,9 +1790,9 @@ class TestServerState(TestAbstract):
         self.testing_class.client.exec_command.return_value = [
             '1', MockedExecOutput(['test'], return_status=1), '3'
         ]
-        self.assertRaises(
-            DeploymentError,
-            self.testing_class.remove_puppet
+        self.testing_class.remove_puppet()
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo rm -r /var/lib/puppet/ssl"
         )
 
     def test_configure_puppet(self):
@@ -1728,15 +1830,10 @@ class TestNagiosServer(TestAbstract):
         self.mongo_db = self.mongo_cli[settings.MONGO_DB_NAME]
         self.log_collection = self.mongo_db['test_host']
 
-        self.logger = mongo_logger.MongoLogger(
-            'test_host', datetime.datetime.now().isoformat(),
-            {
-                "hostname": 'hostname',
-                "ip": '111.111.111.111',
-                "login": 'login',
-                "password": 'passw',
-            }
-        )
+        self.logger = Mock()
+        for handler in nagios_deploy.logger.handlers:
+            if isinstance(handler, MongoDBHandler):
+                handler.add_mongo_logger(self.logger)
         self.host_name = 'test-test1.host'
         self.short_host = 'test-test1'
         self.connection = Mock()
@@ -1876,7 +1973,10 @@ class TestCheckSequence(TestAbstract):
                 "ip": '111.111.111.111',
                 "login": 'login',
                 "password": 'passw',
-            }
+            },
+            self.logger_schema,
+            self.current_server_state,
+            self.logger_steps
 
         )
         self.host_name = "test-host.test.test"
@@ -1947,6 +2047,25 @@ class TestCheckSequence(TestAbstract):
         connection.exec_command.assert_called_with(
             'sudo ufw status|grep 111.111.111.11'
         )
+
+    @patch('check_server_status.CheckingSequence.connect_to_serv')
+    def test_check_server_consistency(self, conn):
+        connection = Mock()
+        conn.return_value = connection
+        self.testing_class.server = Mock()
+        self.testing_class.server.server.check_ram_size.return_value = None
+        self.testing_class.server.check_free_space.return_value = None
+        self.testing_class.server.check_hw_architecture.return_value = None
+        self.testing_class.server.check_os_version.return_value = None
+        self.testing_class.server.check_ping_8888.return_value = None
+
+        self.testing_class.check_server_consistency()
+
+        # self.testing_class.server.server.check_ram_size.assert_called()
+        # self.testing_class.server.check_free_space.assert_called()
+        # self.testing_class.server.check_hw_architecture.assert_called()
+        # self.testing_class.server.check_os_version.assert_called()
+        # self.testing_class.server.check_ping_8888.assert_called()
 
 
 if __name__ == '__main__':
