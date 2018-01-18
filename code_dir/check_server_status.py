@@ -348,6 +348,7 @@ class CheckingSequence(SequenceAbstract):
         )
         if not record:
             logger.info(' A dns balance record not found')
+            self.check_status["check_ns1_balancing_rule"] = "Not OK"
             return
 
         answer_exist = False
@@ -361,13 +362,10 @@ class CheckingSequence(SequenceAbstract):
 
     def check_pssh_file(self):
         self.logger.init_new_step("check_pssh_file")
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(
-            hostname=settings.PSSH_SERVER,
-            username=settings.PSSH_SERVER_LOGIN,
-            password=settings.PSSH_SERVER_PASSWORD,
-            port=22
+        client = self.connect_to_serv(
+            settings.PSSH_SERVER,
+            settings.PSSH_SERVER_LOGIN,
+            settings.PSSH_SERVER_PASSWORD
         )
         logger.info("Check if server already added")
         (stdin, stdout, stderr) = client.exec_command('grep "%s" %s' % (
@@ -389,6 +387,7 @@ class CheckingSequence(SequenceAbstract):
         if not host:
             logger.info("Host not founded in Nagios")
             self.check_status["check_nagios"] = "Not OK"
+            return
         logger.info("Checking nagios services")
         try:
             self.nagios.check_services_status()

@@ -267,13 +267,10 @@ class DestroySequence(SequenceAbstract):
 
     def remove_from_puppet(self):
         self.logger.init_new_step("remove_from_puppet")
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(
-            hostname=settings.INSTALL_SERVER_HOST,
-            username=settings.INSTALL_SERVER_LOGIN,
-            password=settings.INSTALL_SERVER_PASSWORD,
-            port=22
+        client = self.connect_to_serv(
+            settings.INSTALL_SERVER_HOST,
+            settings.INSTALL_SERVER_LOGIN,
+            settings.INSTALL_SERVER_PASSWORD
         )
         logger.info("Deleting server %s from puppet" % self.host_name)
         logger.info("sudo puppet cert clean %s" % self.host_name)
@@ -325,13 +322,10 @@ class DestroySequence(SequenceAbstract):
 
     def remove_from_pssh_file(self):
         self.logger.init_new_step("remove_from_pssh_file")
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(
-            hostname=settings.PSSH_SERVER,
-            username=settings.PSSH_SERVER_LOGIN,
-            password=settings.PSSH_SERVER_PASSWORD,
-            port=22
+        client = self.connect_to_serv(
+            settings.PSSH_SERVER,
+            settings.PSSH_SERVER_LOGIN,
+            settings.PSSH_SERVER_PASSWORD,
         )
         logger.info("Check if server already added")
         (stdin, stdout, stderr) = client.exec_command('grep "%s" %s' % (

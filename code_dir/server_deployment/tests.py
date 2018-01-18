@@ -41,14 +41,15 @@ from server_deployment.infradb import InfraDBAPI
 from server_deployment.server_state import ServerState
 from server_deployment.utilites import DeploymentError, MongoDBHandler
 from server_deployment.nsone_class import Ns1Deploy
-from server_deployment.test_utilites import NS1MonitorMock, MockNSONE, Objectview,\
+from server_deployment.test_utilites import NS1MonitorMock, MockNSONE, Objectview, \
     MockedInfraDB, NS1ZoneMock, \
-    MockedServerClass, NS1Record, MockedExecOutput, MockedNagiosClass
+    MockedServerClass, NS1Record, MockedExecOutput, MockedNagiosClass, NS1MockedRecord
 
 import server_deployment.server_state as server_state
 import server_deployment.abstract_sequence as abs_sequence
 import server_deploy as deploy_sequence
 import destroying_server as destroy_sequence
+import check_server_status as check_sequence
 import server_deployment.nagios_class as nagios_deploy
 import server_deployment.cds_api as cds_deploy
 
@@ -767,6 +768,185 @@ class TestCDSAPI(TestAbstract):
                 'env'
             )
 
+    def test_check_need_update_versions(self):
+        self.testing_class.highest_versions = {
+            'ssl': 100,
+            'sdk': 100,
+            'waf': 100,
+            'domain': 100,
+            'purge': 100,
+        }
+        self.testing_class.proxy_server = {
+            "ssl_cert_version": 100,
+            "app_config_version": 100,
+            "domain_config_version": 100,
+            "waf_rule_version": 100,
+            "purge_version": 100
+
+        }
+        check_list = self.testing_class.check_need_update_versions()
+
+        self.assertEquals(
+            check_list,
+            {
+                'ssl': False,
+                'waf_sdk': False,
+                'domain_purge': False
+            }
+        )
+
+    def test_check_need_update_versions_low_ssl(self):
+        self.testing_class.highest_versions = {
+            'ssl': 100,
+            'sdk': 100,
+            'waf': 100,
+            'domain': 100,
+            'purge': 100,
+        }
+        self.testing_class.proxy_server = {
+            "ssl_cert_version": 99,
+            "app_config_version": 100,
+            "domain_config_version": 100,
+            "waf_rule_version": 100,
+            "purge_version": 100
+
+        }
+        check_list = self.testing_class.check_need_update_versions()
+
+        self.assertEquals(
+            check_list,
+            {
+                'ssl': True,
+                'waf_sdk': False,
+                'domain_purge': False
+            }
+        )
+
+    def test_check_need_update_versions_low_sdk(self):
+        self.testing_class.highest_versions = {
+            'ssl': 100,
+            'sdk': 100,
+            'waf': 100,
+            'domain': 100,
+            'purge': 100,
+        }
+        self.testing_class.proxy_server = {
+            "ssl_cert_version": 100,
+            "app_config_version": 1,
+            "domain_config_version": 100,
+            "waf_rule_version": 100,
+            "purge_version": 100
+
+        }
+        check_list = self.testing_class.check_need_update_versions()
+
+        self.assertEquals(
+            check_list,
+            {
+                'ssl': False,
+                'waf_sdk': True,
+                'domain_purge': False
+            }
+        )
+
+    def test_check_need_update_versions_low_waf(self):
+        self.testing_class.highest_versions = {
+            'ssl': 100,
+            'sdk': 100,
+            'waf': 100,
+            'domain': 100,
+            'purge': 100,
+        }
+        self.testing_class.proxy_server = {
+            "ssl_cert_version": 100,
+            "app_config_version": 100,
+            "domain_config_version": 100,
+            "waf_rule_version": 1,
+            "purge_version": 100
+
+        }
+        check_list = self.testing_class.check_need_update_versions()
+
+        self.assertEquals(
+            check_list,
+            {
+                'ssl': False,
+                'waf_sdk': True,
+                'domain_purge': False
+            }
+        )
+
+    def test_check_need_update_versions_low_domain(self):
+        self.testing_class.highest_versions = {
+            'ssl': 100,
+            'sdk': 100,
+            'waf': 100,
+            'domain': 100,
+            'purge': 100,
+        }
+        self.testing_class.proxy_server = {
+            "ssl_cert_version": 100,
+            "app_config_version": 100,
+            "domain_config_version": 1,
+            "waf_rule_version": 100,
+            "purge_version": 100
+
+        }
+        check_list = self.testing_class.check_need_update_versions()
+
+        self.assertEquals(
+            check_list,
+            {
+                'ssl': False,
+                'waf_sdk': False,
+                'domain_purge': True
+            }
+        )
+
+    def test_check_need_update_versions_low_purge(self):
+        self.testing_class.highest_versions = {
+            'ssl': 100,
+            'sdk': 100,
+            'waf': 100,
+            'domain': 100,
+            'purge': 100,
+        }
+        self.testing_class.proxy_server = {
+            "ssl_cert_version": 100,
+            "app_config_version": 100,
+            "domain_config_version": 100,
+            "waf_rule_version": 100,
+            "purge_version": 1
+
+        }
+        check_list = self.testing_class.check_need_update_versions()
+
+        self.assertEquals(
+            check_list,
+            {
+                'ssl': False,
+                'waf_sdk': False,
+                'domain_purge': True
+            }
+        )
+
+    def test_check_installed_packages(self):
+        server = Mock()
+        server.check_install_package.return_value = True
+        self.testing_class.check_installed_packages(server)
+        server.check_install_package.assert_called()
+
+    def test_check_installed_packages_not_installed(self):
+        server = Mock()
+        server.check_install_package.return_value = False
+        # self.testing_class.check_installed_packages(server)
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.check_installed_packages,
+            server
+        )
+        server.check_install_package.assert_called()
+
 
 class TestNS1Class(TestAbstract):
 
@@ -1266,6 +1446,36 @@ class TestDeploymentSequence(TestAbstract):
         self.testing_class.ns1.check_monitor_status.assert_called()
         self.testing_class.ns1.find_feed.assert_called()
         self.testing_class.ns1.add_answer.assert_not_called()
+
+    def test_check_hostname_step(self):
+        self.testing_class.server = Mock()
+        self.testing_class.server.check_hostname.return_value = "test-host.test.test"
+        self.testing_class.check_hostname_step()
+        self.testing_class.server.check_hostname.assert_called()
+        self.testing_class.server.reboot.assert_not_called()
+
+    def test_check_hostname_step_wrong(self):
+        self.testing_class.server = Mock()
+        self.testing_class.server.check_hostname.return_value = "wrong_test-host.test.test"
+        self.testing_class.check_hostname_step()
+        self.testing_class.server.check_hostname.assert_called()
+        self.testing_class.server.reboot.assert_called()
+
+    def test_run_puppet(self):
+        self.testing_class.server = Mock()
+        self.testing_class.server.run_puppet.return_value = 0
+        self.testing_class.sign_ssl_puppet = Mock()
+        self.testing_class.run_puppet()
+        self.testing_class.sign_ssl_puppet.assert_not_called()
+        self.testing_class.server.run_puppet.assert_called()
+
+    def test_run_puppet_not_first_run(self):
+        self.testing_class.server = Mock()
+        self.testing_class.server.run_puppet.return_value = 1
+        self.testing_class.sign_ssl_puppet = Mock()
+        self.testing_class.run_puppet()
+        self.testing_class.sign_ssl_puppet.assert_called()
+        self.testing_class.server.run_puppet.assert_called()
 
 
 class TestDestroySequence(TestAbstract):
@@ -2002,6 +2212,7 @@ class TestCheckSequence(TestAbstract):
                 as ns1_mock:
             ns1_mock.return_value = NS1ZoneMock()
             self.testing_class = check_server_status.CheckingSequence(args)
+
         # print name of running test
         print("RUN_TEST %s" % self._testMethodName)
 
@@ -2053,19 +2264,258 @@ class TestCheckSequence(TestAbstract):
         connection = Mock()
         conn.return_value = connection
         self.testing_class.server = Mock()
-        self.testing_class.server.server.check_ram_size.return_value = None
-        self.testing_class.server.check_free_space.return_value = None
-        self.testing_class.server.check_hw_architecture.return_value = None
-        self.testing_class.server.check_os_version.return_value = None
-        self.testing_class.server.check_ping_8888.return_value = None
 
         self.testing_class.check_server_consistency()
+        self.assertEquals(
+            self.testing_class.check_status["server_consistency"],
+            "OK"
+        )
 
-        # self.testing_class.server.server.check_ram_size.assert_called()
-        # self.testing_class.server.check_free_space.assert_called()
-        # self.testing_class.server.check_hw_architecture.assert_called()
-        # self.testing_class.server.check_os_version.assert_called()
-        # self.testing_class.server.check_ping_8888.assert_called()
+        self.testing_class.server.check_ram_size.assert_called()
+        self.testing_class.server.check_free_space.assert_called()
+        self.testing_class.server.check_hw_architecture.assert_called()
+        self.testing_class.server.check_os_version.assert_called()
+        self.testing_class.server.check_ping_8888.assert_called()
+
+    @patch('check_server_status.CheckingSequence.connect_to_serv')
+    def test_check_server_consistency_not_enouph_ram(self, conn):
+        connection = Mock()
+        conn.return_value = connection
+        self.testing_class.server = Mock()
+        self.testing_class.server.check_ram_size.side_effect = DeploymentError('RAM')
+        self.testing_class.check_server_consistency()
+        self.assertEquals(
+            self.testing_class.check_status["server_consistency"],
+            "Not OK"
+        )
+        self.testing_class.server.check_ram_size.assert_called()
+        self.testing_class.server.check_free_space.assert_called()
+        self.testing_class.server.check_hw_architecture.assert_called()
+        self.testing_class.server.check_os_version.assert_called()
+        self.testing_class.server.check_ping_8888.assert_called()
+
+    @patch('check_server_status.CheckingSequence.connect_to_serv')
+    def test_check_server_consistency_not_enouph_space(self, conn):
+        connection = Mock()
+        conn.return_value = connection
+        self.testing_class.server = Mock()
+        self.testing_class.server.check_free_space.side_effect = DeploymentError('RAM')
+        self.testing_class.check_server_consistency()
+        self.assertEquals(
+            self.testing_class.check_status["server_consistency"],
+            "Not OK"
+        )
+
+        self.testing_class.server.check_ram_size.assert_called()
+        self.testing_class.server.check_free_space.assert_called()
+        self.testing_class.server.check_hw_architecture.assert_called()
+        self.testing_class.server.check_os_version.assert_called()
+        self.testing_class.server.check_ping_8888.assert_called()
+
+    @patch('check_server_status.CheckingSequence.connect_to_serv')
+    def test_check_server_consistency_wrong_architecture(self, conn):
+        connection = Mock()
+        conn.return_value = connection
+        self.testing_class.server = Mock()
+        self.testing_class.server.check_hw_architecture.side_effect = DeploymentError('RAM')
+
+        self.testing_class.check_server_consistency()
+        self.assertEquals(
+            self.testing_class.check_status["server_consistency"],
+            "Not OK"
+        )
+
+        self.testing_class.server.check_ram_size.assert_called()
+        self.testing_class.server.check_free_space.assert_called()
+        self.testing_class.server.check_hw_architecture.assert_called()
+        self.testing_class.server.check_os_version.assert_called()
+        self.testing_class.server.check_ping_8888.assert_called()
+
+    @patch('check_server_status.CheckingSequence.connect_to_serv')
+    def test_check_server_consistency_wrong_os(self, conn):
+        connection = Mock()
+        conn.return_value = connection
+        self.testing_class.server = Mock()
+        self.testing_class.server.check_os_version.side_effect = DeploymentError('RAM')
+
+        self.testing_class.check_server_consistency()
+        self.assertEquals(
+            self.testing_class.check_status["server_consistency"],
+            "Not OK"
+        )
+
+        self.testing_class.server.check_ram_size.assert_called()
+        self.testing_class.server.check_free_space.assert_called()
+        self.testing_class.server.check_hw_architecture.assert_called()
+        self.testing_class.server.check_os_version.assert_called()
+        self.testing_class.server.check_ping_8888.assert_called()
+
+    @patch('check_server_status.CheckingSequence.connect_to_serv')
+    def test_check_server_consistency_not_ping(self, conn):
+        connection = Mock()
+        conn.return_value = connection
+        self.testing_class.server = Mock()
+        self.testing_class.server.check_ping_8888.side_effect = DeploymentError('RAM')
+
+        self.testing_class.check_server_consistency()
+        self.assertEquals(
+            self.testing_class.check_status["server_consistency"],
+            "Not OK"
+        )
+
+        self.testing_class.server.check_ram_size.assert_called()
+        self.testing_class.server.check_free_space.assert_called()
+        self.testing_class.server.check_hw_architecture.assert_called()
+        self.testing_class.server.check_os_version.assert_called()
+        self.testing_class.server.check_ping_8888.assert_called()
+
+    def test_check_hostname(self):
+        self.testing_class.server = Mock()
+        self.testing_class.server.check_hostname.return_value = "test-host.test.test"
+        self.testing_class.check_hostname()
+        self.assertEquals(
+            self.testing_class.check_status["check_hostname"],
+            "OK"
+        )
+        self.testing_class.server.check_hostname.assert_called()
+
+    def test_check_hostname_wrong_name(self):
+        self.testing_class.server = Mock()
+        self.testing_class.server.check_hostname.return_value = "wrong_test-host.test.test"
+        self.testing_class.check_hostname()
+        self.assertEquals(
+            self.testing_class.check_status["check_hostname"],
+            "Not OK"
+        )
+        self.testing_class.server.check_hostname.assert_called()
+
+    def test_check_ns1_a_record(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.get_a_record.return_value = {"record": "record"}
+        self.testing_class.check_ns1_a_record()
+        self.assertEquals(
+            self.testing_class.check_status["check_ns1_a_record"],
+            "OK"
+        )
+        self.testing_class.ns1.get_a_record.assert_called()
+
+    def test_check_ns1_a_record_no_record(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.get_a_record.return_value = None
+        self.testing_class.check_ns1_a_record()
+        self.assertEquals(
+            self.testing_class.check_status["check_ns1_a_record"],
+            "Not OK"
+        )
+        self.testing_class.ns1.get_a_record.assert_called()
+
+    def test_check_infradb(self):
+        self.testing_class.infradb = Mock()
+        self.testing_class.infradb.get_server.return_value = {"record": "record"}
+        self.testing_class.check_infradb()
+        self.assertEquals(
+            self.testing_class.check_status["check_infradb"],
+            "OK"
+        )
+        self.testing_class.infradb.get_server.assert_called()
+
+    def test_check_infradb_no_record(self):
+        self.testing_class.infradb = Mock()
+        self.testing_class.infradb.get_server.return_value = None
+        self.testing_class.check_infradb()
+        self.assertEquals(
+            self.testing_class.check_status["check_infradb"],
+            "Not OK"
+        )
+        self.testing_class.infradb.get_server.assert_called()
+
+    def test_check_cds(self):
+        check_sequence.CDSAPI = Mock()
+        check_sequence.CDSAPI.check_server_exist.return_value = {"record": "record"}
+        self.testing_class.check_cds()
+        self.assertEquals(
+            self.testing_class.check_status["check_cds"],
+            "OK"
+        )
+
+    def test_check_ns1_balancing_rule(self):
+        record = NS1MockedRecord({
+            "answers": [
+                {'answer': ['111.111.111.11',]},
+                {'answer': ['222.222.222.22',]},
+                {'answer': ['333.333.333.33',]},
+            ]
+        })
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.get_a_record.return_value = record
+        self.testing_class.check_ns1_balancing_rule()
+        self.assertEquals(
+            self.testing_class.check_status["check_ns1_balancing_rule"],
+            "OK"
+        )
+        self.testing_class.ns1.get_a_record.assert_called()
+
+    def test_check_ns1_balancing_rule_no_record(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.get_a_record.return_value = None
+        self.testing_class.check_ns1_balancing_rule()
+        self.assertEquals(
+            self.testing_class.check_status["check_ns1_balancing_rule"],
+            "Not OK"
+        )
+        self.testing_class.ns1.get_a_record.assert_called()
+
+    def test_check_ns1_balancing_rule_no_answer(self):
+        record = NS1MockedRecord({
+            "answers": [
+                {'answer': ['222.222.222.22',]},
+                {'answer': ['333.333.333.33',]},
+            ]
+        })
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.get_a_record.return_value = record
+        self.testing_class.check_ns1_balancing_rule()
+        self.assertEquals(
+            self.testing_class.check_status["check_ns1_balancing_rule"],
+            "Not OK"
+        )
+        self.testing_class.ns1.get_a_record.assert_called()
+
+    def test_check_nagios(self):
+        self.testing_class.nagios = Mock()
+        self.testing_class.nagios.get_host.return_value = {"record": "record"}
+        self.testing_class.nagios.check_services_status.return_value = False
+        self.testing_class.check_nagios()
+        self.assertEquals(
+            self.testing_class.check_status["check_nagios"],
+            "OK"
+        )
+        self.testing_class.nagios.get_host.assert_called()
+        self.testing_class.nagios.check_services_status.assert_called()
+
+    def test_check_nagios_no_host(self):
+        self.testing_class.nagios = Mock()
+        self.testing_class.nagios.get_host.return_value = None
+        self.testing_class.nagios.check_services_status.return_value = True
+        self.testing_class.check_nagios()
+        self.assertEquals(
+            self.testing_class.check_status["check_nagios"],
+            "Not OK"
+        )
+        self.testing_class.nagios.get_host.assert_called()
+        self.testing_class.nagios.check_services_status.assert_not_called()
+
+    def test_check_nagios_services_down(self):
+        self.testing_class.nagios = Mock()
+        self.testing_class.nagios.get_host.return_value = {"record": "record"}
+        self.testing_class.nagios.check_services_status.side_effect = DeploymentError('error')
+        self.testing_class.check_nagios()
+        self.assertEquals(
+            self.testing_class.check_status["check_nagios"],
+            "Not OK"
+        )
+        self.testing_class.nagios.get_host.assert_called()
+        self.testing_class.nagios.check_services_status.assert_called()
 
 
 if __name__ == '__main__':
