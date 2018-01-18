@@ -366,13 +366,10 @@ class DeploySequence(SequenceAbstract):
 
     def update_fw_rules(self):
         self.logger.init_new_step("update_fw_rules")
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(
-            hostname=settings.INSTALL_SERVER_HOST,
-            username=settings.INSTALL_SERVER_LOGIN,
-            password=settings.INSTALL_SERVER_PASSWORD,
-            port=22
+        client = self.connect_to_serv(
+            settings.INSTALL_SERVER_HOST,
+            settings.INSTALL_SERVER_LOGIN,
+            settings.INSTALL_SERVER_PASSWORD
         )
         logger.info("sudo bash /opt/revsw-firewall-manager/update_all.sh")
         stdin_fw, stdout_fw, stderr_fw = client.exec_command(
@@ -399,13 +396,10 @@ class DeploySequence(SequenceAbstract):
         client.close()
 
     def sign_ssl_puppet(self):
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(
-            hostname=settings.INSTALL_SERVER_HOST,
-            username=settings.INSTALL_SERVER_LOGIN,
-            password=settings.INSTALL_SERVER_PASSWORD,
-            port=22
+        client = self.connect_to_serv(
+            settings.INSTALL_SERVER_HOST,
+            settings.INSTALL_SERVER_LOGIN,
+            settings.INSTALL_SERVER_PASSWORD
         )
         logger.info("sudo puppet cert sign %s" % self.host_name)
         stdin_fw, stdout_fw, stderr_fw = client.exec_command(
@@ -568,13 +562,10 @@ class DeploySequence(SequenceAbstract):
 
     def add_to_pssh_file(self):
         self.logger.init_new_step("add_to_pssh_file")
-        client = paramiko.SSHClient()
-        client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-        client.connect(
-            hostname=settings.PSSH_SERVER,
-            username=settings.PSSH_SERVER_LOGIN,
-            password=settings.PSSH_SERVER_PASSWORD,
-            port=22
+        client = self.connect_to_serv(
+            settings.PSSH_SERVER,
+            settings.PSSH_SERVER_LOGIN,
+            settings.PSSH_SERVER_PASSWORD,
         )
         logger.info("Check if server already added")
         (stdin, stdout, stderr) = client.exec_command('grep "%s" %s' % (

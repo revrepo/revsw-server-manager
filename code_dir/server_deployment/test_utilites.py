@@ -161,6 +161,12 @@ class NS1FeedMock():
         return
 
 
+class NS1MockedRecord():
+
+    def __init__(self, data):
+        self.data = data
+
+
 class Objectview(object):
     def __init__(self, d):
         self.__dict__ = d

@@ -33,7 +33,7 @@ class MongoLogger():
         )
         self.mongo_db = self.mongo_cli[settings.MONGO_DB_NAME]
 
-        self.log_collection = self.mongo_db[host_name]
+        self.log_collection = self.mongo_db[host_name.replace('.', '_')]
         self.log_collection.ensure_index('notification',sparse=True)
         self.current_server_state = initial_state
         self.current_server_state['start_time'] = start_time
