@@ -123,7 +123,7 @@ class ServerState():
             'authentification with  default credetials '
             'fail. trying to auth with key'
         )
-        connect = self.connection('sergey', using_key=True)
+        connect = self.connection('robot', using_key=True)
         if connect:
             return
         raise DeploymentError("Problem with auth to server")

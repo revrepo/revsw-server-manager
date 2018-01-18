@@ -172,7 +172,7 @@ class NagiosServer():
             if service_name in settings.IGNORE_NAGIOS_SERVICES:
                 continue
             logger.info("Checking service %s" % service_name)
-            if service_data['last_hard_state'] != "0":
+            if service_data['current_state'] != "0":
                 logger.info("Service %s is not UP" % service_name)
                 raise DeploymentError("Service %s is not UP" % service_name)
             logger.info("Service %s is UP" % service_name)

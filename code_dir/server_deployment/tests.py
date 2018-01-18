@@ -2066,10 +2066,10 @@ class TestNagiosServer(TestAbstract):
         self.testing_class.nagios_api = Mock()
         self.testing_class.nagios_api.get_services_by_host.return_value = {
             'test_service1': {
-                "last_hard_state": "0",
+                'current_state': "0",
             },
             "ignore_service": {
-                "last_hard_state": "0",
+                'current_state': "0",
             },
         }
         self.testing_class.check_services_status()
@@ -2083,10 +2083,10 @@ class TestNagiosServer(TestAbstract):
         self.testing_class.nagios_api = Mock()
         self.testing_class.nagios_api.get_services_by_host.return_value = {
             'test_service1': {
-                "last_hard_state": "1",
+                'current_state': "1",
             },
             "ignore_service": {
-                "last_hard_state": "0",
+                'current_state': "0",
             },
         }
         self.assertRaises(
@@ -2102,10 +2102,10 @@ class TestNagiosServer(TestAbstract):
         self.testing_class.nagios_api = Mock()
         self.testing_class.nagios_api.get_services_by_host.return_value = {
             'test_service1': {
-                "last_hard_state": "0",
+                'current_state': "0",
             },
             "ignore_service": {
-                "last_hard_state": "1",
+                'current_state': "1",
             },
         }
         self.testing_class.check_services_status()
