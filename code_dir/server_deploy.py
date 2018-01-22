@@ -19,23 +19,15 @@
 """
 import argparse
 import time
-import datetime
 import logging
 import logging.config
 
-import paramiko
 import sys
 
-import re
 
 import settings
 from server_deployment.abstract_sequence import SequenceAbstract
-from server_deployment.nagios_class import NagiosServer
 from server_deployment.cds_api import CDSAPI
-from server_deployment.infradb import InfraDBAPI
-
-from server_deployment.mongo_logger import MongoLogger
-from server_deployment.nsone_class import Ns1Deploy
 from server_deployment.server_state import ServerState
 from server_deployment.utilites import DeploymentError
 
@@ -68,10 +60,12 @@ class DeploySequence(SequenceAbstract):
 
                 }
             },
-            "init_step":{
+            "init_step": {
                 "type": "object",
                 "properties": {
-                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
                     "log": {"type": "string"},
                     "error_log": {"type": "string"}
                 }
@@ -80,12 +74,24 @@ class DeploySequence(SequenceAbstract):
             "check_server_consistency": {
                 "type": "object",
                 "properties": {
-                    "runned": {"type": "string", "pattern": "yes|no|fail"},
-                    "check_ram_size": {"type": "string", "pattern": "yes|no|fail"},
-                    "check_free_space": {"type": "string", "pattern": "yes|no|fail"},
-                    "check_hw_architecture": {"type": "string", "pattern": "yes|no|fail"},
-                    "check_os_version": {"type": "string", "pattern": "yes|no|fail"},
-                    "check_ping_8888": {"type": "string", "pattern": "yes|no|fail"},
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "check_ram_size": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "check_free_space": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "check_hw_architecture": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "check_os_version": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "check_ping_8888": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
                     "hostname": {"type": "string"},
                     "log": {"type": "string"},
                     "error_log": {"type": "string"}
@@ -94,9 +100,15 @@ class DeploySequence(SequenceAbstract):
             "check_hostname": {
                 "type": "object",
                 "properties": {
-                    "runned": {"type": "string", "pattern": "yes|no|fail"},
-                    'hostname_checked': {"type": "string", "pattern": "yes|no|fail"},
-                    "server_rebooted": {"type": "string", "pattern": "yes|no|fail"},
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    'hostname_checked': {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "server_rebooted": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
                     "log": {"type": "string"},
                     "error_log": {"type": "string"}  # [|if returned code !=0]
                 },
@@ -104,8 +116,12 @@ class DeploySequence(SequenceAbstract):
             "add_ns1_a_record": {
                 "type": "object",
                 "properties": {
-                    "runned": {"type": "string", "pattern": "yes|no|fail"},
-                    "adding_record": {"type": "string", "pattern": "yes|no|fail"},
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "adding_record": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
                     "log": {"type": "string"},
                     "error_log": {"type": "string"}  # [|if returned code !=0]
                 },
@@ -113,8 +129,12 @@ class DeploySequence(SequenceAbstract):
             "add_to_infradb": {
                 "type": "object",
                 "properties": {
-                    "runned": {"type": "string", "pattern": "yes|no|fail"},
-                    "server_added": {"type": "string", "pattern": "yes|no|fail"},
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "server_added": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
                     "log": {"type": "string"},
                     "error_log": {"type": "string"}  # [|if returned code !=0]
                 },
@@ -122,7 +142,9 @@ class DeploySequence(SequenceAbstract):
             "update_fw_rules": {
                 "type": "object",
                 "properties": {
-                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
                     "log": {"type": "string"},
                     "error_log": {"type": "string"}  # [|if returned code !=0]
                 },
@@ -130,9 +152,15 @@ class DeploySequence(SequenceAbstract):
             "install_puppet": {
                 "type": "object",
                 "properties": {
-                    "runned": {"type": "string", "pattern": "yes|no|fail"},
-                    "puppet_installed": {"type": "string", "pattern": "yes|no|fail"},
-                    "puppet_configured": {"type": "string", "pattern": "yes|no|fail"},
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "puppet_installed": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "puppet_configured": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
                     "log": {"type": "string"},
                     "error_log": {"type": "string"}  # [|if returned code !=0]
                 },
@@ -140,8 +168,12 @@ class DeploySequence(SequenceAbstract):
             "run_puppet": {
                 "type": "object",
                 "properties": {
-                    "runned": {"type": "string", "pattern": "yes|no|fail"},
-                    "puppet_runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "puppet_runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
                     "log": {"type": "string"},
                     "error_log": {"type": "string"}  # [|if returned code !=0]
                 },
@@ -149,14 +181,30 @@ class DeploySequence(SequenceAbstract):
             "add_to_cds": {
                 "type": "object",
                 "properties": {
-                    "runned": {"type": "string", "pattern": "yes|no|fail"},
-                    "server_group": {"type": "string", "pattern": "yes|no|fail"},
-                    "check_server_exist": {"type": "string", "pattern": "yes|no|fail"},
-                    "server_add": {"type": "string", "pattern": "yes|no|fail"},
-                    "check_packages": {"type": "string", "pattern": "yes|no|fail"},
-                    "install_ssl_configuration": {"type": "string", "pattern": "yes|no|fail"},
-                    "install_waf_and_sdk_configuration": {"type": "string", "pattern": "yes|no|fail"},
-                    "install_purge_and_domain_configuration": {"type": "string", "pattern": "yes|no|fail"},
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "server_group": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "check_server_exist": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "server_add": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "check_packages": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "install_ssl_configuration": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "install_waf_and_sdk_configuration": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "install_purge_and_domain_configuration": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
                     "log": {"type": "string"},
                     "error_log": {"type": "string"}  # [|if returned code !=0]
                 },
@@ -164,10 +212,18 @@ class DeploySequence(SequenceAbstract):
             "add_to_nagios": {
                 "type": "object",
                 "properties": {
-                    "runned": {"type": "string", "pattern": "yes|no|fail"},
-                    "file_created": {"type": "string", "pattern": "yes|no|fail"},
-                    "file_loaded": {"type": "string", "pattern": "yes|no|fail"},
-                    "nagios_reloaded": {"type": "string", "pattern": "yes|no|fail"},
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "file_created": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "file_loaded": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "nagios_reloaded": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
                     "log": {"type": "string"},
                     "error_log": {"type": "string"}  # [|if returned code !=0]
                 },
@@ -175,8 +231,12 @@ class DeploySequence(SequenceAbstract):
             "add_ns1_monitor": {
                 "type": "object",
                 "properties": {
-                    "runned": {"type": "string", "pattern": "yes|no|fail"},
-                    "monitor_added": {"type": "string", "pattern": "yes|no|fail"},
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "monitor_added": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
                     "monitor_up": {"type": "string", "pattern": "yes|no|fail"},
                     "log": {"type": "string"},
                     "error_log": {"type": "string"}  # [|if returned code !=0]
@@ -185,8 +245,12 @@ class DeploySequence(SequenceAbstract):
             "add_ns1_balancing_rule": {
                 "type": "object",
                 "properties": {
-                    "runned": {"type": "string", "pattern": "yes|no|fail"},
-                    "answer_added": {"type": "string", "pattern": "yes|no|fail"},
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "answer_added": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
                     "log": {"type": "string"},
                     "error_log": {"type": "string"}  # [|if returned code !=0]
                 },
@@ -194,8 +258,12 @@ class DeploySequence(SequenceAbstract):
             "add_to_pssh_file": {
                 "type": "object",
                 "properties": {
-                    "runned": {"type": "string", "pattern": "yes|no|fail"},
-                    "server_added": {"type": "string", "pattern": "yes|no|fail"},
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "server_added": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
                     "log": {"type": "string"},
                     "error_log": {"type": "string"}  # [|if returned code !=0]
                 },
@@ -488,14 +556,14 @@ class DeploySequence(SequenceAbstract):
             self.zone, self.short_name, self.record_type
         )
         if record:
-            if record.data['answers'][0]['answer'][0] != [self.ip,]:
+            if record.data['answers'][0]['answer'][0] != [self.ip, ]:
                 self.logger.log({'adding_record': "fail"})
                 raise DeploymentError('Record already exist but with other IP')
             logger.info(' A record already exist with id %s' % record['id'])
             self.logger.log({'adding_record': "yes"})
             return
         record = self.ns1.add_a_record(self.zone, self.short_name)
-        self.logger.log({'adding_record': "fail"})
+        self.logger.log({'adding_record': "yes"})
         logger.info("A NS1 record id %s" % record['id'])
 
     def add_ns1_monitor(self):
@@ -508,7 +576,8 @@ class DeploySequence(SequenceAbstract):
             monitor_id = self.ns1.add_new_monitor()
             logger.info("New monitor id %s" % monitor_id)
             logger.info(
-                "Waiting for %s seconds  to new monitor is setting" % settings.NS1_WAITING_TIME
+                "Waiting for %s seconds  to new monitor is setting" %
+                settings.NS1_WAITING_TIME
             )
             time.sleep(settings.NS1_WAITING_TIME)
         else:
@@ -537,12 +606,15 @@ class DeploySequence(SequenceAbstract):
             raise DeploymentError("Monitor not in UP status")
         feed_id = self.ns1.find_feed(settings.NS1_DATA_SOURCE_ID, monitor_id)
         if not feed_id:
-            raise DeploymentError("Data feed for moniton %s not found" % monitor_id)
+            raise DeploymentError(
+                "Data feed for moniton %s not found" % monitor_id
+            )
         logger.info("Add server %s answer to NS1 to record %s" % (
             self.ip, self.dns_balancing_name
         ))
         self.ns1.add_answer(
-            self.balancing_rule_zone, self.dns_balancing_name, self.record_type,
+            self.balancing_rule_zone,
+            self.dns_balancing_name, self.record_type,
             self.ip, self.location_code, feed_id
         )
         self.logger.log({'answer_added': "yes"})

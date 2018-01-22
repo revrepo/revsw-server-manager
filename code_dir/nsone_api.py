@@ -31,26 +31,30 @@ class Nsone():
     BASE_URL = "https://api.nsone.net"
 
     def _api_call(self, relative_url, method="GET", data=None):
-        url = "%s%s" % (self.BASE_URL,relative_url)
+        url = "%s%s" % (self.BASE_URL, relative_url)
         logger.debug("nsone api call to %s" % url)
         headers = {
             'X-NSONE-Key': settings.NSONE_API_KEY,
         }
-        
+
         if method == "GET":
-            if data is  None: 
+            if data is None:
                 response = requests.get(url, headers=headers)
             else:
-                response =  requests.get(url, data=json.dumps(data), headers=headers)
+                response = requests.get(
+                    url, data=json.dumps(data), headers=headers
+                )
         elif method == "POST":
-            if data is  None: 
+            if data is None:
                 response = requests.post(url, headers=headers)
             else:
-                response =  requests.post(url, data=json.dumps(data), headers=headers)
+                response = requests.post(
+                    url, data=json.dumps(data), headers=headers
+                )
         else:
             pass
             raise Exception("Unknown method type")
-                
+
         if response.status_code == 200:
             """ success """
             return json.loads(response.content)
@@ -60,27 +64,35 @@ class Nsone():
                 message = response_data['message']
             except:
                 message = None
-     
-            if message is None:
-                raise Exception("NSONE response status-code %d" % response.status_code)
-            else:
-                raise Exception("NSONE response status-code %d: %s" % (response.status_code, response_data['message']))
 
-            
+            if message is None:
+                raise Exception(
+                    "NSONE response status-code %d" % response.status_code)
+            else:
+                raise Exception(
+                    "NSONE response status-code %d: %s" % (
+                        response.status_code, response_data['message']
+                    )
+                )
+
     def _get_api_call(self, relative_url, data=None):
-         return self._api_call(relative_url,"GET", data)
+        return self._api_call(relative_url, "GET", data)
 
     def _post_api_call(self, relative_url, data=None):
-         return self._api_call(relative_url,"POST", data)
-         
+        return self._api_call(relative_url, "POST", data)
+
     def get_monitoring_jobs(self):
-         return self._get_api_call("/v1/monitoring/jobs")
-    
+        return self._get_api_call("/v1/monitoring/jobs")
+
     def get_monitoring_job_by_host(self, host):
         logger.debug("Looking for the nsone monitoring job of host %s" % host)
         for job in self.get_monitoring_jobs():
             if job['config']['host'].lower() == host.lower():
-                logger.debug("The nsone monitoring job of host %s is %s" % (host,job['id']))
+                logger.debug(
+                    "The nsone monitoring job of host %s is %s" % (
+                        host, job['id']
+                    )
+                )
                 return job
         raise Exception("Could not find monitoring job for host %s" % host)
 
@@ -92,9 +104,11 @@ class Nsone():
                 found_jobs.append(job)
 
         if len(found_jobs) == 0:
-            raise Exception("Could not find monitoring jobs for host %s" % host)
+            raise Exception(
+                "Could not find monitoring jobs for host %s" % host
+            )
         return found_jobs
-             
+
     def fail_monitoring_job(self, host):
         logger.debug("Failing monitoring job for server %s" % host)
         monitoring_job = self.get_monitoring_job_by_host(host)
@@ -106,9 +120,10 @@ class Nsone():
                     'key': 'output',
                     'value': 'Fail on purpose, server in in maintenance'
                 }
-        ]}
+            ]
+        }
         self._post_api_call("/v1/monitoring/jobs/%s" % job_id, data)
-    
+
     def unfail_monitoring_job(self, host):
         logger.debug("Unfailing monitoring job for server %s" % host)
         monitoring_job = self.get_monitoring_job_by_host(host)
@@ -120,7 +135,8 @@ class Nsone():
                     'key': 'output',
                     'value': 'this is a test'
                 }
-        ]}
+            ]
+        }
         self._post_api_call("/v1/monitoring/jobs/%s" % job_id, data)
 
     def fail_status_monitoring_jobs(self, host):

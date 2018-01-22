@@ -209,14 +209,15 @@ class MockedNagiosClass():
 
 class NS1Record():
 
-    data = {
-        "answers": [
-            {
-                "answer": ['111.111.111.11', ],
-                "id": "1213"
-            }
-        ]
-    }
+    def __init__(self, ip='111.111.111.11'):
+        self.data = {
+            "answers": [
+                {
+                    "answer": [ip, ],
+                    "id": "1213"
+                }
+            ]
+        }
 
     def update(self, *args, **kwargs):
         pass

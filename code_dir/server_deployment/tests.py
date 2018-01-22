@@ -19,6 +19,9 @@
 
 import sys
 from os import path
+
+from nsone.zones import ZoneException
+
 sys.path.append( path.dirname( path.dirname( path.abspath(__file__) ) ) )
 
 import unittest
@@ -1105,6 +1108,60 @@ class TestNS1Class(TestAbstract):
             raised_exception = True
         self.assertTrue(raised_exception)
 
+    def test_get_zone(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.loadZone.return_value = {'id': 1}
+        result = self.testing_class.get_zone('zone_name')
+        self.assertEquals(result, {'id': 1})
+        self.testing_class.ns1.loadZone.assert_called_with('zone_name')
+
+    def test_get_zone_error(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.loadZone.side_effect = ResourceException('error')
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.get_zone,
+            'zone_name'
+        )
+        self.testing_class.ns1.loadZone.assert_called_with('zone_name')
+
+    def test_get_zone_zone_error(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.loadZone.side_effect = ZoneException('error')
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.get_zone,
+            'zone_name'
+        )
+        self.testing_class.ns1.loadZone.assert_called_with('zone_name')
+
+    def test_add_a_record(self):
+        zone = Mock()
+        zone.add_A.return_value = "record"
+        result = self.testing_class.add_a_record(zone, 'test-test')
+        self.assertEquals(result, 'record')
+        zone.add_A.assert_called()
+
+    def test_add_a_record_zone_error(self):
+        zone = Mock()
+        zone.add_A.side_effect = ZoneException('error')
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.add_a_record,
+            zone, 'test-test'
+        )
+        zone.add_A.assert_called()
+
+    def test_add_a_record_resource_error(self):
+        zone = Mock()
+        zone.add_A.side_effect = ResourceException('error')
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.add_a_record,
+            zone, 'test-test'
+        )
+        zone.add_A.assert_called()
+
 
 class TestAbstractSequence(TestAbstract):
     @patch("settings.CDS_URL", 'http://localhost:8000/api/')
@@ -1306,6 +1363,17 @@ class TestDeploymentSequence(TestAbstract):
     def test_radd_ns1_a_record_record_exist(self):
         self.testing_class.ns1 = Mock()
         self.testing_class.ns1.get_a_record.return_value = NS1Record()
+        with self.assertRaises(DeploymentError):
+            self.testing_class.add_ns1_a_record()
+
+        self.testing_class.ns1.get_a_record.assert_called()
+        self.testing_class.ns1.add_a_record.assert_not_called()
+
+    def test_radd_ns1_a_record_record_with_oter_ip(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.get_a_record.return_value = NS1Record(
+            ip = '222.222.222.222'
+        )
         with self.assertRaises(DeploymentError):
             self.testing_class.add_ns1_a_record()
 
@@ -1592,7 +1660,6 @@ class TestDestroySequence(TestAbstract):
         self.testing_class.remove_ns1_balancing_rule()
 
         self.testing_class.ns1.get_a_record.assert_called()
-        self.testing_class.ns1.check_record_answers.assert_not_called()
 
     @patch("settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME", 0)
     def test_remove_ns1_balancing_rule_wrong_record(self):
@@ -1608,13 +1675,16 @@ class TestDestroySequence(TestAbstract):
     @patch("settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME", 0)
     def test_remove_ns1_balancing_rule_low_answers(self):
         self.testing_class.ns1 = Mock()
-        self.testing_class.ns1.get_a_record.return_value = NS1Record()
+        self.testing_class.ns1.get_a_record.return_value = NS1Record(
+            ip='111.111.111.11'
+        )
         self.testing_class.ns1.check_record_answers.return_value = 20
-
-        self.testing_class.remove_ns1_balancing_rule()
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.remove_ns1_balancing_rule
+        )
 
         self.testing_class.ns1.get_a_record.assert_called()
-        self.testing_class.ns1.check_record_answers.assert_not_called()
 
     @patch("settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME", 0)
     def test_remove_ns1_balancing_rule_ip_not_found(self):
@@ -1630,6 +1700,53 @@ class TestDestroySequence(TestAbstract):
 
         self.testing_class.ns1.get_a_record.assert_called()
         self.testing_class.ns1.check_record_answers.assert_not_called()
+
+    def test_remove_from_pssh_file(self):
+        connection = Mock()
+        self.testing_class.connect_to_serv = Mock(return_value=connection)
+        connection.exec_command.return_value = [
+            1, MockedExecOutput(['test_server', ]), 1
+        ]
+        self.testing_class.remove_from_pssh_file()
+        connection.exec_command.assert_called_with("sudo sed '%s' %s" % (
+            'test-host', settings.PSSH_FILE_PATH
+        ))
+
+    def test_remove_from_pssh_file_no_file(self):
+        connection = Mock()
+        self.testing_class.connect_to_serv = Mock(return_value=connection)
+        connection.exec_command.return_value = [
+            1, MockedExecOutput([ ]), 1
+        ]
+        self.testing_class.remove_from_pssh_file()
+        connection.exec_command.assert_called_once_with('grep "%s" %s' % (
+            'test-host', settings.PSSH_FILE_PATH
+        ))
+
+    def test_remove_from_puppet(self):
+        connection = Mock()
+        self.testing_class.connect_to_serv = Mock(return_value=connection)
+        connection.exec_command.return_value = [
+            1, MockedExecOutput([], return_status=0), 1
+        ]
+        self.testing_class.remove_from_puppet()
+        connection.exec_command.assert_called_once_with(
+            "sudo puppet cert clean %s" % self.host_name
+        )
+
+    def test_remove_from_puppet_wrong_answer(self):
+        connection = Mock()
+        self.testing_class.connect_to_serv = Mock(return_value=connection)
+        connection.exec_command.return_value = [
+            1, MockedExecOutput([], return_status=1), 1
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.remove_from_puppet
+        )
+        connection.exec_command.assert_called_once_with(
+            "sudo puppet cert clean %s" % self.host_name
+        )
 
 
 class TestServerState(TestAbstract):
@@ -1930,7 +2047,7 @@ class TestServerState(TestAbstract):
             "df"
         )
 
-    def testcheck_free_space_not_enouph(self):
+    def test_check_free_space_not_enouph(self):
         self.testing_class.client = Mock()
         self.testing_class.client.exec_command.return_value = [
             '1', MockedExecOutput([
@@ -2516,6 +2633,37 @@ class TestCheckSequence(TestAbstract):
         )
         self.testing_class.nagios.get_host.assert_called()
         self.testing_class.nagios.check_services_status.assert_called()
+
+    def test_check_pssh_file(self):
+        connection = Mock()
+        self.testing_class.connect_to_serv = Mock(return_value=connection)
+        connection.exec_command.return_value = [
+            1, MockedExecOutput(['test_server', ]), 1
+        ]
+        self.testing_class.check_pssh_file()
+        connection.exec_command.assert_called_with('grep "%s" %s' % (
+            'test-host', settings.PSSH_FILE_PATH
+        ))
+        self.assertEquals(
+            self.testing_class.check_status["check_pssh_file"],
+            "OK"
+        )
+
+    def test_check_pssh_file_no_file(self):
+        connection = Mock()
+        self.testing_class.connect_to_serv = Mock(return_value=connection)
+        connection.exec_command.return_value = [
+            1, MockedExecOutput([ ]), 1
+        ]
+        self.testing_class.check_pssh_file()
+        connection.exec_command.assert_called_once_with('grep "%s" %s' % (
+            'test-host', settings.PSSH_FILE_PATH
+        ))
+
+        self.assertEquals(
+            self.testing_class.check_status["check_pssh_file"],
+            "Not OK"
+        )
 
 
 if __name__ == '__main__':

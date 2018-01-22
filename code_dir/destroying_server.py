@@ -19,15 +19,10 @@
 """
 import argparse
 import time
-import datetime
 import logging
 import logging.config
 
-import paramiko
-import pymongo
 import sys
-
-import re
 
 import settings
 from server_deployment.abstract_sequence import SequenceAbstract
@@ -198,7 +193,7 @@ class DestroySequence(SequenceAbstract):
     def __init__(self, args):
         super(DestroySequence, self).__init__(args)
         self.steps = {
-            "remove_from_nagios":self.remove_from_nagios,
+            "remove_from_nagios": self.remove_from_nagios,
             "remove_from_cds": self.remove_from_cds,
             "remove_ns1_monitor": self.remove_ns1_monitor,
             "remove_ns1_a_record": self.remove_ns1_a_record,
@@ -281,9 +276,10 @@ class DestroySequence(SequenceAbstract):
         for line in lines:
             logger.info(line)
 
-        logger.info("command sudo puppet cert clean %s was executed with status %s" %
-                    (self.host_name, stdout_fw.channel.recv_exit_status())
-                    )
+        logger.info(
+            "command sudo puppet cert clean %s was executed with status %s" %
+            (self.host_name, stdout_fw.channel.recv_exit_status())
+        )
         if stdout_fw.channel.recv_exit_status() != 0:
             log_error = "Problem with removing from puppet."
             raise DeploymentError(log_error)
@@ -307,8 +303,11 @@ class DestroySequence(SequenceAbstract):
                 answer_exist = True
         if not answer_exist:
             return
-        if self.ns1.check_record_answers(record) < settings.NS1_MINIMAL_ANSWERS_COUNT:
-            raise DeploymentError("Cant delete answer from dns balance record,  its lower count")
+        if self.ns1.check_record_answers(record) <\
+                settings.NS1_MINIMAL_ANSWERS_COUNT:
+            raise DeploymentError(
+                "Cant delete answer from dns balance record,  its lower count"
+            )
         new_answers = []
         logger.info("Deleting balance rule for %s" % self.ip)
         for answer in record.data['answers']:
@@ -316,7 +315,11 @@ class DestroySequence(SequenceAbstract):
                 new_answers.append(answer)
         record.update(answers=new_answers)
         logger.info("DNS balancing rules succesfuly changed")
-        logger.info("Waiting for %s seconds to get enough time for end users to stop using the proxy servers" % settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME)
+        logger.info(
+            "Waiting for %s seconds to get enough time"
+            " for end users to stop using the proxy servers" %
+            settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME
+        )
         time.sleep(settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME)
         logger.info("Continue work")
 
@@ -329,7 +332,7 @@ class DestroySequence(SequenceAbstract):
         )
         logger.info("Check if server already added")
         (stdin, stdout, stderr) = client.exec_command('grep "%s" %s' % (
-            "BLR02-BP09", settings.PSSH_FILE_PATH
+            self.short_name, settings.PSSH_FILE_PATH
         ))
         founded_lines = []
         lines = stdout.readlines()
@@ -346,14 +349,29 @@ class DestroySequence(SequenceAbstract):
 
 if __name__ == "__main__":
 
-    parser = argparse.ArgumentParser(description="Automatic deployment of server.",
-                                     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-n", "--host_name", help="Host name of server", required=True)
-    parser.add_argument("-z", "--zone_name", help="Name of zone on NS1.", default=settings.NS1_DNS_ZONE_DEFAULT)
-    parser.add_argument("-i", "--IP", help="IP of server.", required=True)
-    parser.add_argument("-r", "--record_type", help="Type of record at NS1.", default="A")
-    parser.add_argument("-l", "--login", help="Login of the server.", default="robot")
-    parser.add_argument("-p", "--password", help="Password of the server.", default='')
+    parser = argparse.ArgumentParser(
+        description="Automatic deployment of server.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter
+    )
+    parser.add_argument(
+        "-n", "--host_name", help="Host name of server", required=True
+    )
+    parser.add_argument(
+        "-z", "--zone_name", help="Name of zone on NS1.",
+        default=settings.NS1_DNS_ZONE_DEFAULT
+    )
+    parser.add_argument(
+        "-i", "--IP", help="IP of server.", required=True
+    )
+    parser.add_argument(
+        "-r", "--record_type", help="Type of record at NS1.", default="A"
+    )
+    parser.add_argument(
+        "-l", "--login", help="Login of the server.", default="robot"
+    )
+    parser.add_argument(
+        "-p", "--password", help="Password of the server.", default=''
+    )
     parser.add_argument(
         "--hosting", help="Name of server hosting provider.", default="HE"
     )
@@ -368,7 +386,9 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--first_step", help="First step which sequence must start.", default='remove_ns1_balancing_rule',
+        "--first_step",
+        help="First step which sequence must start.",
+        default='remove_ns1_balancing_rule',
         choices=[
             "remove_ns1_a_record",
             "remove_from_nagios",
@@ -387,7 +407,10 @@ if __name__ == "__main__":
     )
 
     parser.add_argument(
-        "--disable_infradb_ssl", help="Disable ssl check  for infradb.", type=bool)
+        "--disable_infradb_ssl",
+        help="Disable ssl check  for infradb.",
+        type=bool
+    )
     args = parser.parse_args()
 
     try:

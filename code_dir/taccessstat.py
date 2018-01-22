@@ -38,7 +38,10 @@ def log_loop():
     """ Read log events and update stats """
     global RPS, OUT, KEEP_WORKING, taccess_pid
     try:
-        taccess_proc = subprocess.Popen([TACCESS_TOOL], stdin=subprocess.PIPE, stdout=subprocess.PIPE, shell=True)
+        taccess_proc = subprocess.Popen(
+            [TACCESS_TOOL], stdin=subprocess.PIPE,
+            stdout=subprocess.PIPE, shell=True
+        )
         taccess_pid = taccess_proc.pid
         while KEEP_WORKING:
             log_line = taccess_proc.stdout.readline()
@@ -47,7 +50,9 @@ def log_loop():
                 KEEP_WORKING = False
                 break
             try:
-                line_list = map(''.join, re_apache_log_tokens.findall(log_line))
+                line_list = map(
+                    ''.join, re_apache_log_tokens.findall(log_line)
+                )
                 out_traffic = int(line_list[7])
                 status_code = int(line_list[6])
                 RPS += 1
@@ -68,10 +73,13 @@ def print_loop(count=None):
     try:
         while KEEP_WORKING:
             time.sleep(INTERVAL)
-            """ Just a quick fix to not print broken lines, if the reading process broke """
+            """ Just a quick fix to not print broken lines,
+             if the reading process broke """
             if not KEEP_WORKING:
                 break
-            print "RPS: %d OUT: %d" % (int(RPS / INTERVAL), int(OUT / INTERVAL))
+            print "RPS: %d OUT: %d" % (
+                int(RPS / INTERVAL), int(OUT / INTERVAL)
+            )
             RPS = 0
             OUT = 0
             if count is not None:

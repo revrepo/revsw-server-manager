@@ -17,24 +17,18 @@
 
 """
 import argparse
-import time
-import datetime
 import logging
 import logging.config
 
-import paramiko
 import sys
 
 import re
 
 import settings
 from server_deployment.abstract_sequence import SequenceAbstract
-from server_deployment.nagios_class import NagiosServer
-from server_deployment.cds_api import CDSAPI
-from server_deployment.infradb import InfraDBAPI
 
-from server_deployment.mongo_logger import MongoLogger
-from server_deployment.nsone_class import Ns1Deploy
+from server_deployment.cds_api import CDSAPI
+
 from server_deployment.server_state import ServerState
 from server_deployment.utilites import DeploymentError
 
@@ -78,12 +72,24 @@ class CheckingSequence(SequenceAbstract):
             "check_server_consistency": {
                 "type": "object",
                 "properties": {
-                    "runned": {"type": "string", "pattern": "yes|no|fail"},
-                    "check_ram_size": {"type": "string", "pattern": "yes|no|fail"},
-                    "check_free_space": {"type": "string", "pattern": "yes|no|fail"},
-                    "check_hw_architecture": {"type": "string", "pattern": "yes|no|fail"},
-                    "check_os_version": {"type": "string", "pattern": "yes|no|fail"},
-                    "check_ping_8888": {"type": "string", "pattern": "yes|no|fail"},
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "check_ram_size": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "check_free_space": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "check_hw_architecture": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "check_os_version": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "check_ping_8888": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
                     "log": {"type": "string"},
                     "error_log": {"type": "string"}
                 },
@@ -91,8 +97,12 @@ class CheckingSequence(SequenceAbstract):
             "check_hostname": {
                 "type": "object",
                 "properties": {
-                    "runned": {"type": "string", "pattern": "yes|no|fail"},
-                    "check_hostname": {"type": "string", "pattern": "yes|no|fail"},
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "check_hostname": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
                     "log": {"type": "string"},
                     "error_log": {"type": "string"}
                 },
@@ -427,7 +437,6 @@ class CheckingSequence(SequenceAbstract):
             logger.info(line)
         if not ip_founded:
             raise DeploymentError("IP not founded in Fire wall rules")
-
 
 
 if __name__ == "__main__":
