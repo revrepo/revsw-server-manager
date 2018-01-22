@@ -27,14 +27,17 @@ from server_deployment.utilites import DeploymentError
 
 class MongoLogger():
 
-    def __init__(self, host_name, start_time, initial_data, logger_schema, initial_state, steps):
+    def __init__(
+            self, host_name, start_time, initial_data,
+            logger_schema, initial_state, steps
+    ):
         self.mongo_cli = pymongo.MongoClient(
             settings.MONGO_HOST, settings.MONGO_PORT
         )
         self.mongo_db = self.mongo_cli[settings.MONGO_DB_NAME]
 
         self.log_collection = self.mongo_db[host_name.replace('.', '_')]
-        self.log_collection.ensure_index('notification',sparse=True)
+        self.log_collection.ensure_index('notification', sparse=True)
         self.current_server_state = initial_state
         self.current_server_state['start_time'] = start_time
         self.current_server_state['initial_data'] = initial_data

@@ -93,7 +93,11 @@ def upgrade(server_list, remote_upgrade_script=None, remote_test_script=None):
         p.upgrade()
 
 
-def force_upgrade(server_list, remote_upgrade_script=None, remote_test_script=None):
+def force_upgrade(
+        server_list,
+        remote_upgrade_script=None,
+        remote_test_script=None
+):
     if remote_upgrade_script:
         settings.UPGRADE_COMMAND = "sudo bash %s" % remote_upgrade_script
 
@@ -124,14 +128,18 @@ def nagios_state(server_list=set()):
     for server_name, server_data in state.items():
         if upper_server_list and server_name.upper() not in upper_server_list:
             continue
-        print "%s\n%s" % (server_name,len(server_name) * "=")
+        print "%s\n%s" % (
+            server_name, len(server_name) * "="
+        )
         current_state = server_data['current_state']
         print "current state: %s" % current_state
         last_check = server_data['last_check']
         if len(server_data['services']) > 0:
             print " Services:"
             for service_name, service_data in server_data['services'].items():
-                print "  %s: %s" % (service_name, service_data['current_state'])
+                print "  %s: %s" % (
+                    service_name, service_data['current_state']
+                )
 #         for k in state[server].keys():
 #             print " %s: %s" % (k,state[server][k])
 
@@ -160,15 +168,19 @@ def print_help_exit_error():
 
 
 def error_server_list():
-    logger.error("Please provide a space separated list of one or more servers to process.")
+    logger.error(
+        "Please provide a space separated list "
+        "of one or more servers to process."
+    )
     exit(1)
-    
+
+
 if __name__ == "__main__":
     if len(argv) == 1:
         print_help_exit_error()
     try:
         cmd = argv[1]
-        
+
         if cmd == "help":
             print_help_exit_error()
         elif cmd == "wait_low_traffic":
@@ -232,13 +244,16 @@ if __name__ == "__main__":
             nagios_cancel_downtime(argv[2:])
         elif cmd == "upload_file":
             if len(argv) < 4:
-                logger.error("Please provide a name of a local file to upload, a remote location for that file, "
-                             "and a list of server you would like to upload the file to.")
+                logger.error(
+                    "Please provide a name of a local file to upload, "
+                    "a remote location for that file, "
+                    "and a list of server you would like"
+                    " to upload the file to."
+                )
                 exit(1)
             if len(argv) < 5:
                 error_server_list()
             upload_file(argv[2], argv[3], argv[4:])
-                        
         # """ Undocumented testing stuff here """
         elif cmd == "_nsone_monitoring_jobs":
             nsone = Nsone()
@@ -253,7 +268,8 @@ if __name__ == "__main__":
             nsone = Nsone()
             pprint(nsone.unfail_status_monitoring_jobs(argv[2]))
         else:
-            print "Not sure what you were trying to do. Here is the usage help.\n\n"
+            print "Not sure what you were trying to do. " \
+                  "Here is the usage help.\n\n"
             print_help_exit_error()
     except Exception, e:
         logger.fatal(traceback.format_exc())

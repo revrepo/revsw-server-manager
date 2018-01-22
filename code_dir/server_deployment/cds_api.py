@@ -229,7 +229,9 @@ class CDSAPI():
         for pack in packages:
             if not server.check_install_package(pack):
                 log_error = "%s not installed" % pack
-                self.logger.log({"check_packages": "fail", "error_log": log_error})
+                self.logger.log(
+                    {"check_packages": "fail", "error_log": log_error}
+                )
                 raise DeploymentError(log_error)
             logger.info("%s installed." % pack)
         self.logger.log({"check_packages": "yes"})
@@ -270,7 +272,10 @@ class CDSAPI():
             iteration += iteration
             time.sleep(10)
         self.logger.log(
-            {"install_ssl_configuration": "fail", "error_log": "To long installing"}
+            {
+                "install_ssl_configuration": "fail",
+                "error_log": "To long installing"
+            }
         )
         raise DeploymentError("To long installing")
 

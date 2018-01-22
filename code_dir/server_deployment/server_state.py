@@ -22,8 +22,6 @@ import datetime
 
 import paramiko
 
-from copy import deepcopy
-
 import re
 from server_deployment.utilites import DeploymentError
 
