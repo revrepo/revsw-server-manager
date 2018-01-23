@@ -428,9 +428,12 @@ class DeploySequence(SequenceAbstract):
         if check_list['domain_purge']:
             cds.monitor_purge_and_domain_configuration()
         self.group = cds.server_group
-        logger.info("Reboot server to apply  changes")
+        logger.info(
+            "Reboot server to apply  changes and  waiting for %s seconds" %
+            settings.PROXYY_RESTART_WAITING_TIME
+        )
         self.server.reboot()
-        time.sleep(settings.CDS_WAITING_TIME)
+        time.sleep(settings.PROXYY_RESTART_WAITING_TIME)
 
     def update_fw_rules(self):
         self.logger.init_new_step("update_fw_rules")
