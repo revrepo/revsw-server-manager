@@ -556,6 +556,7 @@ class DeploySequence(SequenceAbstract):
             self.zone, self.short_name, self.record_type
         )
         if record:
+            logger.info('Record alredy created with IP %s ' % record.data['answers'][0]['answer'])
             if record.data['answers'][0]['answer'][0] != [self.ip, ]:
                 self.logger.log({'adding_record': "fail"})
                 raise DeploymentError('Record already exist but with other IP')

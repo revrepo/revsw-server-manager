@@ -250,7 +250,6 @@ class CheckingSequence(SequenceAbstract):
         "check_ns1_balancing_rule": "Not checked",
         "check_pssh_file": "Not checked",
         "check_fw_rules": "Not checked",
-
     }
 
     def __init__(self, args):
