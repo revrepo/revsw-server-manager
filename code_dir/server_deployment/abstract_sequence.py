@@ -197,7 +197,7 @@ class SequenceAbstract(object):
             self.steps[step]()
             logger.info("=============== END %s STAGE ================" % step)
         if self.check_status:
-            logger.info("Status of server %s" % self.check_status)
+            logger.info("Current Status of server %s" % self.check_status)
 
     def get_location_code(self):
         m = re.search('^(.+?)-', self.host_name)

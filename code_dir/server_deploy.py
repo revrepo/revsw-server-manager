@@ -428,9 +428,12 @@ class DeploySequence(SequenceAbstract):
         if check_list['domain_purge']:
             cds.monitor_purge_and_domain_configuration()
         self.group = cds.server_group
-        logger.info("Reboot server to apply  changes")
+        logger.info(
+            "Reboot server to apply  changes and  waiting for %s seconds" %
+            settings.PROXYY_RESTART_WAITING_TIME
+        )
         self.server.reboot()
-        time.sleep(settings.CDS_WAITING_TIME)
+        time.sleep(settings.PROXYY_RESTART_WAITING_TIME)
 
     def update_fw_rules(self):
         self.logger.init_new_step("update_fw_rules")
@@ -556,6 +559,7 @@ class DeploySequence(SequenceAbstract):
             self.zone, self.short_name, self.record_type
         )
         if record:
+            logger.info('Record alredy created with IP %s ' % record.data['answers'][0]['answer'])
             if record.data['answers'][0]['answer'][0] != [self.ip, ]:
                 self.logger.log({'adding_record': "fail"})
                 raise DeploymentError('Record already exist but with other IP')
