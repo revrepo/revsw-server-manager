@@ -211,6 +211,7 @@ class NS1Record():
 
     def __init__(self, ip='111.111.111.11'):
         self.data = {
+            "id": 1234,
             "answers": [
                 {
                     "answer": [ip, ],
@@ -218,6 +219,9 @@ class NS1Record():
                 }
             ]
         }
+
+    def __getitem__(self, item):
+        return self.data.get(item)
 
     def update(self, *args, **kwargs):
         pass

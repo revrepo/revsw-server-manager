@@ -240,7 +240,7 @@ class CheckingSequence(SequenceAbstract):
     }
 
     check_status = {
-        "server_consistency": 'Not checked',
+        "check_server_consistency": 'Not checked',
         "check_hostname": 'Not checked',
         "check_ns1_a_record": "Not checked",
         "check_infradb": "Not checked",
@@ -309,9 +309,9 @@ class CheckingSequence(SequenceAbstract):
                 self.logger.log({check_name: "fail"})
                 logger.info(e.message)
         if not checking:
-            self.check_status["server_consistency"] = "Not OK"
+            self.check_status["check_server_consistency"] = "Not OK"
         else:
-            self.check_status["server_consistency"] = "OK"
+            self.check_status["check_server_consistency"] = "OK"
 
     def check_hostname(self):
         self.logger.init_new_step("check_hostname")
@@ -435,7 +435,11 @@ class CheckingSequence(SequenceAbstract):
                 ip_founded = True
             logger.info(line)
         if not ip_founded:
-            raise DeploymentError("IP not founded in Fire wall rules")
+            logger.info("IP not founded in Fire wall rules")
+            self.check_status["check_fw_rules"] = "Not OK"
+            return
+
+        self.check_status["check_fw_rules"] = "OK"
 
 
 if __name__ == "__main__":
