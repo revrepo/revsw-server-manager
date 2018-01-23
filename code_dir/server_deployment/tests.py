@@ -1348,7 +1348,7 @@ class TestDeploymentSequence(TestAbstract):
         self.testing_class.ns1 = Mock()
         ns1_record = NS1Record()
         ns1_record.data['answers'] = [
-            {"answer": ['222.111.111.11', ], "id": "1213"}
+            {"answer": [u'222.111.111.11', ], "id": "1213"}
         ]
         self.testing_class.ns1.get_a_record.return_value = ns1_record
         exception_raised = False
@@ -1363,8 +1363,7 @@ class TestDeploymentSequence(TestAbstract):
     def test_radd_ns1_a_record_record_exist(self):
         self.testing_class.ns1 = Mock()
         self.testing_class.ns1.get_a_record.return_value = NS1Record()
-        with self.assertRaises(DeploymentError):
-            self.testing_class.add_ns1_a_record()
+        self.testing_class.add_ns1_a_record()
 
         self.testing_class.ns1.get_a_record.assert_called()
         self.testing_class.ns1.add_a_record.assert_not_called()
@@ -1372,7 +1371,7 @@ class TestDeploymentSequence(TestAbstract):
     def test_radd_ns1_a_record_record_with_oter_ip(self):
         self.testing_class.ns1 = Mock()
         self.testing_class.ns1.get_a_record.return_value = NS1Record(
-            ip = '222.222.222.222'
+            ip=u'222.222.222.222'
         )
         with self.assertRaises(DeploymentError):
             self.testing_class.add_ns1_a_record()

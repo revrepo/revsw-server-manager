@@ -92,6 +92,8 @@ class SequenceAbstract(object):
         self.host_name = args.host_name
         self.short_name = self.get_short_name()
         self.ip = args.IP
+
+        self.ip.replace(' ', '')
         self.first_step = args.first_step
         if args.number_of_steps_to_execute:
             self.number_of_steps = args.number_of_steps_to_execute
