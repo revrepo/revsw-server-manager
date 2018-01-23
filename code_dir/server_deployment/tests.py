@@ -2366,13 +2366,14 @@ class TestCheckSequence(TestAbstract):
                 '',
             ], return_status=0), '3'
         ]
-        self.assertRaises(
-            DeploymentError,
-            self.testing_class.check_fw_rules
-        )
+        self.testing_class.check_fw_rules()
 
         connection.exec_command.assert_called_with(
             'sudo ufw status|grep 111.111.111.11'
+        )
+        self.assertEquals(
+            self.testing_class.check_status["check_fw_rules"],
+            "Not OK"
         )
 
     @patch('check_server_status.CheckingSequence.connect_to_serv')
@@ -2383,7 +2384,7 @@ class TestCheckSequence(TestAbstract):
 
         self.testing_class.check_server_consistency()
         self.assertEquals(
-            self.testing_class.check_status["server_consistency"],
+            self.testing_class.check_status["check_server_consistency"],
             "OK"
         )
 
@@ -2401,7 +2402,7 @@ class TestCheckSequence(TestAbstract):
         self.testing_class.server.check_ram_size.side_effect = DeploymentError('RAM')
         self.testing_class.check_server_consistency()
         self.assertEquals(
-            self.testing_class.check_status["server_consistency"],
+            self.testing_class.check_status["check_server_consistency"],
             "Not OK"
         )
         self.testing_class.server.check_ram_size.assert_called()
@@ -2418,7 +2419,7 @@ class TestCheckSequence(TestAbstract):
         self.testing_class.server.check_free_space.side_effect = DeploymentError('RAM')
         self.testing_class.check_server_consistency()
         self.assertEquals(
-            self.testing_class.check_status["server_consistency"],
+            self.testing_class.check_status["check_server_consistency"],
             "Not OK"
         )
 
@@ -2437,7 +2438,7 @@ class TestCheckSequence(TestAbstract):
 
         self.testing_class.check_server_consistency()
         self.assertEquals(
-            self.testing_class.check_status["server_consistency"],
+            self.testing_class.check_status["check_server_consistency"],
             "Not OK"
         )
 
@@ -2456,7 +2457,7 @@ class TestCheckSequence(TestAbstract):
 
         self.testing_class.check_server_consistency()
         self.assertEquals(
-            self.testing_class.check_status["server_consistency"],
+            self.testing_class.check_status["check_server_consistency"],
             "Not OK"
         )
 
@@ -2475,7 +2476,7 @@ class TestCheckSequence(TestAbstract):
 
         self.testing_class.check_server_consistency()
         self.assertEquals(
-            self.testing_class.check_status["server_consistency"],
+            self.testing_class.check_status["check_server_consistency"],
             "Not OK"
         )
 
