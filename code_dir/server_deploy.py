@@ -447,10 +447,14 @@ class DeploySequence(SequenceAbstract):
             "sudo ufw status|grep %s" % self.ip
         )
 
-        if status != 0 or not output:
+        if status != 0:
             log_error = "Problem with ufw status on INSTALL server"
             self.logger.log({"fw": "fail", "log": log_error})
             raise DeploymentError(log_error)
+
+        if output:
+            logger.info('Firewall already configurated.')
+            return
 
         status, output = self.execute_command(
             client,
