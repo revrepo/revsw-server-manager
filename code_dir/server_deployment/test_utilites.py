@@ -209,6 +209,17 @@ class MockedNagiosClass():
 
 class NS1Record():
 
+    answers = [
+        {
+            'feeds': [
+                {
+                    'source': 1,
+                    'feed': 1
+                }
+            ]
+        }
+    ]
+
     def __init__(self, ip='111.111.111.11'):
         self.data = {
             "id": 1234,
@@ -227,6 +238,9 @@ class NS1Record():
         pass
 
     def delete(self):
+        pass
+
+    def addAnswers(self, list):
         pass
 
 

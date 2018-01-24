@@ -222,3 +222,15 @@ class SequenceAbstract(object):
             port=22
         )
         return client
+
+    def execute_command(self, client, command):
+        logger.info(command)
+        stdin_fw, stdout_fw, stderr_fw = client.exec_command(
+            command
+        )
+        output = []
+        lines = stdout_fw.readlines()
+        for line in lines:
+            output.append(line)
+            logger.info(line)
+        return stdout_fw.channel.recv_exit_status(), output

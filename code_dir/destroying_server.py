@@ -25,6 +25,7 @@ import logging.config
 import sys
 
 import settings
+from proxy import Proxy
 from server_deployment.abstract_sequence import SequenceAbstract
 from server_deployment.nagios_class import NagiosServer
 from server_deployment.cds_api import CDSAPI
@@ -321,6 +322,12 @@ class DestroySequence(SequenceAbstract):
             settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME
         )
         time.sleep(settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME)
+
+        logger.info('Checking that traffic stop coming to the server')
+        proxy = Proxy(self.host_name)
+        proxy.wait_low_traffic()
+        logger.info("Traffic stop coming to the server")
+
         logger.info("Continue work")
 
     def remove_from_pssh_file(self):
