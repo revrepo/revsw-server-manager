@@ -444,7 +444,7 @@ class DeploySequence(SequenceAbstract):
         )
         status, output = self.execute_command(
             client,
-            "ufw status"
+            "sudo ufw status|grep %s" % self.ip
         )
 
         if status != 0 or not output:
