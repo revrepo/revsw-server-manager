@@ -16,6 +16,7 @@
  from Rev Software, Inc.
 
 """
+import json
 import logging
 import time
 import datetime
@@ -371,3 +372,28 @@ class ServerState():
                     int(free_space)/1024
                 )
             )
+
+    def check_traffic(self):
+
+        client_transport = self.client.open_sftp()
+        log_file = client_transport.open('/var/log/nginx/revsw_nginx_access_json.log')
+        log = log_file.readlines()
+        unique_ip = set()
+        errors = False
+        for line in log:
+            try:
+                line.strip('\r\n')
+                readed_log = json.loads(line)
+            except ValueError:
+                raise DeploymentError('Wrong format of revsw_nginx_access_json.log')
+            if readed_log['response'] >= 500 and readed_log['response'] <= 599:
+                errors = True
+                logger.error('error in log file')
+                logger.error(readed_log)
+            if readed_log['clientip'] not in unique_ip:
+                unique_ip.add(readed_log['clientip'])
+        logger.info('Unique IPs in log file %s' % len(unique_ip))
+        if errors:
+            raise DeploymentError('Errors in revsw_nginx_access_json.log file')
+
+

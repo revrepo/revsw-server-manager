@@ -632,6 +632,8 @@ class DeploySequence(SequenceAbstract):
             self.dns_balancing_name, self.record_type,
             self.ip, self.location_code, feed_id
         )
+        logger.info('Check traffic')
+        self.server.check_traffic()
         self.logger.log({'answer_added': "yes"})
 
     def check_server_consistency(self):
