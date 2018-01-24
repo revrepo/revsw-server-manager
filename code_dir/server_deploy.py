@@ -442,14 +442,21 @@ class DeploySequence(SequenceAbstract):
             settings.INSTALL_SERVER_LOGIN,
             settings.INSTALL_SERVER_PASSWORD
         )
-        logger.info("sudo bash /opt/revsw-firewall-manager/update_all.sh")
-        stdin_fw, stdout_fw, stderr_fw = client.exec_command(
+        status, output = self.execute_command(
+            client,
+            "ufw status"
+        )
+
+        if status != 0 or not output:
+            log_error = "Problem with ufw status on INSTALL server"
+            self.logger.log({"fw": "fail", "log": log_error})
+            raise DeploymentError(log_error)
+
+        status, output = self.execute_command(
+            client,
             "sudo bash /opt/revsw-firewall-manager/update_all.sh"
         )
-        lines = stdout_fw.readlines()
-        for line in lines:
-            logger.info(line)
-        if stdout_fw.channel.recv_exit_status() != 0:
+        if status != 0:
             log_error = "Problem with FW rules update on INSTALL server"
             self.logger.log({"fw": "fail", "log": log_error})
             raise DeploymentError(log_error)

@@ -20,6 +20,7 @@
 import sys
 from os import path
 
+import nsone
 from nsone.zones import ZoneException
 
 sys.path.append( path.dirname( path.dirname( path.abspath(__file__) ) ) )
@@ -55,6 +56,7 @@ import destroying_server as destroy_sequence
 import check_server_status as check_sequence
 import server_deployment.nagios_class as nagios_deploy
 import server_deployment.cds_api as cds_deploy
+import server_deployment.nsone_class as ns1
 
 
 TEST_DIR = os.path.join(
@@ -1090,7 +1092,7 @@ class TestNS1Class(TestAbstract):
     def test_delete_monitor(self):
         self.testing_class.monitor = Mock()
         self.testing_class.monitor.delete.return_value = self.test_monitor
-        monitor = self.testing_class.delete_monitor('5678')
+        self.testing_class.delete_monitor('5678')
 
     def test_delete_monitor_fail(self):
         self.testing_class.monitor = Mock()
@@ -1161,6 +1163,226 @@ class TestNS1Class(TestAbstract):
             zone, 'test-test'
         )
         zone.add_A.assert_called()
+
+    def test_get_a_record(self):
+        ns1.Record = Mock()
+        ns1.Record.load.return_value = None
+        self.testing_class.get_a_record('zone_name', 'domain', 'a')
+
+    def test_find_feed(self):
+        self.testing_class.ns1 = Mock()
+        datafeed = Mock()
+        datafeed.list.return_value = [
+            {
+                'config': {
+                    'jobid': 123
+                },
+                "id": 789
+            }
+        ]
+        self.testing_class.ns1.datafeed.return_value = datafeed
+        result = self.testing_class.find_feed(456, 123)
+        self.assertEqual(result, 789)
+
+    def test_find_feed_wrong_jobid(self):
+        self.testing_class.ns1 = Mock()
+        datafeed = Mock()
+        datafeed.list.return_value = [
+            {
+                'config': {
+                    'jobid': 456
+                },
+                "id": 789
+            }
+        ]
+        self.testing_class.ns1.datafeed.return_value = datafeed
+        result = self.testing_class.find_feed(456, 123)
+        self.assertEqual(result, None)
+
+    def test_find_feed_wrong_resource_error(self):
+        self.testing_class.ns1 = Mock()
+        datafeed = Mock()
+        datafeed.list.side_effect = ResourceException(1)
+        self.testing_class.ns1.datafeed.return_value = datafeed
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.find_feed,
+            456, 123
+        )
+
+    def test_find_feed_wrong_zone_error(self):
+        self.testing_class.ns1 = Mock()
+        datafeed = Mock()
+        datafeed.list.side_effect = ZoneException(1)
+        self.testing_class.ns1.datafeed.return_value = datafeed
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.find_feed,
+            456, 123
+        )
+
+    def test_find_feed_wrong_exception(self):
+        self.testing_class.ns1 = Mock()
+        datafeed = Mock()
+        datafeed.list.side_effect = Exception(1)
+        self.testing_class.ns1.datafeed.return_value = datafeed
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.find_feed,
+            456, 123
+        )
+
+    def test_get_feed(self):
+        self.testing_class.ns1 = Mock()
+        datafeed = Mock()
+        datafeed.retrieve.return_value = 'feed'
+        self.testing_class.ns1.datafeed.return_value = datafeed
+        result = self.testing_class.get_feed(456, 123)
+        self.assertEqual(result, 'feed')
+
+    def test_get_feed_wrong_resource_error(self):
+        self.testing_class.ns1 = Mock()
+        datafeed = Mock()
+        datafeed.retrieve.side_effect = ResourceException(1)
+        self.testing_class.ns1.datafeed.return_value = datafeed
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.get_feed,
+            456, 123
+        )
+
+    def test_get_feed_wrong_zone_error(self):
+        self.testing_class.ns1 = Mock()
+        datafeed = Mock()
+        datafeed.retrieve.side_effect = ZoneException(1)
+        self.testing_class.ns1.datafeed.return_value = datafeed
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.get_feed,
+            456, 123
+        )
+
+    def test_get_feed_wrong_exception(self):
+        self.testing_class.ns1 = Mock()
+        datafeed = Mock()
+        datafeed.retrieve.side_effect = Exception(1)
+        self.testing_class.ns1.datafeed.return_value = datafeed
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.get_feed,
+            456, 123
+        )
+
+    def test_delete_feed(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.find_feed = Mock(return_value=123)
+        datafeed = Mock()
+        datafeed.delete.return_value = None
+        self.testing_class.ns1.datafeed.return_value = datafeed
+        self.testing_class.delete_feed(456, 123)
+
+    def test_delete_feed_no_feed(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.find_feed = Mock(return_value=None)
+        datafeed = Mock()
+        datafeed.delete.return_value = None
+        self.testing_class.ns1.datafeed.return_value = datafeed
+        self.testing_class.delete_feed(456, 123)
+
+    def test_delete_feed_wrong_resource_error(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.find_feed = Mock(return_value=123)
+        datafeed = Mock()
+        datafeed.delete.side_effect = ResourceException(1)
+        self.testing_class.ns1.datafeed.return_value = datafeed
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.delete_feed,
+            456, 123
+        )
+
+    def test_delete_feed_wrong_zone_error(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.find_feed = Mock(return_value=123)
+        datafeed = Mock()
+        datafeed.delete.side_effect = ZoneException(1)
+        self.testing_class.ns1.datafeed.return_value = datafeed
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.delete_feed,
+            456, 123
+        )
+
+    def test_delete_feed_wrong_exception(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.find_feed = Mock(return_value=123)
+        datafeed = Mock()
+        datafeed.delete.side_effect = Exception(1)
+        self.testing_class.ns1.datafeed.return_value = datafeed
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.delete_feed,
+            456, 123
+        )
+
+    def test_check_record_answers(self):
+        record = NS1Record()
+        self.testing_class.logger = Mock()
+        self.testing_class.get_feed = Mock(return_value={'data': {'up': True}})
+        result = self.testing_class.check_record_answers(record)
+        self.assertEqual(result, 1)
+
+    def test_check_record_answers_not_up(self):
+        record = NS1Record()
+        self.testing_class.get_feed = Mock(return_value={'data': {'up': False}})
+        result = self.testing_class.check_record_answers(record)
+        self.assertEqual(result, 0)
+
+    def test_add_answer(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.loadRecord.return_value = NS1Record()
+        self.testing_class.add_answer(
+            'zone', 'record_name', 'record_type',
+            'answer_host', 'region', 'feed_id'
+        )
+
+    def test_add_answer_already_exist(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.loadRecord.return_value = NS1Record()
+        self.testing_class.add_answer(
+            'zone', 'record_name', 'record_type',
+            '111.111.111.11', 'region', 'feed_id'
+        )
+
+    def test_add_answer_resource_error(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.loadRecord.side_effect = ResourceException(1)
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.add_answer,
+            'zone', 'record_name', 'record_type',
+            '111.111.111.11', 'region', 'feed_id'
+        )
+
+    def test_add_answer_zone_error(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.loadRecord.side_effect = ZoneException(1)
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.add_answer,
+            'zone', 'record_name', 'record_type',
+            '111.111.111.11', 'region', 'feed_id'
+        )
+
+    def test_add_answer_exception(self):
+        self.testing_class.ns1 = Mock()
+        self.testing_class.ns1.loadRecord.side_effect = Exception(1)
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.add_answer,
+            'zone', 'record_name', 'record_type',
+            '111.111.111.11', 'region', 'feed_id'
+        )
 
 
 class TestAbstractSequence(TestAbstract):
@@ -1544,6 +1766,74 @@ class TestDeploymentSequence(TestAbstract):
         self.testing_class.sign_ssl_puppet.assert_called()
         self.testing_class.server.run_puppet.assert_called()
 
+    def test_update_fw_rules(self):
+        connect = Mock()
+        connect.exec_command.return_value = [
+            1, MockedExecOutput(['test_server', ]), 1
+        ]
+        self.testing_class.connect_to_serv = Mock(return_value=connect)
+        self.testing_class.execute_command = Mock(return_value=(0, 'output'))
+        self.testing_class.update_fw_rules()
+
+    def test_sign_ssl_puppet(self):
+        connect = Mock()
+        connect.exec_command.return_value = [
+            1, MockedExecOutput(['test_server', ]), 1
+        ]
+        self.testing_class.connect_to_serv = Mock(return_value=connect)
+        self.testing_class.sign_ssl_puppet()
+
+    def test_sign_ssl_puppet_wrong_status(self):
+        connect = Mock()
+        connect.exec_command.return_value = [
+            1, MockedExecOutput(['test_server', ], return_status=1), 1
+        ]
+        self.testing_class.connect_to_serv = Mock(return_value=connect)
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.sign_ssl_puppet
+        )
+
+    def test_add_to_nagios(self):
+        self.testing_class.nagios = Mock()
+        self.testing_class.nagios.check_nagios_config.return_value = 0
+        self.testing_class.add_to_nagios()
+        self.testing_class.nagios.check_nagios_config.assert_called_once()
+        self.testing_class.nagios.create_config_file.assert_called_once()
+        self.testing_class.nagios.send_config_to_server.assert_called_once()
+        self.testing_class.nagios.reload_nagios.assert_called_once()
+
+    def test_add_to_nagios_not_nagios_config(self):
+        self.testing_class.nagios = Mock()
+        self.testing_class.nagios.check_nagios_config.return_value = 1
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.add_to_nagios
+        )
+        self.testing_class.nagios.check_nagios_config.assert_called_once()
+        self.testing_class.nagios.create_config_file.assert_called_once()
+        self.testing_class.nagios.send_config_to_server.assert_called_once()
+        self.testing_class.nagios.reload_nagios.assert_not_called()
+
+    def test_add_to_pssh_file(self):
+        connect = Mock()
+        connect.exec_command.return_value = [
+            1, MockedExecOutput([]), 1
+        ]
+        self.testing_class.connect_to_serv = Mock(return_value=connect)
+        self.testing_class.add_to_pssh_file()
+        connect.exec_command.assert_called_with("sudo echo %s >> %s" % (
+            'test-host', settings.PSSH_FILE_PATH
+        ))
+
+    def test_add_to_pssh_file_already_added(self):
+        connect = Mock()
+        connect.exec_command.return_value = [
+            1, MockedExecOutput(['test_server', ]), 1
+        ]
+        self.testing_class.connect_to_serv = Mock(return_value=connect)
+        self.testing_class.add_to_pssh_file()
+
 
 class TestDestroySequence(TestAbstract):
     @patch("settings.CDS_URL", 'http://localhost:8000/api/')
@@ -1652,6 +1942,8 @@ class TestDestroySequence(TestAbstract):
 
     @patch("settings.NS1_AFTER_ANSWER_DELETING_WAIT_TIME", 0)
     def test_remove_ns1_balancing_rule(self):
+        destroy_sequence.Proxy = Mock()
+        destroy_sequence.Proxy.wait_low_traffic.return_value = None
         self.testing_class.ns1 = Mock()
         self.testing_class.ns1.get_a_record.return_value = NS1Record()
         self.testing_class.ns1.check_record_answers.return_value = 31
