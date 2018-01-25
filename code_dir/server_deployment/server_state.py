@@ -400,12 +400,12 @@ class ServerState():
 
     def change_password(self, old_passw):
         logger.info('Changing password')
-        new_passw = self.generate_password()
         chan = self.client.invoke_shell()
         resp = chan.recv(9999)
         logger.info(resp)
         if resp.starts_with(':~$ ') or resp.starts_with(':~# '):
             logger.info("password not need to be changed")
+            return
 
         # chan.send('su - testing\n')
         # self.wait_for_state(chan, 'Password: ')
@@ -418,6 +418,8 @@ class ServerState():
         self.wait_for_state(chan, '(current) UNIX password: ')
         chan.send(old_passw + '\n')
 
+        new_passw = self.generate_password()
+        self.password = new_passw
         self.wait_for_state(chan, 'Enter new UNIX password: ')
         chan.send(new_passw + '\n')
 
@@ -426,6 +428,7 @@ class ServerState():
 
         self.wait_for_state(chan, 'password updated successfully')
         logger.info('Password updated successfully')
+        self.re_connect()
 
     def wait_for_state(self, chan, wait_resp):
         # try to find expected  line in output
