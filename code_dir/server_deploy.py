@@ -380,9 +380,11 @@ class DeploySequence(SequenceAbstract):
         ]
 
         self.record_type = args.record_type
+        self.password = args.password
+        self.login = args.login
         # self.zone_name = "attested.club"
         self.server = ServerState(
-            self.host_name, args.login, args.password,
+            self.host_name, self.login, self.password,
             self.logger, ipv4=self.ip,
             first_step=self.first_step,
         )
@@ -500,6 +502,7 @@ class DeploySequence(SequenceAbstract):
     def check_hostname_step(self):
         # Start deploing of server
         self.logger.init_new_step("check_hostname")
+        self.server.change_password(self.password)
         hostname = self.server.check_hostname()
         if hostname.rstrip() != self.host_name:
             self.server.update_hostname(self.host_name)

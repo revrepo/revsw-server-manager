@@ -197,6 +197,9 @@ class MockedServerClass():
     def __init__(self, *args, **kwargs):
         pass
 
+    def check_traffic(self):
+        pass
+
 
 class MockedNagiosClass():
 

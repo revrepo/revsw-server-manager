@@ -2433,6 +2433,134 @@ class TestServerState(TestAbstract):
             self.testing_class.configure_puppet
         )
 
+    def test_change_password(self):
+
+        self.testing_class.generate_password = Mock(return_value='test_pass')
+        self.testing_class.client = Mock()
+        chan = Mock()
+        chan.send.return_value = None
+        self.testing_class.client.invoke_shell.return_value = chan
+        self.testing_class.wait_for_state = Mock(return_value=None)
+        self.testing_class.change_password('old_pass')
+        self.testing_class.generate_password.assert_called()
+        chan.send.assert_called_with('test_pass\n')
+        self.testing_class.client.invoke_shell.assert_called()
+        self.testing_class.wait_for_state.assert_called()
+
+    def test_wait_for_state(self):
+        chan =  Mock()
+        chan.recv.return_value = 'other_data expected_value other_data'
+        self.testing_class.wait_for_state(chan, 'expected_value')
+        chan.recv.assert_called()
+
+    def test_wait_for_state_no_value(self):
+        chan =  Mock()
+        chan.recv.return_value = 'other_data wrong_value other_data'
+        self.assertRaises(
+            DeploymentError,
+
+            self.testing_class.wait_for_state,
+            chan, 'expected_value'
+        )
+        chan.recv.assert_called()
+
+    def test_generate_password(self):
+        self.testing_class.generate_password()
+
+    def test_check_traffic(self):
+        test_data = [
+            '{"response": 200, "clientip": "111.111.111.111"}',
+            '{"response": 200, "clientip": "222.222.222.222"}',
+            '{"response": 200, "clientip": "333.333.333.333"}',
+        ]
+        self.testing_class.client = Mock()
+        logfile = Mock()
+        logfile.readlines.return_value = test_data
+        transport = Mock()
+        transport.open.return_value = logfile
+        self.testing_class.client.open_sftp.return_value = transport
+        result = self.testing_class.check_traffic()
+        transport.open.assert_called_with(
+            '/var/log/nginx/revsw_nginx_access_json.log'
+        )
+        self.assertEqual(result, 3)
+
+    def test_check_traffic_has_error(self):
+        test_data = [
+            '{"response": 200, "clientip": "111.111.111.111"}',
+            '{"response": 500, "clientip": "222.222.222.222"}',
+            '{"response": 200, "clientip": "333.333.333.333"}',
+        ]
+        self.testing_class.client = Mock()
+        logfile = Mock()
+        logfile.readlines.return_value = test_data
+        transport = Mock()
+        transport.open.return_value = logfile
+        self.testing_class.client.open_sftp.return_value = transport
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.check_traffic
+        )
+        transport.open.assert_called_with(
+            '/var/log/nginx/revsw_nginx_access_json.log'
+        )
+
+    def test_check_traffic_response_more_599(self):
+        test_data = [
+            '{"response": 200, "clientip": "111.111.111.111"}',
+            '{"response": 601, "clientip": "222.222.222.222"}',
+            '{"response": 200, "clientip": "333.333.333.333"}',
+        ]
+        self.testing_class.client = Mock()
+        logfile = Mock()
+        logfile.readlines.return_value = test_data
+        transport = Mock()
+        transport.open.return_value = logfile
+        self.testing_class.client.open_sftp.return_value = transport
+        result = self.testing_class.check_traffic()
+        transport.open.assert_called_with(
+            '/var/log/nginx/revsw_nginx_access_json.log'
+        )
+        self.assertEqual(result, 3)
+
+    def test_check_traffic_not_all_ip_unique(self):
+        test_data = [
+            '{"response": 200, "clientip": "111.111.111.111"}',
+            '{"response": 200, "clientip": "222.222.222.222"}',
+            '{"response": 200, "clientip": "111.111.111.111"}',
+        ]
+        self.testing_class.client = Mock()
+        logfile = Mock()
+        logfile.readlines.return_value = test_data
+        transport = Mock()
+        transport.open.return_value = logfile
+        self.testing_class.client.open_sftp.return_value = transport
+        result = self.testing_class.check_traffic()
+        transport.open.assert_called_with(
+            '/var/log/nginx/revsw_nginx_access_json.log'
+        )
+        self.assertEqual(result, 2)
+
+    def test_check_traffic_wrong_json(self):
+        test_data = [
+            '{"response": 200, "clientip": "111.111.111.111}',
+            '{"response": 500, "clientip": "222.222.222.222"}',
+            '{"response": 200, "clientip": "333.333.333.333"}',
+        ]
+        self.testing_class.client = Mock()
+        logfile = Mock()
+        logfile.readlines.return_value = test_data
+        transport = Mock()
+        transport.open.return_value = logfile
+        self.testing_class.client.open_sftp.return_value = transport
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.check_traffic
+        )
+        transport.open.assert_called_with(
+            '/var/log/nginx/revsw_nginx_access_json.log'
+        )
+
 
 class TestNagiosServer(TestAbstract):
     @patch("settings.INFRADB_URL", 'http://localhost:8000/api/')

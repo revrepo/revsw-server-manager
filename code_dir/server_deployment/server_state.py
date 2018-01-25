@@ -18,6 +18,7 @@
 """
 import json
 import logging
+import random
 import time
 import datetime
 
@@ -384,9 +385,9 @@ class ServerState():
             try:
                 line.strip('\r\n')
                 readed_log = json.loads(line)
-            except ValueError:
+            except ValueError as e:
                 raise DeploymentError('Wrong format of revsw_nginx_access_json.log')
-            if readed_log['response'] >= 500 and readed_log['response'] <= 599:
+            if 500 <= readed_log['response'] <= 599:
                 errors = True
                 logger.error('error in log file')
                 logger.error(readed_log)
@@ -395,5 +396,52 @@ class ServerState():
         logger.info('Unique IPs in log file %s' % len(unique_ip))
         if errors:
             raise DeploymentError('Errors in revsw_nginx_access_json.log file')
+        return len(unique_ip)
 
+    def change_password(self, old_passw):
+        logger.info('Changing password')
+        new_passw = self.generate_password()
+        chan = self.client.invoke_shell()
+        self.wait_for_state(chan, ':~$ ')
 
+        # chan.send('su - testing\n')
+        # self.wait_for_state(chan, 'Password: ')
+        # chan.send(old_passw + '\n')
+        #
+        # self.wait_for_state(chan, ':~$ ')
+
+        # run command for changing password
+        chan.send('passwd' + '\n')
+        self.wait_for_state(chan, '(current) UNIX password: ')
+        chan.send(old_passw + '\n')
+
+        self.wait_for_state(chan, 'Enter new UNIX password: ')
+        chan.send(new_passw + '\n')
+
+        self.wait_for_state(chan, 'Retype new UNIX password: ')
+        chan.send(new_passw + '\n')
+
+        self.wait_for_state(chan, 'password updated successfully')
+        logger.info('Password updated successfully')
+
+    def wait_for_state(self, chan, wait_resp):
+        # try to find expected  line in output
+        buff = ''
+        time.sleep(1)
+        resp = chan.recv(9999)
+        buff += resp
+        logger.info(buff)
+
+        logger.info(buff)
+        if wait_resp in buff:
+            return
+        raise DeploymentError(
+            'Can\'t change password.'
+        )
+
+    def generate_password(self):
+        import string
+        characters = string.ascii_letters + string.punctuation + string.digits
+        password = "".join(random.choice(characters) for x in range(random.randint(8, 16)))
+        logger.info('New password:%s' % password)
+        return password
