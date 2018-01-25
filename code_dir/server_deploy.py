@@ -70,7 +70,16 @@ class DeploySequence(SequenceAbstract):
                     "error_log": {"type": "string"}
                 }
             },
-
+            "change_password": {
+                "type": "object",
+                "properties": {
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                }
+            },
             "check_server_consistency": {
                 "type": "object",
                 "properties": {
@@ -274,6 +283,7 @@ class DeploySequence(SequenceAbstract):
             "start_time",
             "initial_data",
             "init_step",
+            "change_password",
             "check_server_consistency",
             "check_hostname",
             "add_ns1_a_record",
@@ -290,6 +300,7 @@ class DeploySequence(SequenceAbstract):
     }
     logger_steps = [
         "init_step",
+        "change_password",
         "check_server_consistency",
         "check_hostname",
         "add_ns1_a_record",
@@ -306,6 +317,9 @@ class DeploySequence(SequenceAbstract):
     current_server_state = {
         "time": None,
         "init_step": {
+            "runned": "no",
+        },
+        "change_password": {
             "runned": "no",
         },
         "check_server_consistency": {
@@ -350,6 +364,7 @@ class DeploySequence(SequenceAbstract):
         super(DeploySequence, self).__init__(args)
 
         self.steps = {
+            "change_password": self.change_password,
             "check_server_consistency": self.check_server_consistency,
             "check_hostname": self.check_hostname_step,
             "add_ns1_a_record": self.add_ns1_a_record,
@@ -365,6 +380,7 @@ class DeploySequence(SequenceAbstract):
 
         }
         self.step_sequence = [
+            "change_password",
             "check_server_consistency",
             "check_hostname",
             "add_ns1_a_record",
@@ -388,6 +404,10 @@ class DeploySequence(SequenceAbstract):
             self.logger, ipv4=self.ip,
             first_step=self.first_step,
         )
+
+    def change_password(self):
+        self.logger.init_new_step("change_password")
+        self.server.change_password(self.password)
 
     def deploy_cds(self):
         # checking installed packages
@@ -730,6 +750,7 @@ if __name__ == "__main__":
         "--first_step", help="First step which sequence must start.",
         default="check_server_consistency",
         choices=[
+            "change_password",
             "check_server_consistency",
             "check_hostname",
             "add_ns1_a_record",

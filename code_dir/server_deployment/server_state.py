@@ -402,7 +402,10 @@ class ServerState():
         logger.info('Changing password')
         new_passw = self.generate_password()
         chan = self.client.invoke_shell()
-        self.wait_for_state(chan, ':~$ ')
+        resp = chan.recv(9999)
+        logger.info(resp)
+        if resp.starts_with(':~$ ') or resp.starts_with(':~# '):
+            logger.info("password not need to be changed")
 
         # chan.send('su - testing\n')
         # self.wait_for_state(chan, 'Password: ')
@@ -426,14 +429,10 @@ class ServerState():
 
     def wait_for_state(self, chan, wait_resp):
         # try to find expected  line in output
-        buff = ''
         time.sleep(1)
         resp = chan.recv(9999)
-        buff += resp
-        logger.info(buff)
-
-        logger.info(buff)
-        if wait_resp in buff:
+        logger.info(resp)
+        if wait_resp in resp:
             return
         raise DeploymentError(
             'Can\'t change password.'
