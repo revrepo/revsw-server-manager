@@ -401,6 +401,7 @@ class ServerState():
     def change_password(self, old_passw):
         logger.info('Changing password')
         chan = self.client.invoke_shell()
+        time.sleep(1)
         resp = chan.recv(9999)
         logger.info(resp)
         if resp.endswith(':~$ ') or resp.endswith(':~# '):
@@ -420,7 +421,13 @@ class ServerState():
         self.wait_for_state(chan, 'Retype new UNIX password: ')
         chan.send(new_passw + '\n')
 
-        self.wait_for_state(chan, 'password updated successfully')
+        time.sleep(1)
+        resp = chan.recv(9999)
+        logger.info(resp)
+        if not resp.endswith(':~$ ') and not resp.endswith(':~# '):
+            raise DeploymentError(
+                'Can\'t change password.'
+            )
         logger.info('Password updated successfully')
         self.re_connect()
 
