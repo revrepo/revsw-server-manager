@@ -698,8 +698,7 @@ class DeploySequence(SequenceAbstract):
         self.logger.log({'server_added': "yes"})
 
 
-if __name__ == "__main__":
-
+def main():
     parser = argparse.ArgumentParser(
         description="Automatic deployment of server.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter
@@ -788,3 +787,6 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(e, exc_info=True)
         sys.exit(-1)
+
+if __name__ == "__main__":
+    main()

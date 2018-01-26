@@ -18,12 +18,14 @@
 """
 import logging
 
-from nsone.records import Record
-from nsone.rest.errors import ResourceException
-from nsone.zones import ZoneException
+import nsone
+
+# from nsone import NSONE
+# from nsone.records import Record
+# from nsone.rest.errors import ResourceException
+# from nsone.zones import ZoneException
 
 import settings
-from nsone import NSONE
 
 from server_deployment.utilites import DeploymentError
 
@@ -39,13 +41,13 @@ class Ns1Deploy():
         self.host = host
 
         self.logger = logger
-        self.ns1 = NSONE(apiKey=settings.NSONE_KEY)
+        self.ns1 = nsone.NSONE(apiKey=settings.NSONE_KEY)
         self.monitor = self.ns1.monitors()
 
     def get_monitor_list(self):
         try:
             monitors = self.monitor.list()
-        except ResourceException as e:
+        except nsone.rest.errors.ResourceException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
@@ -95,7 +97,7 @@ class Ns1Deploy():
 
         try:
             monitor = self.monitor.create(monitor_data)
-        except ResourceException as e:
+        except nsone.rest.errors.ResourceException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
@@ -110,7 +112,7 @@ class Ns1Deploy():
     def get_monitor(self, monitor_id):
         try:
             monitor = self.monitor.retrieve(monitor_id)
-        except ResourceException as e:
+        except nsone.rest.errors.ResourceException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
@@ -122,7 +124,7 @@ class Ns1Deploy():
         logger.info("Deleting monitor from NS1")
         try:
             monitor = self.monitor.delete(monitor_id)
-        except ResourceException as e:
+        except nsone.rest.errors.ResourceException as e:
             log_error = e.message
             raise DeploymentError(log_error)
         logger.info("Monitor deleted")
@@ -131,10 +133,10 @@ class Ns1Deploy():
     def get_zone(self, zone_name):
         try:
             zone = self.ns1.loadZone(zone_name)
-        except ResourceException as e:
+        except nsone.rest.errors.ResourceException as e:
             log_error = e.message
             raise DeploymentError(log_error)
-        except ZoneException as e:
+        except nsone.zones.ZoneException as e:
             log_error = e.message
             raise DeploymentError(log_error)
         logger.info("Zone id %s" % zone['id'])
@@ -143,13 +145,13 @@ class Ns1Deploy():
     def add_a_record(self, zone, short_name):
         try:
             record = zone.add_A(short_name, [self.host])
-        except ResourceException as e:
+        except nsone.rest.errors.ResourceException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
             })
             raise DeploymentError(log_error)
-        except ZoneException as e:
+        except nsone.zones.ZoneException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
@@ -165,9 +167,9 @@ class Ns1Deploy():
                     "get by zone %s, domain %s, record_type %s" %
                     (zone, domain, record_type)
                 )
-            record = Record(zone, domain, record_type)
+            record = nsone.records.Record(zone, domain, record_type)
             record.load()
-        except ResourceException as e:
+        except nsone.rest.errors.ResourceException as e:
             if e.message == 'server error: record not found':
                 return
             log_error = e.message
@@ -175,7 +177,7 @@ class Ns1Deploy():
                 "error_log": log_error
             })
             raise DeploymentError(log_error)
-        except ZoneException as e:
+        except nsone.zones.ZoneException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
@@ -196,13 +198,13 @@ class Ns1Deploy():
                 "%s status" % self.host_name,
                 config={"jobid": monitor_id}
             )
-        except ResourceException as e:
+        except nsone.rest.errors.ResourceException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
             })
             raise DeploymentError(log_error)
-        except ZoneException as e:
+        except nsone.zones.ZoneException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
@@ -230,13 +232,13 @@ class Ns1Deploy():
                     feed_id = feed['id']
                     logger.info('feed was found, its id %s' % feed_id)
                     return feed_id
-        except ResourceException as e:
+        except nsone.rest.errors.ResourceException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
             })
             raise DeploymentError(log_error)
-        except ZoneException as e:
+        except nsone.zones.ZoneException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
@@ -259,13 +261,13 @@ class Ns1Deploy():
         try:
             feedAPI = self.ns1.datafeed()
             feed = feedAPI.retrieve(source_id, feed_id)
-        except ResourceException as e:
+        except nsone.rest.errors.ResourceException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
             })
             raise DeploymentError(log_error)
-        except ZoneException as e:
+        except nsone.zones.ZoneException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
@@ -289,13 +291,13 @@ class Ns1Deploy():
                 return
             feedAPI.delete(source_id, feed_id)
             logger.info("Feed succesfuly deleted")
-        except ResourceException as e:
+        except nsone.rest.errors.ResourceException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
             })
             raise DeploymentError(log_error)
-        except ZoneException as e:
+        except nsone.zones.ZoneException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
@@ -334,13 +336,13 @@ class Ns1Deploy():
             record.addAnswers([answer_data])
             logger.info("Answer succesfully added")
 
-        except ResourceException as e:
+        except nsone.rest.errors.ResourceException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error
             })
             raise DeploymentError(log_error)
-        except ZoneException as e:
+        except nsone.zones.ZoneException as e:
             log_error = e.message
             self.logger.log({
                 "error_log": log_error

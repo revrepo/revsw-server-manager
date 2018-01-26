@@ -46,7 +46,7 @@ from server_deployment.server_state import ServerState
 from server_deployment.utilites import DeploymentError, MongoDBHandler
 from server_deployment.nsone_class import Ns1Deploy
 from server_deployment.test_utilites import NS1MonitorMock, MockNSONE, Objectview, \
-    MockedInfraDB, NS1ZoneMock, \
+    MockedInfraDB, NS1ZoneMock, MockedArgPars,\
     MockedServerClass, NS1Record, MockedExecOutput, MockedNagiosClass, NS1MockedRecord
 
 import server_deployment.server_state as server_state
@@ -1164,10 +1164,10 @@ class TestNS1Class(TestAbstract):
         )
         zone.add_A.assert_called()
 
-    def test_get_a_record(self):
-        ns1.Record = Mock()
-        ns1.Record.load.return_value = None
-        self.testing_class.get_a_record('zone_name', 'domain', 'a')
+    # def test_get_a_record(self):
+    #     ns1.Record = Mock()
+    #     ns1.Record.load.return_value = None
+        # self.testing_class.get_a_record('zone_name', 'domain', 'a')
 
     def test_find_feed(self):
         self.testing_class.ns1 = Mock()
@@ -1834,6 +1834,83 @@ class TestDeploymentSequence(TestAbstract):
         self.testing_class.connect_to_serv = Mock(return_value=connect)
         self.testing_class.add_to_pssh_file()
 
+    def test_main_deployment_sequence(self):
+        # test for check that all of arguments is parsed
+        deploy_sequence.argparse = Mock()
+        mocked_args = MockedArgPars()
+        deploy_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
+        deploy_sequence.argparse.ArgumentParser = mocked_args
+        deploy_sequence.sys = Mock()
+        with patch.object(deploy_sequence.DeploySequence, '__init__'):
+            deploy_sequence.main()
+        test_data = [
+            '--host_name', '--zone_name', '--IP', '--record_type',
+            '--login', '--password', '--cert', '--hosting',
+            '--server_group', '--environment', '--dns_balancing_name',
+            '--first_step', '--number_of_steps_to_execute',
+            '--disable_infradb_ssl'
+        ]
+
+
+        print mocked_args.added_arguments
+        self.assertEqual(test_data, mocked_args.added_arguments)
+
+    def test_main_check_server_status_required_list(self):
+        # test for check that all of arguments is parsed
+        deploy_sequence.argparse = Mock()
+        mocked_args = MockedArgPars()
+        deploy_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
+        deploy_sequence.argparse.ArgumentParser = mocked_args
+        deploy_sequence.sys = Mock()
+        with patch.object(deploy_sequence.DeploySequence, '__init__'):
+            deploy_sequence.main()
+        test_data = ['--host_name', '--IP']
+
+        print mocked_args.required_arguments
+        self.assertEqual(test_data, mocked_args.required_arguments)
+
+    def test_main_check_server_status_default_values(self):
+        # test for check that all of arguments is parsed
+        deploy_sequence.argparse = Mock()
+        mocked_args = MockedArgPars()
+        deploy_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
+        deploy_sequence.argparse.ArgumentParser = mocked_args
+        deploy_sequence.sys = Mock()
+        with patch.object(deploy_sequence.DeploySequence, '__init__'):
+            deploy_sequence.main()
+        test_data = {
+            '--record_type': 'A',
+            '--server_group': '5588823fbde7a0d00338ce8d',
+            '--login': 'robot',
+            '--zone_name': 'attested.club',
+            '--environment': 'prod',
+            '--hosting': 'HE',
+            '--first_step': 'change_password'
+        }
+
+        print mocked_args.default_values
+        self.assertEqual(test_data, mocked_args.default_values)
+
+    def test_main_check_server_status_step_choices(self):
+        # test for check that all of arguments is parsed
+        deploy_sequence.argparse = Mock()
+        mocked_args = MockedArgPars()
+        deploy_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
+        deploy_sequence.argparse.ArgumentParser = mocked_args
+        deploy_sequence.sys = Mock()
+        with patch.object(deploy_sequence.DeploySequence, '__init__'):
+            deploy_sequence.main()
+        test_data = [
+            'change_password', 'check_server_consistency',
+            'check_hostname', 'add_ns1_a_record', 'add_to_infradb',
+            'update_fw_rules', 'install_puppet', 'run_puppet',
+            'add_to_cds', 'add_to_nagios', 'add_ns1_monitor',
+            'add_ns1_balancing_rule', 'add_to_pssh_file'
+        ]
+
+        print mocked_args.step_choices
+        self.assertEqual(test_data, mocked_args.step_choices)
+
 
 class TestDestroySequence(TestAbstract):
     @patch("settings.CDS_URL", 'http://localhost:8000/api/')
@@ -2038,6 +2115,81 @@ class TestDestroySequence(TestAbstract):
         connection.exec_command.assert_called_once_with(
             "sudo puppet cert clean %s" % self.host_name
         )
+
+    def test_main_destroy_sequence(self):
+        # test for check that all of arguments is parsed
+        destroy_sequence.argparse = Mock()
+        mocked_args = MockedArgPars()
+        destroy_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
+        destroy_sequence.argparse.ArgumentParser = mocked_args
+
+        destroy_sequence.sys = Mock()
+        with patch.object(destroy_sequence.DestroySequence, '__init__'):
+            destroy_sequence.main()
+        test_data = [
+            '--host_name', '--zone_name', '--IP', '--record_type',
+            '--login', '--password', '--hosting', '--server_group',
+            '--environment', '--dns_balancing_name', '--first_step',
+            '--number_of_steps_to_execute', '--disable_infradb_ssl'
+        ]
+
+        print mocked_args.added_arguments
+        self.assertEqual(test_data, mocked_args.added_arguments)
+
+    def test_main_check_server_status_required_list(self):
+        # test for check that all of arguments is parsed
+        destroy_sequence.argparse = Mock()
+        mocked_args = MockedArgPars()
+        destroy_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
+        destroy_sequence.argparse.ArgumentParser = mocked_args
+
+        destroy_sequence.sys = Mock()
+        with patch.object(destroy_sequence.DestroySequence, '__init__'):
+            destroy_sequence.main()
+        test_data = ['--host_name', '--IP']
+        print mocked_args.required_arguments
+        self.assertEqual(test_data, mocked_args.required_arguments)
+
+    def test_main_check_server_status_default_values(self):
+        # test for check that all of arguments is parsed
+        destroy_sequence.argparse = Mock()
+        mocked_args = MockedArgPars()
+        destroy_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
+        destroy_sequence.argparse.ArgumentParser = mocked_args
+
+        destroy_sequence.sys = Mock()
+        with patch.object(destroy_sequence.DestroySequence, '__init__'):
+            destroy_sequence.main()
+        test_data = {
+            '--record_type': 'A',
+            '--server_group': '5588823fbde7a0d00338ce8d',
+            '--login': 'robot', '--zone_name': 'attested.club',
+            '--environment': 'prod',
+            '--hosting': 'HE',
+            '--first_step': 'remove_ns1_balancing_rule'
+        }
+
+        print mocked_args.default_values
+        self.assertEqual(test_data, mocked_args.default_values)
+
+    def test_main_check_server_status_step_choices(self):
+        # test for check that all of arguments is parsed
+        destroy_sequence.argparse = Mock()
+        mocked_args = MockedArgPars()
+        destroy_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
+        destroy_sequence.argparse.ArgumentParser = mocked_args
+
+        destroy_sequence.sys = Mock()
+        with patch.object(destroy_sequence.DestroySequence, '__init__'):
+            destroy_sequence.main()
+        test_data = [
+            'remove_ns1_a_record', 'remove_from_nagios', 'remove_from_cds',
+            'remove_ns1_monitor', 'remove_from_infradb', 'remove_from_puppet',
+            'remove_ns1_balancing_rule', 'remove_from_pssh_file'
+        ]
+
+        print mocked_args.step_choices
+        self.assertEqual(test_data, mocked_args.step_choices)
 
 
 class TestServerState(TestAbstract):
@@ -2699,6 +2851,7 @@ class TestCheckSequence(TestAbstract):
     def setUp(self):
         # mocking mogo db variables for conecting to test  database
         # settings.MONGO_DB_NAME = 'test_database'
+        connection = Mock()
         settings.MONGO_HOST = 'localhost'
         settings.MONGO_PORT = 27017
         self.mongo_cli = pymongo.MongoClient(
@@ -3083,6 +3236,79 @@ class TestCheckSequence(TestAbstract):
             self.testing_class.check_status["check_pssh_file"],
             "Not OK"
         )
+
+    def test_main_check_server_status(self):
+        # test for check that all of arguments is parsed
+        check_sequence.argparse = Mock()
+        mocked_args = MockedArgPars()
+        check_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
+        check_sequence.argparse.ArgumentParser = mocked_args
+        check_sequence.sys = Mock()
+        with patch.object(check_sequence.CheckingSequence, '__init__'):
+            check_sequence.main()
+        test_data = [
+            '--host_name', '--zone_name', '--IP', '--record_type',
+            '--login', '--password', '--cert', '--hosting',
+            '--server_group', '--environment', '--dns_balancing_name',
+            '--first_step', '--number_of_steps_to_execute',
+            '--disable_infradb_ssl'
+        ]
+        self.assertEqual(test_data, mocked_args.added_arguments)
+
+    def test_main_check_server_status_required_list(self):
+        # test for check that all of arguments is parsed
+        check_sequence.argparse = Mock()
+        mocked_args = MockedArgPars()
+        check_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
+        check_sequence.argparse.ArgumentParser = mocked_args
+        check_sequence.sys = Mock()
+        with patch.object(check_sequence.CheckingSequence, '__init__'):
+            check_sequence.main()
+        test_data = ['--host_name', '--IP']
+        print mocked_args.required_arguments
+        self.assertEqual(test_data, mocked_args.required_arguments)
+
+    def test_main_check_server_status_default_values(self):
+        # test for check that all of arguments is parsed
+        check_sequence.argparse = Mock()
+        mocked_args = MockedArgPars()
+        check_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
+        check_sequence.argparse.ArgumentParser = mocked_args
+        check_sequence.sys = Mock()
+        with patch.object(check_sequence.CheckingSequence, '__init__'):
+            check_sequence.main()
+        test_data = {
+            '--record_type': 'A',
+            '--server_group': '5588823fbde7a0d00338ce8d',
+            '--login': 'robot',
+            '--zone_name': 'attested.club',
+            '--environment': 'prod',
+            '--hosting': 'HE',
+            '--first_step': 'check_server_consistency'
+        }
+
+        print mocked_args.default_values
+        self.assertEqual(test_data, mocked_args.default_values)
+
+    def test_main_check_server_status_step_choices(self):
+        # test for check that all of arguments is parsed
+        check_sequence.argparse = Mock()
+        mocked_args = MockedArgPars()
+        check_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
+        check_sequence.argparse.ArgumentParser = mocked_args
+        check_sequence.sys = Mock()
+        with patch.object(check_sequence.CheckingSequence, '__init__'):
+            check_sequence.main()
+        test_data = [
+            'check_server_consistency', 'check_hostname', 'check_ns1_a_record',
+            'check_infradb', 'check_cds', 'check_nagios', 'check_puppet',
+            'check_ns1_balancing_rule', 'check_pssh_file', 'check_fw_rules'
+        ]
+
+        print mocked_args.step_choices
+        self.assertEqual(test_data, mocked_args.step_choices)
+
+
 
 
 if __name__ == '__main__':

@@ -264,3 +264,36 @@ class MockedChannel():
 
     def recv_exit_status(self):
         return self.return_status
+
+
+class MockedArgPars():
+    added_arguments = []
+    required_arguments = []
+    default_values = {}
+
+    def __init__(self, *args, **kwargs):
+        self.added_arguments = []
+        self.required_arguments = []
+        self.default_values = {}
+        self.step_choices = []
+
+    def __call__(self, *args, **kwargs):
+        return self
+
+    def parse_args(self):
+        pass
+
+    def add_argument(self, *args, **kwargs):
+        if len(args) == 1:
+            self.added_arguments.append(args[0])
+            arg = args[0]
+        else:
+            self.added_arguments.append(args[1])
+            arg = args[1]
+
+        if kwargs.get('required'):
+            self.required_arguments.append(arg)
+        if kwargs.get('default'):
+            self.default_values[arg] = kwargs['default']
+        if arg == "--first_step":
+            self.step_choices = kwargs['choices']
