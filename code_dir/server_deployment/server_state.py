@@ -403,7 +403,7 @@ class ServerState():
         chan = self.client.invoke_shell()
         resp = chan.recv(9999)
         logger.info(resp)
-        if resp.starts_with(':~$ ') or resp.starts_with(':~# '):
+        if resp.endswith(':~$ ') or resp.endswith(':~# '):
             logger.info("password not need to be changed")
             return
 
