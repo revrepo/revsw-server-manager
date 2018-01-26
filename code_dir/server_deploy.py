@@ -748,7 +748,7 @@ if __name__ == "__main__":
 
     parser.add_argument(
         "--first_step", help="First step which sequence must start.",
-        default="check_server_consistency",
+        default="change_password",
         choices=[
             "change_password",
             "check_server_consistency",
