@@ -1834,15 +1834,15 @@ class TestDeploymentSequence(TestAbstract):
         self.testing_class.connect_to_serv = Mock(return_value=connect)
         self.testing_class.add_to_pssh_file()
 
-    def test_main_deployment_sequence(self):
+    @patch('server_deploy.DeploySequence')
+    def test_main_deployment_sequence(self, depl_seq):
         # test for check that all of arguments is parsed
         deploy_sequence.argparse = Mock()
         mocked_args = MockedArgPars()
         deploy_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
         deploy_sequence.argparse.ArgumentParser = mocked_args
         deploy_sequence.sys = Mock()
-        with patch.object(deploy_sequence.DeploySequence, '__init__'):
-            deploy_sequence.main()
+        deploy_sequence.main()
         test_data = [
             '--host_name', '--zone_name', '--IP', '--record_type',
             '--login', '--password', '--cert', '--hosting',
@@ -1850,34 +1850,31 @@ class TestDeploymentSequence(TestAbstract):
             '--first_step', '--number_of_steps_to_execute',
             '--disable_infradb_ssl'
         ]
-
-
-        print mocked_args.added_arguments
         self.assertEqual(test_data, mocked_args.added_arguments)
 
-    def test_main_check_server_status_required_list(self):
+    @patch('server_deploy.DeploySequence')
+    def test_main_check_server_status_required_list(self, depl_seq):
         # test for check that all of arguments is parsed
         deploy_sequence.argparse = Mock()
         mocked_args = MockedArgPars()
         deploy_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
         deploy_sequence.argparse.ArgumentParser = mocked_args
         deploy_sequence.sys = Mock()
-        with patch.object(deploy_sequence.DeploySequence, '__init__'):
-            deploy_sequence.main()
+        deploy_sequence.main()
         test_data = ['--host_name', '--IP']
 
         print mocked_args.required_arguments
         self.assertEqual(test_data, mocked_args.required_arguments)
 
-    def test_main_check_server_status_default_values(self):
+    @patch('server_deploy.DeploySequence')
+    def test_main_check_server_status_default_values(self, depl_seq):
         # test for check that all of arguments is parsed
         deploy_sequence.argparse = Mock()
         mocked_args = MockedArgPars()
         deploy_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
         deploy_sequence.argparse.ArgumentParser = mocked_args
         deploy_sequence.sys = Mock()
-        with patch.object(deploy_sequence.DeploySequence, '__init__'):
-            deploy_sequence.main()
+        deploy_sequence.main()
         test_data = {
             '--record_type': 'A',
             '--server_group': '5588823fbde7a0d00338ce8d',
@@ -1891,15 +1888,15 @@ class TestDeploymentSequence(TestAbstract):
         print mocked_args.default_values
         self.assertEqual(test_data, mocked_args.default_values)
 
-    def test_main_check_server_status_step_choices(self):
+    @patch('server_deploy.DeploySequence')
+    def test_main_check_server_status_step_choices(self, depl_seq):
         # test for check that all of arguments is parsed
         deploy_sequence.argparse = Mock()
         mocked_args = MockedArgPars()
         deploy_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
         deploy_sequence.argparse.ArgumentParser = mocked_args
         deploy_sequence.sys = Mock()
-        with patch.object(deploy_sequence.DeploySequence, '__init__'):
-            deploy_sequence.main()
+        deploy_sequence.main()
         test_data = [
             'change_password', 'check_server_consistency',
             'check_hostname', 'add_ns1_a_record', 'add_to_infradb',
@@ -2116,7 +2113,8 @@ class TestDestroySequence(TestAbstract):
             "sudo puppet cert clean %s" % self.host_name
         )
 
-    def test_main_destroy_sequence(self):
+    @patch('destroying_server.DestroySequence')
+    def test_main_destroy_sequence(self, dest_seq):
         # test for check that all of arguments is parsed
         destroy_sequence.argparse = Mock()
         mocked_args = MockedArgPars()
@@ -2124,19 +2122,17 @@ class TestDestroySequence(TestAbstract):
         destroy_sequence.argparse.ArgumentParser = mocked_args
 
         destroy_sequence.sys = Mock()
-        with patch.object(destroy_sequence.DestroySequence, '__init__'):
-            destroy_sequence.main()
+        destroy_sequence.main()
         test_data = [
             '--host_name', '--zone_name', '--IP', '--record_type',
             '--login', '--password', '--hosting', '--server_group',
             '--environment', '--dns_balancing_name', '--first_step',
             '--number_of_steps_to_execute', '--disable_infradb_ssl'
         ]
-
-        print mocked_args.added_arguments
         self.assertEqual(test_data, mocked_args.added_arguments)
 
-    def test_main_check_server_status_required_list(self):
+    @patch('destroying_server.DestroySequence')
+    def test_main_check_server_status_required_list(self, dest_seq):
         # test for check that all of arguments is parsed
         destroy_sequence.argparse = Mock()
         mocked_args = MockedArgPars()
@@ -2144,13 +2140,12 @@ class TestDestroySequence(TestAbstract):
         destroy_sequence.argparse.ArgumentParser = mocked_args
 
         destroy_sequence.sys = Mock()
-        with patch.object(destroy_sequence.DestroySequence, '__init__'):
-            destroy_sequence.main()
+        destroy_sequence.main()
         test_data = ['--host_name', '--IP']
-        print mocked_args.required_arguments
         self.assertEqual(test_data, mocked_args.required_arguments)
 
-    def test_main_check_server_status_default_values(self):
+    @patch('destroying_server.DestroySequence')
+    def test_main_check_server_status_default_values(self, dest_seq):
         # test for check that all of arguments is parsed
         destroy_sequence.argparse = Mock()
         mocked_args = MockedArgPars()
@@ -2158,8 +2153,7 @@ class TestDestroySequence(TestAbstract):
         destroy_sequence.argparse.ArgumentParser = mocked_args
 
         destroy_sequence.sys = Mock()
-        with patch.object(destroy_sequence.DestroySequence, '__init__'):
-            destroy_sequence.main()
+        destroy_sequence.main()
         test_data = {
             '--record_type': 'A',
             '--server_group': '5588823fbde7a0d00338ce8d',
@@ -2172,7 +2166,8 @@ class TestDestroySequence(TestAbstract):
         print mocked_args.default_values
         self.assertEqual(test_data, mocked_args.default_values)
 
-    def test_main_check_server_status_step_choices(self):
+    @patch('destroying_server.DestroySequence')
+    def test_main_check_server_status_step_choices(self, dest_seq):
         # test for check that all of arguments is parsed
         destroy_sequence.argparse = Mock()
         mocked_args = MockedArgPars()
@@ -2180,15 +2175,12 @@ class TestDestroySequence(TestAbstract):
         destroy_sequence.argparse.ArgumentParser = mocked_args
 
         destroy_sequence.sys = Mock()
-        with patch.object(destroy_sequence.DestroySequence, '__init__'):
-            destroy_sequence.main()
+        destroy_sequence.main()
         test_data = [
             'remove_ns1_a_record', 'remove_from_nagios', 'remove_from_cds',
             'remove_ns1_monitor', 'remove_from_infradb', 'remove_from_puppet',
             'remove_ns1_balancing_rule', 'remove_from_pssh_file'
         ]
-
-        print mocked_args.step_choices
         self.assertEqual(test_data, mocked_args.step_choices)
 
 
@@ -3237,15 +3229,15 @@ class TestCheckSequence(TestAbstract):
             "Not OK"
         )
 
-    def test_main_check_server_status(self):
+    @patch('check_server_status.CheckingSequence')
+    def test_main_check_server_status(self, check_seq):
         # test for check that all of arguments is parsed
         check_sequence.argparse = Mock()
         mocked_args = MockedArgPars()
         check_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
         check_sequence.argparse.ArgumentParser = mocked_args
         check_sequence.sys = Mock()
-        with patch.object(check_sequence.CheckingSequence, '__init__'):
-            check_sequence.main()
+        check_sequence.main()
         test_data = [
             '--host_name', '--zone_name', '--IP', '--record_type',
             '--login', '--password', '--cert', '--hosting',
@@ -3255,28 +3247,28 @@ class TestCheckSequence(TestAbstract):
         ]
         self.assertEqual(test_data, mocked_args.added_arguments)
 
-    def test_main_check_server_status_required_list(self):
+    @patch('check_server_status.CheckingSequence')
+    def test_main_check_server_status_required_list(self, check_seq):
         # test for check that all of arguments is parsed
         check_sequence.argparse = Mock()
         mocked_args = MockedArgPars()
         check_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
         check_sequence.argparse.ArgumentParser = mocked_args
         check_sequence.sys = Mock()
-        with patch.object(check_sequence.CheckingSequence, '__init__'):
-            check_sequence.main()
+        check_sequence.main()
         test_data = ['--host_name', '--IP']
         print mocked_args.required_arguments
         self.assertEqual(test_data, mocked_args.required_arguments)
 
-    def test_main_check_server_status_default_values(self):
+    @patch('check_server_status.CheckingSequence')
+    def test_main_check_server_status_default_values(self, check_seq):
         # test for check that all of arguments is parsed
         check_sequence.argparse = Mock()
         mocked_args = MockedArgPars()
         check_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
         check_sequence.argparse.ArgumentParser = mocked_args
         check_sequence.sys = Mock()
-        with patch.object(check_sequence.CheckingSequence, '__init__'):
-            check_sequence.main()
+        check_sequence.main()
         test_data = {
             '--record_type': 'A',
             '--server_group': '5588823fbde7a0d00338ce8d',
@@ -3290,15 +3282,15 @@ class TestCheckSequence(TestAbstract):
         print mocked_args.default_values
         self.assertEqual(test_data, mocked_args.default_values)
 
-    def test_main_check_server_status_step_choices(self):
+    @patch('check_server_status.CheckingSequence')
+    def test_main_check_server_status_step_choices(self, check_seq):
         # test for check that all of arguments is parsed
         check_sequence.argparse = Mock()
         mocked_args = MockedArgPars()
         check_sequence.argparse.ArgumentDefaultsHelpFormatter = mocked_args
         check_sequence.argparse.ArgumentParser = mocked_args
         check_sequence.sys = Mock()
-        with patch.object(check_sequence.CheckingSequence, '__init__'):
-            check_sequence.main()
+        check_sequence.main()
         test_data = [
             'check_server_consistency', 'check_hostname', 'check_ns1_a_record',
             'check_infradb', 'check_cds', 'check_nagios', 'check_puppet',
