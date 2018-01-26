@@ -406,16 +406,10 @@ class ServerState():
         if resp.endswith(':~$ ') or resp.endswith(':~# '):
             logger.info("password not need to be changed")
             return
+        if '(current) UNIX password' not in resp:
+            chan.send('passwd' + '\n')
+            self.wait_for_state(chan, '(current) UNIX password: ')
 
-        # chan.send('su - testing\n')
-        # self.wait_for_state(chan, 'Password: ')
-        # chan.send(old_passw + '\n')
-        #
-        # self.wait_for_state(chan, ':~$ ')
-
-        # run command for changing password
-        chan.send('passwd' + '\n')
-        self.wait_for_state(chan, '(current) UNIX password: ')
         chan.send(old_passw + '\n')
 
         new_passw = self.generate_password()
@@ -443,7 +437,7 @@ class ServerState():
 
     def generate_password(self):
         import string
-        characters = string.ascii_letters + string.punctuation + string.digits
+        characters = string.ascii_letters + string.digits
         password = "".join(random.choice(characters) for x in range(random.randint(8, 16)))
         logger.info('New password:%s' % password)
         return password
