@@ -442,7 +442,7 @@ class CheckingSequence(SequenceAbstract):
         self.check_status["check_fw_rules"] = "OK"
 
 
-if __name__ == "__main__":
+def main():
 
     parser = argparse.ArgumentParser(
         description="Automatic deployment of server.",
@@ -530,3 +530,6 @@ if __name__ == "__main__":
     except Exception as e:
         logger.error(e, exc_info=True)
         sys.exit(-1)
+
+if __name__ == "__main__":
+    main()
