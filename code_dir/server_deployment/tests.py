@@ -1524,6 +1524,7 @@ class TestDeploymentSequence(TestAbstract):
             "disable_infradb_ssl": True,
             "login": 'test_login',
             "password": 'pass',
+            "environment": "prod",
         }
 
         args = Objectview(args_dict)

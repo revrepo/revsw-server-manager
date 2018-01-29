@@ -395,6 +395,7 @@ class DeploySequence(SequenceAbstract):
             "add_to_pssh_file",
         ]
 
+        self.environment = args.environment
         self.record_type = args.record_type
         self.password = args.password
         self.login = args.login
@@ -427,7 +428,7 @@ class DeploySequence(SequenceAbstract):
                 'waf_sdk': True,
                 'domain_purge': True
             }
-            cds.add_server(args.IP, args.environment)
+            cds.add_server(self.ip, self.environment)
         if check_list['ssl']:
             cds.monitor_ssl_configuration()
         if check_list['waf_sdk']:
@@ -464,15 +465,22 @@ class DeploySequence(SequenceAbstract):
             settings.INSTALL_SERVER_LOGIN,
             settings.INSTALL_SERVER_PASSWORD
         )
+        # Checking if command work correctly
         status, output = self.execute_command(
             client,
-            "sudo ufw status|grep %s" % self.ip
+            "sudo ufw status"
         )
 
         if status != 0:
             log_error = "Problem with ufw status on INSTALL server"
             self.logger.log({"fw": "fail", "log": log_error})
             raise DeploymentError(log_error)
+
+        # Checking if  ip already exist
+        status, output = self.execute_command(
+            client,
+            "sudo ufw status|grep %s" % self.ip
+        )
 
         if output:
             logger.info('Firewall already configurated.')
