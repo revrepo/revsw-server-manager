@@ -3426,6 +3426,18 @@ class TestCheckSequence(TestAbstract):
         self.testing_class.nagios.get_host.assert_called()
         self.testing_class.nagios.check_services_status.assert_not_called()
 
+    def test_check_nagios_no_host_exception(self):
+        self.testing_class.nagios = Mock()
+        self.testing_class.nagios.get_host.side_effect = Exception()
+        self.testing_class.nagios.check_services_status.return_value = True
+        self.testing_class.check_nagios()
+        self.assertEquals(
+            self.testing_class.check_status["check_nagios"],
+            "Not OK"
+        )
+        self.testing_class.nagios.get_host.assert_called()
+        self.testing_class.nagios.check_services_status.assert_not_called()
+
     def test_check_nagios_services_down(self):
         self.testing_class.nagios = Mock()
         self.testing_class.nagios.get_host.return_value = {"record": "record"}
