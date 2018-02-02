@@ -62,19 +62,6 @@ class NagiosServer():
         self.re_connect()
         self.nagios_api = Nagios()
 
-    def log_changes(self, log=None):
-        log_dict = deepcopy(self.steps)
-        log_dict.update(self.server_constants)
-        if log:
-            log_dict['log'] = log
-
-    def change_step_status(self, step, result, log=None):
-        if step in self.server_constants.keys():
-            self.steps[step] = result
-            self.log_changes(log)
-        else:
-            raise DeploymentError("Log data not validate.")
-
     # reconect to server and check connection status
     def re_connect(self):
         self.client = paramiko.SSHClient()

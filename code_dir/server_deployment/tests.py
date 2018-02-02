@@ -1527,6 +1527,7 @@ class TestDeploymentSequence(TestAbstract):
             "environment": "prod",
         }
 
+        deploy_sequence.CDSAPI = Mock()
         args = Objectview(args_dict)
         abs_sequence.InfraDBAPI = MockedInfraDB
         deploy_sequence.ServerState = MockedServerClass
@@ -1908,6 +1909,201 @@ class TestDeploymentSequence(TestAbstract):
 
         print mocked_args.step_choices
         self.assertEqual(test_data, mocked_args.step_choices)
+
+    def test_check_server_consistency(self):
+        self.testing_class.server = Mock()
+        self.testing_class.check_server_consistency()
+        self.testing_class.server.check_ram_size.assert_called()
+        self.testing_class.server.check_free_space.assert_called()
+        self.testing_class.server.check_hw_architecture.assert_called()
+        self.testing_class.server.check_os_version.assert_called()
+        self.testing_class.server.check_ping_8888.assert_called()
+
+    def test_change_password(self):
+        self.testing_class.server = Mock()
+        self.testing_class.change_password()
+        self.testing_class.server.change_password.assert_called()
+
+    @patch("settings.PROXYY_RESTART_WAITING_TIME", 0)
+    def test_deploy_cds(self):
+        # cds = Mock()
+        self.testing_class.cds.check_server_exist.return_value = True
+        self.testing_class.cds.check_server_in_group.return_value = True
+        self.testing_class.cds.check_need_update_versions.return_value = {
+            'ssl': False,
+            'waf_sdk': False,
+            'domain_purge': False
+        }
+        self.testing_class.cds.add_server.return_value = True
+        self.testing_class.cds.monitor_ssl_configuration.return_value = True
+        self.testing_class.cds.update_server.return_value = True
+        self.testing_class.cds.monitor_waf_and_sdk_configuration.return_value = True
+        self.testing_class.cds.add_server_to_group.return_value = True
+        self.testing_class.cds.server_group.return_value = True
+        self.testing_class.cds.monitor_purge_and_domain_configuration.return_value = True
+        self.testing_class.cds.add_server_to_group.return_value = True
+        # deploy_sequence.CDSAPI = cds
+        self.testing_class.server = Mock()
+        self.testing_class.deploy_cds()
+        self.testing_class.cds.check_server_exist.assert_called()
+        self.testing_class.cds.check_server_in_group.assert_called()
+        self.testing_class.cds.check_need_update_versions.assert_called()
+        self.testing_class.cds.add_server.assert_not_called()
+        self.testing_class.cds.monitor_ssl_configuration.assert_not_called()
+        self.testing_class.cds.update_server.assert_not_called()
+        self.testing_class.cds.monitor_waf_and_sdk_configuration.assert_not_called()
+        self.testing_class.cds.add_server_to_group.assert_not_called()
+        self.testing_class.cds.monitor_purge_and_domain_configuration.assert_not_called()
+
+    @patch("settings.PROXYY_RESTART_WAITING_TIME", 0)
+    def test_deploy_cds_server_not_exist(self):
+        # cds = Mock()
+        self.testing_class.cds.check_server_exist.return_value = False
+        self.testing_class.cds.check_server_in_group.return_value = True
+        self.testing_class.cds.add_server.return_value = True
+        self.testing_class.cds.monitor_ssl_configuration.return_value = True
+        self.testing_class.cds.update_server.return_value = True
+        self.testing_class.cds.monitor_waf_and_sdk_configuration.return_value = True
+        self.testing_class.cds.add_server_to_group.return_value = True
+        self.testing_class.cds.server_group.return_value = True
+        self.testing_class.cds.monitor_purge_and_domain_configuration.return_value = True
+        self.testing_class.cds.add_server_to_group.return_value = True
+        # deploy_sequence.CDSAPI = cds
+        self.testing_class.server = Mock()
+        self.testing_class.deploy_cds()
+        self.testing_class.cds.check_server_exist.assert_called()
+        self.testing_class.cds.check_server_in_group.assert_not_called()
+        self.testing_class.cds.check_need_update_versions.assert_not_called()
+        self.testing_class.cds.add_server.assert_called()
+        self.testing_class.cds.monitor_ssl_configuration.assert_called()
+        self.testing_class.cds.update_server.assert_called()
+        self.testing_class.cds.monitor_waf_and_sdk_configuration.assert_called()
+        self.testing_class.cds.add_server_to_group.assert_called()
+        self.testing_class.cds.monitor_purge_and_domain_configuration.assert_called()
+
+    @patch("settings.PROXYY_RESTART_WAITING_TIME", 0)
+    def test_deploy_cds_need_update_ssl(self):
+        # cds = Mock()
+        self.testing_class.cds.check_server_exist.return_value = True
+        self.testing_class.cds.check_server_in_group.return_value = True
+        self.testing_class.cds.check_need_update_versions.return_value = {
+            'ssl': True,
+            'waf_sdk': False,
+            'domain_purge': False
+        }
+        self.testing_class.cds.add_server.return_value = True
+        self.testing_class.cds.monitor_ssl_configuration.return_value = True
+        self.testing_class.cds.update_server.return_value = True
+        self.testing_class.cds.monitor_waf_and_sdk_configuration.return_value = True
+        self.testing_class.cds.add_server_to_group.return_value = True
+        self.testing_class.cds.server_group.return_value = True
+        self.testing_class.cds.monitor_purge_and_domain_configuration.return_value = True
+        self.testing_class.cds.add_server_to_group.return_value = True
+        # deploy_sequence.CDSAPI = cds
+        self.testing_class.server = Mock()
+        self.testing_class.deploy_cds()
+        self.testing_class.cds.check_server_exist.assert_called()
+        self.testing_class.cds.check_server_in_group.assert_called()
+        self.testing_class.cds.check_need_update_versions.assert_called()
+        self.testing_class.cds.add_server.assert_not_called()
+        self.testing_class.cds.monitor_ssl_configuration.assert_called()
+        self.testing_class.cds.update_server.assert_not_called()
+        self.testing_class.cds.monitor_waf_and_sdk_configuration.assert_not_called()
+        self.testing_class.cds.add_server_to_group.assert_not_called()
+        self.testing_class.cds.monitor_purge_and_domain_configuration.assert_not_called()
+
+    @patch("settings.PROXYY_RESTART_WAITING_TIME", 0)
+    def test_deploy_cds_need_update_waf_sdk(self):
+        # cds = Mock()
+        self.testing_class.cds.check_server_exist.return_value = True
+        self.testing_class.cds.check_server_in_group.return_value = True
+        self.testing_class.cds.check_need_update_versions.return_value = {
+            'ssl': False,
+            'waf_sdk': True,
+            'domain_purge': False
+        }
+        self.testing_class.cds.add_server.return_value = True
+        self.testing_class.cds.monitor_ssl_configuration.return_value = True
+        self.testing_class.cds.update_server.return_value = True
+        self.testing_class.cds.monitor_waf_and_sdk_configuration.return_value = True
+        self.testing_class.cds.add_server_to_group.return_value = True
+        self.testing_class.cds.server_group.return_value = True
+        self.testing_class.cds.monitor_purge_and_domain_configuration.return_value = True
+        self.testing_class.cds.add_server_to_group.return_value = True
+        # deploy_sequence.CDSAPI = cds
+        self.testing_class.server = Mock()
+        self.testing_class.deploy_cds()
+        self.testing_class.cds.check_server_exist.assert_called()
+        self.testing_class.cds.check_server_in_group.assert_called()
+        self.testing_class.cds.check_need_update_versions.assert_called()
+        self.testing_class.cds.add_server.assert_not_called()
+        self.testing_class.cds.monitor_ssl_configuration.assert_not_called()
+        self.testing_class.cds.update_server.assert_called()
+        self.testing_class.cds.monitor_waf_and_sdk_configuration.assert_called()
+        self.testing_class.cds.add_server_to_group.assert_not_called()
+        self.testing_class.cds.monitor_purge_and_domain_configuration.assert_not_called()
+
+    @patch("settings.PROXYY_RESTART_WAITING_TIME", 0)
+    def test_deploy_cds_need_update_domain_purge(self):
+        # cds = Mock()
+        self.testing_class.cds.check_server_exist.return_value = True
+        self.testing_class.cds.check_server_in_group.return_value = True
+        self.testing_class.cds.check_need_update_versions.return_value = {
+            'ssl': False,
+            'waf_sdk': False,
+            'domain_purge': True
+        }
+        self.testing_class.cds.add_server.return_value = True
+        self.testing_class.cds.monitor_ssl_configuration.return_value = True
+        self.testing_class.cds.update_server.return_value = True
+        self.testing_class.cds.monitor_waf_and_sdk_configuration.return_value = True
+        self.testing_class.cds.add_server_to_group.return_value = True
+        self.testing_class.cds.server_group.return_value = True
+        self.testing_class.cds.monitor_purge_and_domain_configuration.return_value = True
+        self.testing_class.cds.add_server_to_group.return_value = True
+        # deploy_sequence.CDSAPI = cds
+        self.testing_class.server = Mock()
+        self.testing_class.deploy_cds()
+        self.testing_class.cds.check_server_exist.assert_called()
+        self.testing_class.cds.check_server_in_group.assert_called()
+        self.testing_class.cds.check_need_update_versions.assert_called()
+        self.testing_class.cds.add_server.assert_not_called()
+        self.testing_class.cds.monitor_ssl_configuration.assert_not_called()
+        self.testing_class.cds.update_server.assert_called()
+        self.testing_class.cds.monitor_waf_and_sdk_configuration.assert_not_called()
+        self.testing_class.cds.add_server_to_group.assert_not_called()
+        self.testing_class.cds.monitor_purge_and_domain_configuration.assert_called()
+
+    @patch("settings.PROXYY_RESTART_WAITING_TIME", 0)
+    def test_deploy_cds_not_in_group(self):
+        # cds = Mock()
+        self.testing_class.cds.check_server_exist.return_value = True
+        self.testing_class.cds.check_server_in_group.return_value = False
+        self.testing_class.cds.check_need_update_versions.return_value = {
+            'ssl': False,
+            'waf_sdk': False,
+            'domain_purge': False
+        }
+        self.testing_class.cds.add_server.return_value = True
+        self.testing_class.cds.monitor_ssl_configuration.return_value = True
+        self.testing_class.cds.update_server.return_value = True
+        self.testing_class.cds.monitor_waf_and_sdk_configuration.return_value = True
+        self.testing_class.cds.add_server_to_group.return_value = True
+        self.testing_class.cds.server_group.return_value = True
+        self.testing_class.cds.monitor_purge_and_domain_configuration.return_value = True
+        self.testing_class.cds.add_server_to_group.return_value = True
+        # deploy_sequence.CDSAPI = cds
+        self.testing_class.server = Mock()
+        self.testing_class.deploy_cds()
+        self.testing_class.cds.check_server_exist.assert_called()
+        self.testing_class.cds.check_server_in_group.assert_called()
+        self.testing_class.cds.check_need_update_versions.assert_called()
+        self.testing_class.cds.add_server.assert_not_called()
+        self.testing_class.cds.monitor_ssl_configuration.assert_not_called()
+        self.testing_class.cds.update_server.assert_not_called()
+        self.testing_class.cds.monitor_waf_and_sdk_configuration.assert_not_called()
+        self.testing_class.cds.add_server_to_group.assert_called()
+        self.testing_class.cds.monitor_purge_and_domain_configuration.assert_not_called()
 
 
 class TestDestroySequence(TestAbstract):
@@ -2835,6 +3031,49 @@ class TestNagiosServer(TestAbstract):
         self.assertEqual(ret_data, 1)
         self.testing_class.client.exec_command.assert_called_with(
             'command'
+        )
+
+    def test_create_config_file(self):
+        data = {
+            'host_name': self.short_host,
+            "ip": '111.111.111.111',
+            "location_code": "loc"
+        }
+        self.testing_class.create_config_file(data)
+        self.assertTrue(os.path.exists('/tmp/%s.cfg' % self.short_host))
+
+    def test_delete_config_file(self):
+        self.testing_class.execute_command_with_log = Mock()
+        self.testing_class.delete_config_file()
+
+        self.testing_class.execute_command_with_log.assert_called_with("sudo rm %s" % os.path.join(
+                settings.NAGIOS_CFG_PATH,
+                '%s.cfg' % self.short_host
+            ),
+            check_status=False)
+
+    def test_reload_nagios(self):
+        self.testing_class.execute_command_with_log = Mock(return_value=0)
+        self.testing_class.reload_nagios()
+        self.testing_class.execute_command_with_log.assert_called_with(
+            "sudo /etc/init.d/nagios reload"
+        )
+
+    def test_reload_nagios_error(self):
+        self.testing_class.execute_command_with_log = Mock(return_value=1)
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.reload_nagios
+        )
+        self.testing_class.execute_command_with_log.assert_called_with(
+            "sudo /etc/init.d/nagios reload"
+        )
+
+    def test_check_nagios_config(self):
+        self.testing_class.execute_command_with_log = Mock()
+        self.testing_class.check_nagios_config()
+        self.testing_class.execute_command_with_log.assert_called_with(
+            "sudo /etc/init.d/nagios checkconfig"
         )
 
 
