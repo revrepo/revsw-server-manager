@@ -392,7 +392,12 @@ class CheckingSequence(SequenceAbstract):
     def check_nagios(self):
         self.logger.init_new_step("check_nagios")
         logger.info("Check if server added to nagios")
-        host = self.nagios.get_host()
+        try:
+            host = self.nagios.get_host()
+        except Exception:
+            logger.info("Host not founded in Nagios")
+            self.check_status["check_nagios"] = "Not OK"
+            return
         if not host:
             logger.info("Host not founded in Nagios")
             self.check_status["check_nagios"] = "Not OK"

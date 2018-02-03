@@ -405,6 +405,7 @@ class DeploySequence(SequenceAbstract):
             self.logger, ipv4=self.ip,
             first_step=self.first_step,
         )
+        self.cds = CDSAPI(self.server_group, self.host_name, self.logger)
 
     def change_password(self):
         self.logger.init_new_step("change_password")
@@ -414,7 +415,7 @@ class DeploySequence(SequenceAbstract):
         # checking installed packages
         self.logger.init_new_step("add_to_cds")
 
-        cds = CDSAPI(self.server_group, self.host_name, self.logger)
+        cds = self.cds
         cds.check_installed_packages(self.server)
 
         cds_server = cds.check_server_exist()
