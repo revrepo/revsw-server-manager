@@ -134,9 +134,18 @@ NAGIOS_FORCING_CHECK_SERVICES_WAIT_TIME = 60
 
 IGNORE_NAGIOS_SERVICES = ["NTP Status", "Net: Traffic on eth0"]
 
-CACTI_SERVER = "TESTSJC02-MONITOR01.REVSW.NET"
+CACTI_SERVER = "testsjc20-monitor01.revsw.net"
 CACTI_SERVER_LOGIN = "sergey"
 CACTI_SERVER_PASSWORD = ""
+
+CACTI_SNMP_COMMUNITY_NAME = "dt34tasdgasetqergsdcc"
+CACTI_HOST_TEMPLATE = "ucd/net SNMP Host"
+CACTI_TREE_NAME = 'All BP Traffic'
+CACTI_CG_GRAPHS_LIST = [
+    'ucd/net - CPU Usage',
+    'ucd/net - Load Average',
+    'ucd/net - Memory Usage'
+]
 
 BASE_DIR = os.path.dirname(__file__)
 
