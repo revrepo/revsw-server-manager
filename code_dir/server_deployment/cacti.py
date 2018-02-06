@@ -175,7 +175,7 @@ class Cacti():
         if graph_template_name == "Interface - Traffic (bits/sec)":
             snmp_query_id = self.find_snmp_querie('SNMP - Interface Statistics')
             additional_params += " --snmp-query-id=%s" % snmp_query_id
-            query_type = self.find_snmp_querie_type("In/Out Bytes (64-bit Counters)", snmp_query_id)
+            query_type = self.find_snmp_querie_type("In/Out Bits (64-bit Counters)", snmp_query_id)
             additional_params += " --snmp-query-type-id=%s" % query_type
             snmp_field = 'ifIP'
             additional_params += " --snmp-field=%s" % snmp_field
@@ -183,14 +183,15 @@ class Cacti():
             additional_params += " --snmp-value=%s" % snmp_value
             graph_type = 'ds'
         elif graph_template_name == 'ucd/net - Available Disk Space':
-            snmp_query_id = self.find_snmp_querie('SNMP - Interface Statistics')
+            snmp_query_id = self.find_snmp_querie('ucd/net -  Get Monitored Partitions')
             additional_params += " --snmp-query-id=%s" % snmp_query_id
-            query_type = self.find_snmp_querie_type("In/Out Bytes (64-bit Counters)", snmp_query_id)
+            query_type = self.find_snmp_querie_type("Available/Used Disk Space", snmp_query_id)
             additional_params += " --snmp-query-type-id=%s" % query_type
+
             snmp_field = 'dskDevice'
-            additional_params += " --snmp-field=%s" % snmp_field
+            additional_params += ' --snmp-field=%s' % snmp_field
             snmp_value = self.find_value(host_id, '/dev', snmp_field)
-            additional_params += ' --snmp-value="%s"' % snmp_value
+            additional_params += ' --snmp-value=%s' %snmp_value
             graph_type = 'ds'
         logger.info(
             "sudo php -q /usr/share/cacti/cli/add_graphs.php --graph-type=%s --graph-template-id=%s --host-id=%s %s" % (
@@ -255,7 +256,7 @@ class Cacti():
             logger.info(line)
         logger.info(output)
         if not tree_id:
-            raise DeploymentError('Graph %s not found in cacti' % name)
+            return tree_id
         logger.info('Graph was  found with id %s' % tree_id)
         return tree_id
 

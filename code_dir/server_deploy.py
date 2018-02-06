@@ -738,8 +738,14 @@ class DeploySequence(SequenceAbstract):
         self.logger.init_new_step('add_to_cacti')
         host_id = self.cacti.add_device()
         for graph_name in settings.CACTI_CG_GRAPHS_LIST:
-            self.cacti.add_graph(graph_name, host_id)
-        traffic_graph_id = self.cacti.add_graph('Interface - Traffic (bits/sec)', host_id)
+            if not self.cacti.find_graph(host_id, graph_name):
+                self.cacti.add_graph(graph_name, host_id)
+        if not self.cacti.find_graph(host_id, 'ucd/net - Available Disk Space'):
+            self.cacti.add_graph('ucd/net - Available Disk Space', host_id)
+        traffic_graph_id = self.cacti.find_graph(host_id, 'Interface - Traffic (bits/sec)')
+        if not traffic_graph_id:
+            traffic_graph_id = self.cacti.add_graph('Interface - Traffic (bits/sec)', host_id)
+
         self.cacti.add_graph_to_tree(traffic_graph_id)
 
 
