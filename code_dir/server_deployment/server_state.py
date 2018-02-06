@@ -171,7 +171,7 @@ class ServerState():
 
     def update_hostname(self, hostname):
         self.execute_command_with_log(
-            "sudo echo -n %s > /etc/hostname" % hostname
+            "sudo bash -c \"echo -n %s > /etc/hostname\"" % hostname
         )
 
     def check_install_package(self, package_name):
