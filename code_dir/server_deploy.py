@@ -27,6 +27,7 @@ import sys
 
 import settings
 from server_deployment.abstract_sequence import SequenceAbstract
+from server_deployment.cacti import Cacti
 from server_deployment.cds_api import CDSAPI
 from server_deployment.server_state import ServerState
 from server_deployment.utilites import DeploymentError
@@ -277,6 +278,25 @@ class DeploySequence(SequenceAbstract):
                     "error_log": {"type": "string"}  # [|if returned code !=0]
                 },
             },
+            "add_to_cacti": {
+                "type": "object",
+                "properties": {
+                    "runned": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "device_added": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "graph_added": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "added_to_tree": {
+                        "type": "string", "pattern": "yes|no|fail"
+                    },
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}  # [|if returned code !=0]
+                },
+            },
         },
         "required": [
             "time",
@@ -296,6 +316,7 @@ class DeploySequence(SequenceAbstract):
             "add_ns1_monitor",
             "add_ns1_balancing_rule",
             "add_to_pssh_file",
+            "add_to_cacti",
         ]
     }
     logger_steps = [
@@ -313,6 +334,7 @@ class DeploySequence(SequenceAbstract):
         "add_ns1_monitor",
         "add_ns1_balancing_rule",
         "add_to_pssh_file",
+        "add_to_cacti",
     ]
     current_server_state = {
         "time": None,
@@ -358,6 +380,9 @@ class DeploySequence(SequenceAbstract):
         "add_to_pssh_file": {
             "runned": "no",
         },
+        "add_to_cacti": {
+            "runned": "no",
+        },
     }
 
     def __init__(self, args):
@@ -376,7 +401,8 @@ class DeploySequence(SequenceAbstract):
             "add_to_nagios": self.add_to_nagios,
             "add_ns1_monitor": self.add_ns1_monitor,
             "add_ns1_balancing_rule": self.add_ns1_balancing_rule,
-            "add_to_pssh_file": self.add_to_pssh_file
+            "add_to_pssh_file": self.add_to_pssh_file,
+            "add_to_cacti": self.add_to_cacti,
 
         }
         self.step_sequence = [
@@ -393,6 +419,7 @@ class DeploySequence(SequenceAbstract):
             "add_ns1_monitor",
             "add_ns1_balancing_rule",
             "add_to_pssh_file",
+            "add_to_cacti"
         ]
 
         self.environment = args.environment
@@ -406,6 +433,7 @@ class DeploySequence(SequenceAbstract):
             first_step=self.first_step,
         )
         self.cds = CDSAPI(self.server_group, self.host_name, self.logger)
+        self.cacti = Cacti(self.host_name, self.logger, self.short_name)
 
     def change_password(self):
         self.logger.init_new_step("change_password")
@@ -706,6 +734,14 @@ class DeploySequence(SequenceAbstract):
         ))
         self.logger.log({'server_added': "yes"})
 
+    def add_to_cacti(self):
+        self.logger.init_new_step('add_to_cacti')
+        host_id = self.cacti.add_device()
+        for graph_name in settings.CACTI_CG_GRAPHS_LIST:
+            self.cacti.add_graph(graph_name, host_id)
+        traffic_graph_id = self.cacti.add_graph('Interface - Traffic (bits/sec)', host_id)
+        self.cacti.add_graph_to_tree(traffic_graph_id)
+
 
 def main():
     parser = argparse.ArgumentParser(
@@ -771,6 +807,7 @@ def main():
             "add_ns1_monitor",
             "add_ns1_balancing_rule",
             "add_to_pssh_file",
+            "add_to_cacti",
         ]
     )
     parser.add_argument(

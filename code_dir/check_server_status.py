@@ -26,6 +26,7 @@ import re
 
 import settings
 from server_deployment.abstract_sequence import SequenceAbstract
+from server_deployment.cacti import Cacti
 
 from server_deployment.cds_api import CDSAPI
 
@@ -171,6 +172,14 @@ class CheckingSequence(SequenceAbstract):
                     "error_log": {"type": "string"}
                 },
             },
+            "check_cacti": {
+                "type": "object",
+                "properties": {
+                    "runned": {"type": "string", "pattern": "yes|no|fail"},
+                    "log": {"type": "string"},
+                    "error_log": {"type": "string"}
+                },
+            },
         },
         "required": [
             "time",
@@ -187,6 +196,7 @@ class CheckingSequence(SequenceAbstract):
             "check_ns1_balancing_rule",
             "check_pssh_file",
             "check_fw_rules",
+            "check_cacti",
         ]
     }
     logger_steps = [
@@ -201,6 +211,7 @@ class CheckingSequence(SequenceAbstract):
         "check_ns1_balancing_rule",
         "check_pssh_file",
         "check_fw_rules",
+        "check_cacti",
     ]
     current_server_state = {
         "time": None,
@@ -237,6 +248,9 @@ class CheckingSequence(SequenceAbstract):
         "check_fw_rules": {
             "runned": "no",
         },
+        "check_cacti": {
+            "runned": "no",
+        },
     }
 
     check_status = {
@@ -250,6 +264,7 @@ class CheckingSequence(SequenceAbstract):
         "check_ns1_balancing_rule": "Not checked",
         "check_pssh_file": "Not checked",
         "check_fw_rules": "Not checked",
+        "check_cacti": "Not checked",
     }
 
     def __init__(self, args):
@@ -266,6 +281,7 @@ class CheckingSequence(SequenceAbstract):
             "check_ns1_balancing_rule": self.check_ns1_balancing_rule,
             "check_pssh_file": self.check_pssh_file,
             "check_fw_rules": self.check_fw_rules,
+            "check_cacti": self.check_cacti,
 
         }
         self.step_sequence = [
@@ -279,6 +295,7 @@ class CheckingSequence(SequenceAbstract):
             "check_ns1_balancing_rule",
             "check_pssh_file",
             "check_fw_rules",
+            "check_cacti",
         ]
 
         self.record_type = args.record_type
@@ -289,6 +306,7 @@ class CheckingSequence(SequenceAbstract):
             self.logger, ipv4=self.ip,
             first_step=self.first_step,
         )
+        self.cacti = Cacti(self.host_name, self.logger, self.short_name)
 
     def check_server_consistency(self):
         self.logger.init_new_step("check_server_consistency")
@@ -446,6 +464,24 @@ class CheckingSequence(SequenceAbstract):
 
         self.check_status["check_fw_rules"] = "OK"
 
+    def check_cacti(self):
+        self.logger.init_new_step('check_cacti')
+        host_id = self.cacti.find_device(self.short_name)
+        if not host_id:
+            logger.info("Host not found in cacti")
+            self.check_status["check_cacti"] = "Not OK"
+            return
+        logger.info("Device was founded with id %s" % host_id)
+
+        for graph_name in settings.CACTI_CG_GRAPHS_LIST:
+            graph_id = self.cacti.find_graph(host_id, graph_name)
+            if not graph_id:
+                logger.info("Graph %s was not found" % graph_name)
+                self.check_status["check_cacti"] = "Not OK"
+                return
+
+        self.check_status["check_cacti"] = "OK"
+
 
 def main():
 
@@ -509,6 +545,7 @@ def main():
             "check_ns1_balancing_rule",
             "check_pssh_file",
             "check_fw_rules",
+            "check_cacti"
         ]
     )
     parser.add_argument(
