@@ -1528,6 +1528,7 @@ class TestDeploymentSequence(TestAbstract):
         }
 
         deploy_sequence.CDSAPI = Mock()
+        deploy_sequence.Cacti = Mock()
         args = Objectview(args_dict)
         abs_sequence.InfraDBAPI = MockedInfraDB
         deploy_sequence.ServerState = MockedServerClass
@@ -3117,6 +3118,7 @@ class TestCheckSequence(TestAbstract):
         args = Objectview(args_dict)
         abs_sequence.InfraDBAPI = MockedInfraDB
         check_server_status.ServerState = MockedServerClass
+        check_sequence.Cacti = Mock()
         with patch("server_deployment.nsone_class.Ns1Deploy.get_zone") \
                 as ns1_mock:
             ns1_mock.return_value = NS1ZoneMock()
