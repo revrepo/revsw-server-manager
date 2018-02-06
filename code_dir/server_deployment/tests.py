@@ -1904,7 +1904,7 @@ class TestDeploymentSequence(TestAbstract):
             'check_hostname', 'add_ns1_a_record', 'add_to_infradb',
             'update_fw_rules', 'install_puppet', 'run_puppet',
             'add_to_cds', 'add_to_nagios', 'add_ns1_monitor',
-            'add_ns1_balancing_rule', 'add_to_pssh_file'
+            'add_ns1_balancing_rule', 'add_to_pssh_file', 'add_to_cacti'
         ]
 
         print mocked_args.step_choices
@@ -2395,18 +2395,7 @@ class TestServerState(TestAbstract):
         self.mongo_db = self.mongo_cli[settings.MONGO_DB_NAME]
         self.log_collection = self.mongo_db['test_host']
 
-        self.logger = mongo_logger.MongoLogger(
-            'test_host', datetime.datetime.now().isoformat(),
-            {
-                "hostname": 'hostname',
-                "ip": '111.111.111.111',
-                "login": 'login',
-                "password": 'passw',
-            },
-            self.logger_schema,
-            self.current_server_state,
-            self.logger_steps
-        )
+        self.logger = Mock()
         self.mocked_ns1_class = MockNSONE(apikey="1234")
         self.mocked_ns1_monitors = NS1MonitorMock()
         self.host_name = 'test-test1.host'
@@ -3546,7 +3535,8 @@ class TestCheckSequence(TestAbstract):
         test_data = [
             'check_server_consistency', 'check_hostname', 'check_ns1_a_record',
             'check_infradb', 'check_cds', 'check_nagios', 'check_puppet',
-            'check_ns1_balancing_rule', 'check_pssh_file', 'check_fw_rules'
+            'check_ns1_balancing_rule', 'check_pssh_file', 'check_fw_rules',
+            'check_cacti'
         ]
 
         print mocked_args.step_choices
