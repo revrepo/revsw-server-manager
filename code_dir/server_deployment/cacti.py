@@ -88,7 +88,7 @@ class Cacti():
         # self.client.exec_command('cd ')
         template_id = self.find_host_template(settings.CACTI_HOST_TEMPLATE)
         stdin_fw, stdout_fw, stderr_fw = self.client.exec_command(
-            "sudo php -q /usr/share/cacti/cli/add_device.php --description=%s --ip=%s --community=%s --template=%s" % (
+            "sudo php -q /usr/share/cacti/cli/add_device.php --description=%s --ip=%s --community=%s --template=%s --avail=snmp" % (
                 self.short_name, self.host_name, settings.CACTI_SNMP_COMMUNITY_NAME, template_id
             )
         )
@@ -167,7 +167,39 @@ class Cacti():
         logger.info('Template was  found with id %s' % template_id)
         return template_id
 
-    def add_graph(self, graph_template_name, host_id):
+    def add_disc_space_graph(self, host_id):
+        additional_params = ''
+        template_id = self.find_graph_template('ucd/net - Available Disk Space')
+        snmp_query_id = self.find_snmp_querie('ucd/net -  Get Monitored Partitions')
+        additional_params += " --snmp-query-id=%s" % snmp_query_id
+        query_type = self.find_snmp_querie_type("Available/Used Disk Space", snmp_query_id)
+        additional_params += " --snmp-query-type-id=%s" % query_type
+
+        snmp_field = 'dskDevice'
+        additional_params += ' --snmp-field=%s' % snmp_field
+        snmp_values = self.find_disk_space_values(host_id, '/dev')
+        graph_type = 'ds'
+        for value in snmp_values:
+            logger.info(
+                "sudo php -q /usr/share/cacti/cli/add_graphs.php --graph-type=%s --graph-template-id=%s --host-id=%s --snmp-value=%s %s" % (
+                    graph_type, template_id, host_id, value, additional_params
+                )
+            )
+            stdin_fw, stdout_fw, stderr_fw = self.client.exec_command(
+                "sudo php -q /usr/share/cacti/cli/add_graphs.php --graph-type=%s --graph-template-id=%s --host-id=%s --snmp-value=%s %s" % (
+                    graph_type, template_id, host_id, value, additional_params
+                )
+            )
+            output = []
+            lines = stdout_fw.readlines()
+            for line in lines:
+                output.append(line)
+                logger.info(line)
+            if stdout_fw.channel.recv_exit_status() != 0:
+                raise DeploymentError("Some problems with adding graph")
+            logger.info(output)
+
+    def add_graph(self, graph_template_name, host_id, ip=''):
         logger.info("Adding new graph")
         additional_params = ''
         template_id = self.find_graph_template(graph_template_name)
@@ -179,19 +211,8 @@ class Cacti():
             additional_params += " --snmp-query-type-id=%s" % query_type
             snmp_field = 'ifIP'
             additional_params += " --snmp-field=%s" % snmp_field
-            snmp_value = self.find_value(host_id, '192', snmp_field)
+            snmp_value = self.find_traffic_value(host_id, ip)
             additional_params += " --snmp-value=%s" % snmp_value
-            graph_type = 'ds'
-        elif graph_template_name == 'ucd/net - Available Disk Space':
-            snmp_query_id = self.find_snmp_querie('ucd/net -  Get Monitored Partitions')
-            additional_params += " --snmp-query-id=%s" % snmp_query_id
-            query_type = self.find_snmp_querie_type("Available/Used Disk Space", snmp_query_id)
-            additional_params += " --snmp-query-type-id=%s" % query_type
-
-            snmp_field = 'dskDevice'
-            additional_params += ' --snmp-field=%s' % snmp_field
-            snmp_value = self.find_value(host_id, '/dev', snmp_field)
-            additional_params += ' --snmp-value=%s' %snmp_value
             graph_type = 'ds'
         logger.info(
             "sudo php -q /usr/share/cacti/cli/add_graphs.php --graph-type=%s --graph-template-id=%s --host-id=%s %s" % (
@@ -260,7 +281,7 @@ class Cacti():
         logger.info('Graph was  found with id %s' % tree_id)
         return tree_id
 
-    def find_value(self, host_id, name, field):
+    def get_values(self, host_id, field):
         logger.info("Finding values  for host %s" % host_id)
         logger.info(
             "sudo php -q /usr/share/cacti/cli/add_graphs.php --list-snmp-values  --host-id=%s --snmp-field=%s" % (
@@ -273,19 +294,40 @@ class Cacti():
             )
         )
         output = []
-        tree_id = None
         lines = stdout_fw.readlines()
         for line in lines:
-            if name in line:
-                splited_line = line.split('\t')
-                tree_id = splited_line[0]
             output.append(line)
             logger.info(line)
-        logger.info(output)
-        if not tree_id:
-            raise DeploymentError('Value %s not found in cacti' % name)
-        logger.info('Graph was  found with id %s' % tree_id)
-        return tree_id
+        return output
+
+    def find_disk_space_values(self, host_id, name):
+        values = self.get_values(host_id, 'dskDevice')
+        filtered_values = []
+        for value in values:
+            if name in value:
+                splited_line = value.split('\t')
+                filtered_values.append(splited_line[0].rstrip('\n'))
+        return filtered_values
+
+    def find_traffic_value(self, host_id, ip):
+        values = self.get_values(host_id, 'ifIP')
+        value_id = None
+        filtered_output = []
+        for value in values[1:]:
+            if '127.0.0.1' not in value and value.rstrip('\n'):
+                filtered_output.append(value.rstrip('\n'))
+        if len(filtered_output) == 1:
+            splited_line = filtered_output[0].split('\t')
+            value_id = splited_line[0]
+        elif len(filtered_output) == 2:
+            for value in filtered_output:
+                if ip not in value:
+                    splited_line = value[0].split('\t')
+                    value_id = splited_line[0]
+        else:
+            raise DeploymentError('Value not found in cacti')
+        logger.info('Value was  found with id %s' % value_id)
+        return value_id
 
     def find_snmp_querie(self, name):
         logger.info("Find snmp querie with name %s" % name)

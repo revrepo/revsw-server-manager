@@ -3671,7 +3671,7 @@ class TestCacti(TestAbstract):
         self.testing_class.find_device.assert_called()
         self.testing_class.find_host_template.assert_called()
         self.testing_class.client.exec_command.assert_called_with(
-            "sudo php -q /usr/share/cacti/cli/add_device.php --description=%s --ip=%s --community=%s --template=%s" % (
+            "sudo php -q /usr/share/cacti/cli/add_device.php --description=%s --ip=%s --community=%s --template=%s --avail=snmp" % (
                 'test-test1', 'test-test1.host', settings.CACTI_SNMP_COMMUNITY_NAME, 1
             )
         )
@@ -3716,7 +3716,7 @@ class TestCacti(TestAbstract):
         self.testing_class.find_device.assert_called()
         self.testing_class.find_host_template.assert_called()
         self.testing_class.client.exec_command.assert_called_with(
-            "sudo php -q /usr/share/cacti/cli/add_device.php --description=%s --ip=%s --community=%s --template=%s" % (
+            "sudo php -q /usr/share/cacti/cli/add_device.php --description=%s --ip=%s --community=%s --template=%s --avail=snmp" % (
                 'test-test1', 'test-test1.host', settings.CACTI_SNMP_COMMUNITY_NAME, 1
             )
         )
@@ -3900,34 +3900,13 @@ class TestCacti(TestAbstract):
             ),
             1
         ]
-        result = self.testing_class.find_value(8, 'test_name', 'find_value')
+        result = self.testing_class.get_values(8, 'find_value')
         self.testing_class.client.exec_command.assert_called_with(
             "sudo php -q /usr/share/cacti/cli/add_graphs.php --list-snmp-values  --host-id=%s --snmp-field=%s" % (
                 8, 'find_value'
             )
         )
-        self.assertEquals(result, '1')
-
-    def test_find_value_no_answer(self):
-        self.testing_class.client = Mock()
-        self.testing_class.client.exec_command.return_value = [
-            1,
-            MockedExecOutput(
-                ['test_server', '1\twrong_name', '2\tother_name'],
-                return_status=0
-            ),
-            1
-        ]
-        self.assertRaises(
-            DeploymentError,
-            self.testing_class.find_value,
-            8, 'test_name', 'find_value'
-        )
-        self.testing_class.client.exec_command.assert_called_with(
-            "sudo php -q /usr/share/cacti/cli/add_graphs.php --list-snmp-values  --host-id=%s --snmp-field=%s" % (
-                8, 'find_value'
-            )
-        )
+        self.assertEquals(result, ['test_server', '1\ttest_name', '2\tother_name'])
 
     def find_snmp_querie(self):
         self.testing_class.client = Mock()
@@ -4086,7 +4065,7 @@ class TestCacti(TestAbstract):
         self.testing_class.find_graph_template = Mock(return_value=8)
         self.testing_class.find_snmp_querie = Mock(return_value=9)
         self.testing_class.find_snmp_querie_type = Mock(return_value=10)
-        self.testing_class.find_value = Mock(return_value=11)
+        self.testing_class.find_traffic_value = Mock(return_value=11)
         self.testing_class.client.exec_command.return_value = [
             1,
             MockedExecOutput(
@@ -4104,33 +4083,7 @@ class TestCacti(TestAbstract):
         self.testing_class.find_graph_template.assert_called()
         self.testing_class.find_snmp_querie.assert_called()
         self.testing_class.find_snmp_querie_type.assert_called()
-        self.testing_class.find_value.assert_called()
-        self.assertEquals(result, '9')
-
-    def test_add_graph_free_space(self):
-        self.testing_class.client = Mock()
-        self.testing_class.find_graph_template = Mock(return_value=8)
-        self.testing_class.find_snmp_querie = Mock(return_value=9)
-        self.testing_class.find_snmp_querie_type = Mock(return_value=10)
-        self.testing_class.find_value = Mock(return_value=11)
-        self.testing_class.client.exec_command.return_value = [
-            1,
-            MockedExecOutput(
-                ['Graph Added - graph-id: (9)    ',],
-                return_status=0
-            ),
-            1
-        ]
-        result = self.testing_class.add_graph('ucd/net - Available Disk Space', 15)
-        self.testing_class.client.exec_command.assert_called_with(
-            'sudo php -q /usr/share/cacti/cli/add_graphs.php --graph-type=%s --graph-template-id=%s --host-id=%s %s' % (
-                "ds", 8, 15, ' --snmp-query-id=9 --snmp-query-type-id=10 --snmp-field=dskDevice --snmp-value=11'
-            )
-        )
-        self.testing_class.find_graph_template.assert_called()
-        self.testing_class.find_snmp_querie.assert_called()
-        self.testing_class.find_snmp_querie_type.assert_called()
-        self.testing_class.find_value.assert_called()
+        self.testing_class.find_traffic_value.assert_called()
         self.assertEquals(result, '9')
 
 
