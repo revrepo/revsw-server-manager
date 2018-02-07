@@ -744,7 +744,7 @@ class DeploySequence(SequenceAbstract):
             self.cacti.add_graph('ucd/net - Available Disk Space', host_id)
         traffic_graph_id = self.cacti.find_graph(host_id, 'Interface - Traffic (bits/sec)')
         if not traffic_graph_id:
-            traffic_graph_id = self.cacti.add_graph('Interface - Traffic (bits/sec)', host_id)
+            traffic_graph_id = self.cacti.add_graph('Interface - Traffic (bits/sec)', host_id, ip=self.ip)
 
         self.cacti.add_graph_to_tree(traffic_graph_id)
 
