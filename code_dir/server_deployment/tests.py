@@ -57,6 +57,7 @@ import check_server_status as check_sequence
 import server_deployment.nagios_class as nagios_deploy
 import server_deployment.cds_api as cds_deploy
 import server_deployment.nsone_class as ns1
+import server_deployment.cacti as cacti_deploy
 
 
 TEST_DIR = os.path.join(
@@ -136,8 +137,9 @@ class TestAbstract(unittest.TestCase):
         # print name of running test
         print("RUN_TEST %s" % self._testMethodName)
 
-    def tearDown(self):
-        self.mongo_cli.drop_database('test_database')
+    # def tearDown(self):
+
+        # self.mongo_cli.drop_database('test_database')
         # remove all temporary test files
         # os.system("rm -r %s" % TEST_DIR)
 
@@ -2106,6 +2108,45 @@ class TestDeploymentSequence(TestAbstract):
         self.testing_class.cds.add_server_to_group.assert_called()
         self.testing_class.cds.monitor_purge_and_domain_configuration.assert_not_called()
 
+    def test_add_to_cacti(self):
+        self.testing_class.cacti = Mock()
+        self.testing_class.cacti.add_device.return_value = 1
+        self.testing_class.cacti.find_graph.return_value = None
+        self.testing_class.cacti.add_graph.return_value = 1
+        self.testing_class.cacti.add_graph_to_tree.return_value = 1
+        self.testing_class.add_to_cacti()
+        self.testing_class.cacti.add_device.assert_called_once()
+        self.testing_class.cacti.find_graph.assert_called()
+        self.testing_class.cacti.add_graph.assert_called()
+        self.testing_class.cacti.add_graph_to_tree.assert_called()
+
+    def test_add_to_cacti_graph_exist(self):
+        self.testing_class.cacti = Mock()
+        self.testing_class.cacti.add_device.return_value = 1
+        self.testing_class.cacti.find_graph.return_value = 1
+        self.testing_class.cacti.add_graph.return_value = 1
+        self.testing_class.cacti.add_graph_to_tree.return_value = 1
+        self.testing_class.add_to_cacti()
+        self.testing_class.cacti.add_device.assert_called_once()
+        self.testing_class.cacti.find_graph.assert_called()
+        self.testing_class.cacti.add_graph.assert_not_called()
+        self.testing_class.cacti.add_graph_to_tree.assert_called()
+
+    def test_add_to_cacti_add_device_error(self):
+        self.testing_class.cacti = Mock()
+        self.testing_class.cacti.add_device.side_effect = DeploymentError('error')
+        self.testing_class.cacti.find_graph.return_value = 1
+        self.testing_class.cacti.add_graph.return_value = 1
+        self.testing_class.cacti.add_graph_to_tree.return_value = 1
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.add_to_cacti
+        )
+        self.testing_class.cacti.add_device.assert_called_once()
+        self.testing_class.cacti.find_graph.assert_not_called()
+        self.testing_class.cacti.add_graph.assert_not_called()
+        self.testing_class.cacti.add_graph_to_tree.assert_not_called()
+
 
 class TestDestroySequence(TestAbstract):
     @patch("settings.CDS_URL", 'http://localhost:8000/api/')
@@ -3544,7 +3585,553 @@ class TestCheckSequence(TestAbstract):
         print mocked_args.step_choices
         self.assertEqual(test_data, mocked_args.step_choices)
 
+    def test_check_cacti(self):
+        self.testing_class.cacti = Mock()
+        self.testing_class.cacti.find_device.return_value = 1
+        self.testing_class.cacti.find_graph.return_value = True
 
+        self.testing_class.check_cacti()
+        self.testing_class.cacti.find_device.assert_called()
+        self.testing_class.cacti.find_graph.assert_called()
+        self.assertEquals(
+            self.testing_class.check_status["check_cacti"],
+            "OK"
+        )
+
+    def test_check_cacti_no_host(self):
+        self.testing_class.cacti = Mock()
+        self.testing_class.cacti.find_device.return_value = None
+        self.testing_class.cacti.find_graph.return_value = True
+        self.testing_class.check_cacti()
+        self.testing_class.cacti.find_device.assert_called()
+        self.testing_class.cacti.find_graph.assert_not_called()
+        self.assertEquals(
+            self.testing_class.check_status["check_cacti"],
+            "Not OK"
+        )
+
+    def test_check_cacti_no_graph(self):
+        self.testing_class.cacti = Mock()
+        self.testing_class.cacti.find_device.return_value = 1
+        self.testing_class.cacti.find_graph.return_value = False
+        self.testing_class.check_cacti()
+        self.testing_class.cacti.find_device.assert_called()
+        self.testing_class.cacti.find_graph.assert_called()
+        self.assertEquals(
+            self.testing_class.check_status["check_cacti"],
+            "Not OK"
+        )
+
+
+class TestCacti(TestAbstract):
+    @patch("settings.INFRADB_URL", 'http://localhost:8000/api/')
+    @patch("settings.MONGO_DB_NAME", 'test_database')
+    def setUp(self):
+        # mocking mogo db variables for conecting to test  database
+        # settings.MONGO_DB_NAME = 'test_database'
+        settings.MONGO_HOST = 'localhost'
+        settings.MONGO_PORT = 27017
+        self.mongo_cli = pymongo.MongoClient(
+            settings.MONGO_HOST, settings.MONGO_PORT
+        )
+        self.mongo_db = self.mongo_cli[settings.MONGO_DB_NAME]
+        self.log_collection = self.mongo_db['test_host']
+
+        self.logger = Mock()
+        for handler in nagios_deploy.logger.handlers:
+            if isinstance(handler, MongoDBHandler):
+                handler.add_mongo_logger(self.logger)
+        self.host_name = 'test-test1.host'
+        self.short_host = 'test-test1'
+        self.connection = Mock()
+        cacti_deploy.paramiko = Mock()
+        cacti_deploy.paramiko.SSHClient.connect.return_value = self.connection
+        cacti_deploy.paramiko.RSAKey.from_private_key_file.return_value = 'key'
+        self.testing_class = cacti_deploy.Cacti(
+            self.host_name, self.logger, self.short_host
+        )
+
+        # print name of running test
+        print("RUN_TEST %s" % self._testMethodName)
+
+    def test_add_device(self):
+        self.testing_class.client = Mock()
+        self.testing_class.find_device = Mock(return_value=None)
+        self.testing_class.find_host_template = Mock(return_value='1')
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', 'Success - new device-id: (12)'],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.add_device()
+
+        self.testing_class.find_device.assert_called()
+        self.testing_class.find_host_template.assert_called()
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_device.php --description=%s --ip=%s --community=%s --template=%s" % (
+                'test-test1', 'test-test1.host', settings.CACTI_SNMP_COMMUNITY_NAME, 1
+            )
+        )
+        self.assertEquals(result, '12')
+
+    def test_add_device_already_exist(self):
+        self.testing_class.client = Mock()
+        self.testing_class.find_device = Mock(return_value='1')
+        self.testing_class.find_host_template = Mock(return_value='1')
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', 'Success - new device-id: (12)'],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.add_device()
+
+        self.testing_class.find_device.assert_called()
+        self.testing_class.find_host_template.assert_not_called()
+        self.testing_class.client.exec_command.assert_not_called()
+        self.assertEquals(result, '1')
+
+    def test_add_device_error(self):
+        self.testing_class.client = Mock()
+        self.testing_class.find_device = Mock(return_value=None)
+        self.testing_class.find_host_template = Mock(return_value='1')
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', 'Success - new device-id: (12)'],
+                return_status=1
+            ),
+            1
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.add_device
+        )
+
+        self.testing_class.find_device.assert_called()
+        self.testing_class.find_host_template.assert_called()
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_device.php --description=%s --ip=%s --community=%s --template=%s" % (
+                'test-test1', 'test-test1.host', settings.CACTI_SNMP_COMMUNITY_NAME, 1
+            )
+        )
+
+    def test_find_host_template(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', '1\ttest_name', '2\tother_name'],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.find_host_template('test_name')
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_device.php --list-host-templates"
+        )
+        self.assertEquals(result, '1')
+
+    def test_find_host_template_no_answer(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', '1\twrong_name', '2\tother_name'],
+                return_status=0
+            ),
+            1
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.find_host_template,
+            'test_name'
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_device.php --list-host-templates"
+        )
+
+    def test_find_device(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', '1\ttest_name', '2\tother_name'],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.find_device('test_name')
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_graphs.php --list-hosts"
+        )
+        self.assertEquals(result, '1')
+
+    def test_find_device_no_answer(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', '1\twrong_name', '2\tother_name'],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.find_device('test_name')
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_graphs.php --list-hosts"
+        )
+        self.assertEquals(result, None)
+
+    def test_find_graph_template(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', '1\ttest_name', '2\tother_name'],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.find_graph_template('test_name')
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_graphs.php --list-graph-templates"
+        )
+        self.assertEquals(result, '1')
+
+    def test_find_graph_template_no_answer(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', '1\twrong_name', '2\tother_name'],
+                return_status=0
+            ),
+            1
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.find_graph_template,
+            'test_name'
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_graphs.php --list-graph-templates"
+        )
+
+    def test_find_tree(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', '1\ttest_name', '2\tother_name'],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.find_tree('test_name')
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_tree.php --list-trees"
+        )
+        self.assertEquals(result, '1')
+
+    def test_find_tree_no_answer(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', '1\twrong_name', '2\tother_name'],
+                return_status=0
+            ),
+            1
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.find_tree,
+            'test_name'
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_tree.php --list-trees"
+        )
+
+    def test_find_graph(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', '1\ttest_name', '2\tother_name'],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.find_graph(8, 'test_name')
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_perms.php --list-graphs --host-id=%s" % 8
+        )
+        self.assertEquals(result, '1')
+
+    def test_find_graph_no_answer(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', '1\twrong_name', '2\tother_name'],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.find_graph(8, 'test_name')
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_perms.php --list-graphs --host-id=%s" % 8
+        )
+        self.assertEquals(result, None)
+
+    def test_find_value(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', '1\ttest_name', '2\tother_name'],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.find_value(8, 'test_name', 'find_value')
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_graphs.php --list-snmp-values  --host-id=%s --snmp-field=%s" % (
+                8, 'find_value'
+            )
+        )
+        self.assertEquals(result, '1')
+
+    def test_find_value_no_answer(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', '1\twrong_name', '2\tother_name'],
+                return_status=0
+            ),
+            1
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.find_value,
+            8, 'test_name', 'find_value'
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_graphs.php --list-snmp-values  --host-id=%s --snmp-field=%s" % (
+                8, 'find_value'
+            )
+        )
+
+    def find_snmp_querie(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', '1\ttest_name', '2\tother_name'],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.find_snmp_querie('test_name')
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_graphs.php --list-snmp-queries"
+        )
+        self.assertEquals(result, '1')
+
+    def test_find_snmp_querie_no_answer(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', '1\twrong_name', '2\tother_name'],
+                return_status=0
+            ),
+            1
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.find_snmp_querie,
+            'test_name'
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_graphs.php --list-snmp-queries"
+        )
+
+    def test_find_snmp_querie_type(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', '1\ttest_name', '2\tother_name'],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.find_snmp_querie_type('test_name', 13)
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_graphs.php --list-query-types  --snmp-query-id=%s" % 13
+        )
+        self.assertEquals(result, '1')
+
+    def test_find_snmp_querie_type_no_answer(self):
+        self.testing_class.client = Mock()
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['test_server', '1\twrong_name', '2\tother_name'],
+                return_status=0
+            ),
+            1
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.find_snmp_querie_type,
+            'test_name', 13
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_graphs.php --list-query-types  --snmp-query-id=%s" % 13
+        )
+
+    def test_add_graph_to_tree(self):
+        self.testing_class.client = Mock()
+        self.testing_class.find_tree = Mock(return_value=8)
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['Added Node node-id: (9)    ',],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.add_graph_to_tree(15)
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_tree.php --type=node --node-type=graph --tree-id=%s --graph-id=%s" % (
+                8, 15
+            )
+        )
+        self.assertEquals(result, '9')
+
+    def test_add_graph_to_tree_no_answer(self):
+        self.testing_class.client = Mock()
+        self.testing_class.find_tree = Mock(return_value=8)
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['Added Node node-id: (9)    ',],
+                return_status=1
+            ),
+            1
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.add_graph_to_tree,
+            15
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_tree.php --type=node --node-type=graph --tree-id=%s --graph-id=%s" % (
+                8, 15
+            )
+        )
+
+    def test_add_graph(self):
+        self.testing_class.client = Mock()
+        self.testing_class.find_graph_template = Mock(return_value=8)
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['Graph Added - graph-id: (9)    ',],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.add_graph('test_template', 15)
+        self.testing_class.client.exec_command.assert_called_with(
+            'sudo php -q /usr/share/cacti/cli/add_graphs.php --graph-type=%s --graph-template-id=%s --host-id=%s %s' % (
+                "cg", 8, 15, ''
+            )
+        )
+        self.assertEquals(result, '9')
+
+    def test_add_graph_error(self):
+        self.testing_class.client = Mock()
+        self.testing_class.find_graph_template = Mock(return_value=8)
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['Graph Added - graph-id: (9)    ',],
+                return_status=1
+            ),
+            1
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.add_graph,
+            'test_template', 15
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            'sudo php -q /usr/share/cacti/cli/add_graphs.php --graph-type=%s --graph-template-id=%s --host-id=%s %s' % (
+                "cg", 8, 15, ''
+            )
+        )
+
+    def test_add_graph_traffic(self):
+        self.testing_class.client = Mock()
+        self.testing_class.find_graph_template = Mock(return_value=8)
+        self.testing_class.find_snmp_querie = Mock(return_value=9)
+        self.testing_class.find_snmp_querie_type = Mock(return_value=10)
+        self.testing_class.find_value = Mock(return_value=11)
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['Graph Added - graph-id: (9)    ',],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.add_graph("Interface - Traffic (bits/sec)", 15)
+        self.testing_class.client.exec_command.assert_called_with(
+            'sudo php -q /usr/share/cacti/cli/add_graphs.php --graph-type=%s --graph-template-id=%s --host-id=%s %s' % (
+                "ds", 8, 15, ' --snmp-query-id=9 --snmp-query-type-id=10 --snmp-field=ifIP --snmp-value=11'
+            )
+        )
+        self.testing_class.find_graph_template.assert_called()
+        self.testing_class.find_snmp_querie.assert_called()
+        self.testing_class.find_snmp_querie_type.assert_called()
+        self.testing_class.find_value.assert_called()
+        self.assertEquals(result, '9')
+
+    def test_add_graph_free_space(self):
+        self.testing_class.client = Mock()
+        self.testing_class.find_graph_template = Mock(return_value=8)
+        self.testing_class.find_snmp_querie = Mock(return_value=9)
+        self.testing_class.find_snmp_querie_type = Mock(return_value=10)
+        self.testing_class.find_value = Mock(return_value=11)
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['Graph Added - graph-id: (9)    ',],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.add_graph('ucd/net - Available Disk Space', 15)
+        self.testing_class.client.exec_command.assert_called_with(
+            'sudo php -q /usr/share/cacti/cli/add_graphs.php --graph-type=%s --graph-template-id=%s --host-id=%s %s' % (
+                "ds", 8, 15, ' --snmp-query-id=9 --snmp-query-type-id=10 --snmp-field=dskDevice --snmp-value=11'
+            )
+        )
+        self.testing_class.find_graph_template.assert_called()
+        self.testing_class.find_snmp_querie.assert_called()
+        self.testing_class.find_snmp_querie_type.assert_called()
+        self.testing_class.find_value.assert_called()
+        self.assertEquals(result, '9')
 
 
 if __name__ == '__main__':
