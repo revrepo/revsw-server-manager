@@ -748,6 +748,7 @@ class DeploySequence(SequenceAbstract):
             traffic_graph_id = self.cacti.add_graph('Interface - Traffic (bits/sec)', host_id, ip=self.ip)
 
         self.cacti.add_graph_to_tree(traffic_graph_id)
+        self.cacti.add_host_to_tree(host_id)
 
 
 def main():
