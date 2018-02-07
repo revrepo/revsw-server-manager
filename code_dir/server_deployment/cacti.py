@@ -373,7 +373,7 @@ class Cacti():
 
     def add_graph_to_tree(self, graph_id):
         logger.info("Adding graph to tree")
-        tree_id = self.find_tree(settings.CACTI_TREE_NAME)
+        tree_id = self.find_tree(settings.CACTI_GRAPH_TREE_NAME)
         stdin_fw, stdout_fw, stderr_fw = self.client.exec_command(
             "sudo php -q /usr/share/cacti/cli/add_tree.php --type=node --node-type=graph --tree-id=%s --graph-id=%s" % (
                 tree_id, graph_id
@@ -391,5 +391,28 @@ class Cacti():
             m = re.search('Added Node node-id: \((.+?)\)', output[0])
         except AttributeError:
             raise DeploymentError("Some problems with adding graph")
+        if m:
+            return m.group(1)
+
+    def add_host_to_tree(self, host_id):
+        logger.info("Adding host to tree")
+        tree_id = self.find_tree(settings.CACTI_HOST_TREE_NAME)
+        stdin_fw, stdout_fw, stderr_fw = self.client.exec_command(
+            "sudo php -q /usr/share/cacti/cli/add_tree.php --type=node --node-type=host --tree-id=%s --host-id=%s" % (
+                tree_id, host_id
+            )
+        )
+        output = []
+        lines = stdout_fw.readlines()
+        for line in lines:
+            output.append(line)
+            logger.info(line)
+        if stdout_fw.channel.recv_exit_status() != 0:
+            raise DeploymentError("Some problems with adding host to tree")
+        logger.info(output)
+        try:
+            m = re.search('Added Node node-id: \((.+?)\)', output[0])
+        except AttributeError:
+            raise DeploymentError("Some problems with adding host to tree")
         if m:
             return m.group(1)

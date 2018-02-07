@@ -140,7 +140,8 @@ CACTI_SERVER_PASSWORD = ""
 
 CACTI_SNMP_COMMUNITY_NAME = "dt34tasdgasetqergsdcc"
 CACTI_HOST_TEMPLATE = "ucd/net SNMP Host"
-CACTI_TREE_NAME = 'All BP Traffic'
+CACTI_GRAPH_TREE_NAME = 'All BP Traffic'
+CACTI_HOST_TREE_NAME = 'All Hosts'
 CACTI_CG_GRAPHS_LIST = [
     'ucd/net - CPU Usage',
     'ucd/net - Load Average',
