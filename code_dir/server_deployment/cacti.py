@@ -322,7 +322,7 @@ class Cacti():
         elif len(filtered_output) == 2:
             for value in filtered_output:
                 if ip not in value:
-                    splited_line = value[0].split('\t')
+                    splited_line = value.split('\t')
                     value_id = splited_line[0]
         else:
             raise DeploymentError('Value not found in cacti')

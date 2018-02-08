@@ -3908,7 +3908,7 @@ class TestCacti(TestAbstract):
         )
         self.assertEquals(result, ['test_server', '1\ttest_name', '2\tother_name'])
 
-    def find_snmp_querie(self):
+    def test_find_snmp_querie(self):
         self.testing_class.client = Mock()
         self.testing_class.client.exec_command.return_value = [
             1,
@@ -4085,6 +4085,143 @@ class TestCacti(TestAbstract):
         self.testing_class.find_snmp_querie_type.assert_called()
         self.testing_class.find_traffic_value.assert_called()
         self.assertEquals(result, '9')
+
+    def test_add_host_to_tree(self):
+        self.testing_class.client = Mock()
+        self.testing_class.find_tree = Mock(return_value=8)
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['Added Node node-id: (9)    ',],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.add_host_to_tree(15)
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_tree.php --type=node --node-type=host --tree-id=%s --host-id=%s" % (
+                8, 15
+            )
+        )
+        self.assertEquals(result, '9')
+
+    def test_add_host_to_tree_no_answer(self):
+        self.testing_class.client = Mock()
+        self.testing_class.find_tree = Mock(return_value=8)
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['Added Node node-id: (9)    ',],
+                return_status=1
+            ),
+            1
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.add_host_to_tree,
+            15
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            "sudo php -q /usr/share/cacti/cli/add_tree.php --type=node --node-type=host --tree-id=%s --host-id=%s" % (
+                8, 15
+            )
+        )
+
+    def test_find_traffic_value(self):
+        self.testing_class.client = Mock()
+        self.testing_class.get_values = Mock(
+
+            return_value=['test-string', '127.0.0.1', '111.111.111.111']
+        )
+        result = self.testing_class.find_traffic_value(8, '111.111.111.111')
+        self.assertEquals(result, '111.111.111.111')
+
+    def test_find_traffic_value_3_values(self):
+        self.testing_class.client = Mock()
+        self.testing_class.get_values = Mock(
+
+            return_value=['test-string', '127.0.0.1', '111.111.111.111', '222.222.222.222']
+        )
+        result = self.testing_class.find_traffic_value(8, '111.111.111.111')
+        self.assertEquals(result, '222.222.222.222')
+
+    def test_find_traffic_value_no_values(self):
+        self.testing_class.client = Mock()
+        self.testing_class.get_values = Mock(
+
+            return_value=['test-string', '127.0.0.1', ]
+        )
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.find_traffic_value,
+            8, '111.111.111.111'
+        )
+
+    def test_find_disk_space_values(self):
+        self.testing_class.client = Mock()
+        self.testing_class.get_values = Mock(
+
+            return_value=['test-string', '/dev/test', '/test']
+        )
+        result = self.testing_class.find_disk_space_values(8, '/dev')
+        self.assertEquals(result, ['/dev/test',])
+
+    def test_find_disk_space_values_more(self):
+        self.testing_class.client = Mock()
+        self.testing_class.get_values = Mock(
+
+            return_value=[
+                'test-string', '/dev/test', '/dev/test2', '/test'
+            ]
+        )
+        result = self.testing_class.find_disk_space_values(8, '/dev')
+        self.assertEquals(result, ['/dev/test', '/dev/test2'])
+
+    def test_add_disc_space_graph(self):
+        self.testing_class.client = Mock()
+        self.testing_class.find_graph_template = Mock(return_value=8)
+        self.testing_class.find_snmp_querie = Mock(return_value=9)
+        self.testing_class.find_snmp_querie_type = Mock(return_value=10)
+        self.testing_class.find_disk_space_values = Mock(return_value=[10, ])
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['Graph Added - graph-id: (9)    ',],
+                return_status=0
+            ),
+            1
+        ]
+        result = self.testing_class.add_disc_space_graph(15)
+        self.testing_class.client.exec_command.assert_called_with(
+            'sudo php -q /usr/share/cacti/cli/add_graphs.php --graph-type=ds '
+            '--graph-template-id=8 --host-id=15 --snmp-value=10  --snmp-query-id=9 '
+            '--snmp-query-type-id=10 --snmp-field=dskDevice'
+        )
+
+    def test_add_disc_space_graph_error(self):
+        self.testing_class.client = Mock()
+        self.testing_class.find_graph_template = Mock(return_value=8)
+        self.testing_class.find_snmp_querie = Mock(return_value=9)
+        self.testing_class.find_snmp_querie_type = Mock(return_value=10)
+        self.testing_class.find_disk_space_values = Mock(return_value=[10,])
+        self.testing_class.client.exec_command.return_value = [
+            1,
+            MockedExecOutput(
+                ['Graph Added - graph-id: (9)    ',],
+                return_status=1
+            ),
+            1
+        ]
+        self.assertRaises(
+            DeploymentError,
+            self.testing_class.add_disc_space_graph,
+            15
+        )
+        self.testing_class.client.exec_command.assert_called_with(
+            'sudo php -q /usr/share/cacti/cli/add_graphs.php --graph-type=ds '
+            '--graph-template-id=8 --host-id=15 --snmp-value=10  --snmp-query-id=9 '
+            '--snmp-query-type-id=10 --snmp-field=dskDevice'
+        )
 
 
 if __name__ == '__main__':
