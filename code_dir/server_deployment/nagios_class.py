@@ -26,6 +26,7 @@ from copy import deepcopy
 
 from jinja2 import Environment
 from jinja2.loaders import FileSystemLoader
+from requests import ConnectionError, Timeout
 
 import settings
 from nagios import Nagios
@@ -59,7 +60,7 @@ class NagiosServer():
             "nagios_config": False
         }
 
-        self.re_connect()
+        # self.re_connect()
         self.nagios_api = Nagios()
 
     # reconect to server and check connection status
@@ -152,9 +153,17 @@ class NagiosServer():
         return stdout.channel.recv_exit_status()
 
     def check_services_status(self):
-        self.nagios_api.forced_schedule_check(self.short_name)
-        time.sleep(settings.NAGIOS_FORCING_CHECK_SERVICES_WAIT_TIME)
-        services = self.nagios_api.get_services_by_host(self.short_name)
+        try:
+            self.nagios_api.forced_schedule_check(self.short_name)
+            time.sleep(settings.NAGIOS_FORCING_CHECK_SERVICES_WAIT_TIME)
+            services = self.nagios_api.get_services_by_host(self.short_name)
+        except Timeout:
+            raise DeploymentError('Nagios API Timeout')
+        except ConnectionError:
+            raise DeploymentError('Nagios API server not reachable')
+        except Exception as e:
+            logger.info(e.message)
+            raise DeploymentError('Problems with Nagios API')
         for service_name, service_data in services.iteritems():
             if service_name in settings.IGNORE_NAGIOS_SERVICES:
                 continue
@@ -165,4 +174,13 @@ class NagiosServer():
             logger.info("Service %s is UP" % service_name)
 
     def get_host(self):
-        return self.nagios_api.get_host(self.short_name)
+        try:
+            host = self.nagios_api.get_host(self.short_name)
+        except Timeout:
+            raise DeploymentError('Nagios API Timeout')
+        except ConnectionError:
+            raise DeploymentError('Nagios API server not reachable')
+        except Exception as e:
+            logger.info(e.message)
+            raise DeploymentError('Problems with Nagios API')
+        return host
