@@ -60,7 +60,7 @@ class NagiosServer():
             "nagios_config": False
         }
 
-        # self.re_connect()
+        self.re_connect()
         self.nagios_api = Nagios()
 
     # reconect to server and check connection status
