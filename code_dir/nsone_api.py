@@ -100,7 +100,7 @@ class Nsone():
         logger.debug("Looking for the nsone monitoring jobs of host %s" % host)
         found_jobs = []
         for job in self.get_monitoring_jobs():
-            if job['config']['host'].lower() == host.lower():
+            if job['config'].get('host') and job['config']['host'].lower() == host.lower():
                 found_jobs.append(job)
 
         if len(found_jobs) == 0:
